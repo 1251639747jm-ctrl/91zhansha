@@ -1,50 +1,25 @@
-export type ProfessionType = 'PROGRAMMER' | 'SALES' | 'SECURITY' | 'DESIGNER' | 'UNEMPLOYED';
-
-export interface Profession {
-  id: ProfessionType;
-  name: string;
-  salaryBase: number; // Daily salary
-  stressFactor: number; // How much mental health decreases per work hour
-  healthRisk: number; // How much physical health decreases per work hour
-  description: string;
-}
-
-export interface PlayerStats {
-  physical: number; // 0-100
-  mental: number; // 0-100
-  money: number;
-  satiety: number; // 0-100 (Hunger)
-  cookingSkill: number; // 0-100
-  daysSurvived: number;
-}
-
-export type GamePhase = 
-  | 'START' 
-  | 'MORNING' 
-  | 'WORK_AM' 
-  | 'LUNCH' 
-  | 'WORK_PM' 
-  | 'DINNER' 
-  | 'FREE_TIME' 
-  | 'SLEEP'
-  | 'GAME_OVER';
-
-export interface GameState {
-  profession: Profession | null;
-  stats: PlayerStats;
-  phase: GamePhase;
-  time: string; // "07:00"
-  log: LogEntry[];
-  flags: {
-    isDepressed: boolean;
-    hasInsurance: boolean;
-    isSick: boolean;
-  };
-  gameOverReason: string;
-}
+export type LogType = 'info' | 'danger' | 'success' | 'story';
 
 export interface LogEntry {
   id: number;
   text: string;
-  type: 'info' | 'danger' | 'success' | 'warning' | 'story';
+  type: LogType;
 }
+
+export interface PlayerStats {
+  physical: number; // 身体 (0-100)
+  mental: number;   // 压力值 (0-100，越高越危险)
+  money: number;    // 金钱
+  satiety: number;  // 饱食度
+  daysSurvived: number;
+}
+
+export interface Profession {
+  id: string;
+  name: string;
+  description: string;
+  salary: number;
+  stressFactor: number; // 基础压力倍率
+}
+
+export type GamePhase = 'START' | 'MORNING' | 'WORKING' | 'LUNCH' | 'FREE' | 'GAMEOVER';
