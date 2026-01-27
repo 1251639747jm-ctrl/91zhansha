@@ -6,36 +6,31 @@ interface Props {
 }
 
 const GameLog: React.FC<Props> = ({ logs }) => {
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [logs]);
 
-  const getLogStyle = (type: LogEntry['type']) => {
-    switch (type) {
-      case 'danger': return 'text-red-400 border-l-2 border-red-500 pl-2 bg-red-900/10';
-      case 'success': return 'text-green-400 border-l-2 border-green-500 pl-2';
-      case 'warning': return 'text-yellow-400 border-l-2 border-yellow-500 pl-2';
-      case 'story': return 'text-indigo-300 italic my-2';
-      default: return 'text-slate-300';
-    }
-  };
-
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-4 h-64 md:h-80 overflow-y-auto mb-4 font-mono text-sm leading-relaxed relative">
-      <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-slate-900 to-transparent pointer-events-none"></div>
-      
-      {logs.length === 0 && <div className="text-slate-500 text-center mt-10">游戏开始... 选择你的命运</div>}
-      
-      <div className="flex flex-col space-y-2">
-        {logs.map((log) => (
-          <div key={log.id} className={`${getLogStyle(log.type)} py-1`}>
-            {log.text}
-          </div>
-        ))}
-        <div ref={endRef} />
-      </div>
+    <div 
+      ref={scrollRef}
+      className="flex-1 overflow-y-auto space-y-3 mb-6 pr-2 scrollbar-hide"
+      style={{ maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}
+    >
+      {logs.map((log) => (
+        <div 
+          key={log.id} 
+          className={`text-sm p-4 rounded-2xl border leading-relaxed animate-in fade-in slide-in-from-left-4 duration-500 ${
+            log.type === 'danger' ? 'bg-rose-500/5 border-rose-500/20 text-rose-400' :
+            log.type === 'story' ? 'bg-indigo-500/5 border-indigo-500/20 text-indigo-300 italic' :
+            log.type === 'success' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' :
+            'bg-slate-800/20 border-slate-800/50 text-slate-400'
+          }`}
+        >
+          {log.text}
+        </div>
+      ))}
     </div>
   );
 };
