@@ -17,8 +17,8 @@ export const formatDateCN = (date: Date): string => {
 
 export const isWeekend = (date: Date, schedule: string): boolean => {
   const day = date.getDay(); // 0 is Sunday, 6 is Saturday
-  if (schedule === '007') return false; // 永不休息
-  if (schedule === '996') return day === 0; // 只有周日休息
+  if (schedule === '007') return false; // 007无休
+  if (schedule === '996') return day === 0; // 只有周日休
   if (schedule === '965') return day === 0 || day === 6; // 双休
   return true; // 失业全休
 };
