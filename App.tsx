@@ -62,27 +62,38 @@ const App: React.FC = () => {
   // --- 核心生存检查 ---
   useEffect(() => {
     if (gameState.phase === 'START' || gameState.phase === 'GAME_OVER' || gameState.phase === 'MODAL_PAUSE') return;
-    const { stats } = gameState;
+    const { stats, flags } = gameState;
 
-    // 1. 高体质被抓
+    // 1. 动态资产负债死亡判定 (修复买房秒死Bug)
+    // 基础破产线是 -2万，如果有房则允许负债到 -150万，有车 -40万
+    let debtLimit = -20000;
+    if (flags.hasHouse) debtLimit -= 1500000;
+    if (flags.hasCar) debtLimit -= 300000;
+
+    if (stats.money < debtLimit) {
+        triggerDeath("资金链彻底断裂。你背负的债务超过了资产价值，被法院强制执行，绝望之下你选择了自我了断。");
+        return;
+    }
+
+    // 2. 高体质被抓
     if (stats.physical >= 98 || (stats.physical > 92 && Math.random() < 0.005)) {
       triggerDeath("你在体检中数据过于完美。当晚，一辆黑色面包车停在你家楼下。你被某种不可抗力‘特招’了，从此查无此人（疑似被大人物看中器官）。"); return;
     }
-    // 2. 复合死亡条件
+    // 3. 复合死亡条件
     for (const death of COMPLEX_DEATHS) {
       if (death.condition(stats)) { triggerDeath(death.text); return; }
     }
-    // 3. 基础数值死亡
+    // 4. 基础数值死亡
     if (stats.physical <= 0) { triggerDeath("过劳死。为了那点窝囊费，你把命搭进去了。尸体在出租屋发臭了才被发现。"); return; }
     if (stats.mental <= 0) { triggerDeath("精神彻底崩溃，你赤身裸体冲上大街，最后被送进宛平南路600号终老。"); return; }
     if (stats.satiety <= 0) { triggerDeath("饿死。在这个全面小康的时代，你是个特例。"); return; }
     
-    // 4. 日常随机暴毙 (0.3%)
+    // 5. 日常随机暴毙 (0.3%)
     if (!gameState.phase.includes('SLEEP') && Math.random() < 0.003) {
         triggerDeath(`【飞来横祸】${DAILY_ACCIDENTS[getRandomInt(0, DAILY_ACCIDENTS.length - 1)]}`); return;
     }
 
-    // 5. 工伤 (根据职业风险)
+    // 6. 工伤 (根据职业风险)
     const riskFactor = gameState.profession?.healthRisk || 0;
     if (gameState.phase.includes('WORK') && Math.random() < (0.0008 * riskFactor)) {
       triggerDeath("工伤事故。机器故障/交通事故带走了你的生命。没有保险，只有一张火化证明。");
@@ -107,7 +118,6 @@ const App: React.FC = () => {
       if (changes.satiety) newStats.satiety = Math.min(100, Math.max(0, newStats.satiety + (changes.satiety || 0)));
       return { ...prev, stats: newStats };
     });
-    // 如果没有传入 reason，就不发日志（用于弹窗场景）
     if (reason) addLog(reason, changes.physical && changes.physical < 0 ? 'warning' : 'info');
   };
 
@@ -137,7 +147,7 @@ const App: React.FC = () => {
     });
   };
 
-  // --- 情感系统 (修改了这里) ---
+  // --- 情感系统 ---
 
   const openRelPanel = () => setGameState(prev => ({ ...prev, showRelationshipPanel: true }));
   const closeRelPanel = () => setGameState(prev => ({ ...prev, showRelationshipPanel: false }));
@@ -153,56 +163,36 @@ const App: React.FC = () => {
        updateStats({ money: -300, mental: 10 }, "看了一场电影，对方心情不错。");
        modifyAffection(5);
     },
-    // --- 修改：送礼物/清空购物车改用 Modal ---
     dateShopping: () => {
        const partner = gameState.flags.partner;
        if (!partner) return;
        const cost = 2000 * partner.materialism;
-       
        if (gameState.stats.money < cost) {
-          // 钱不够：弹窗羞辱
           modifyAffection(-20);
           showModal({
-              title: "社死现场",
-              description: `你豪气地冲向收银台说要清空购物车，结果显示【余额不足】。${partner.name}翻了个白眼，直接转身走了。周围的人都在偷笑。`,
-              type: 'LOVE', // 这里用心碎图标比较合适，或者 LOVE
+              title: "社死现场", description: `你豪气地冲向收银台说要清空购物车，结果显示【余额不足】。${partner.name}翻了个白眼，直接转身走了。`, type: 'LOVE',
               actions: [{ label: "找个地缝钻进去 (好感-20)", onClick: closeModal, style: 'secondary' }]
           });
           return;
        }
-       
-       // 钱够：弹窗成功
-       updateStats({ money: -cost, mental: 5 }); // 不传reason，不报幕
+       updateStats({ money: -cost, mental: 5 });
        modifyAffection(15);
        showModal({
-           title: "买买买！",
-           description: `你大手一挥，帮${partner.name}清空了购物车。看着长长的账单(¥${cost})，虽然心在滴血，但她笑得很开心。`,
-           type: 'EVENT',
+           title: "买买买！", description: `帮${partner.name}清空了购物车(¥${cost})。虽然心在滴血，但她笑得很开心。`, type: 'EVENT',
            actions: [{ label: "值得！(好感+15)", onClick: closeModal }]
        });
     },
-    // --- 修改：表白改用 Modal ---
     confess: () => {
       const partner = gameState.flags.partner;
       if (!partner) return;
-      const successRate = partner.affection / 150; 
-
-      if (Math.random() < successRate) {
+      if (Math.random() < partner.affection / 150) {
         setGameState(prev => ({ ...prev, flags: { ...prev.flags, isPursuing: false, isSingle: false } }));
-        showModal({ 
-            title: "表白成功！", 
-            description: `你鼓起勇气向${partner.name}表白，她害羞地答应了。恭喜你，从舔狗升级为正式提款机。`, 
-            type: 'LOVE', 
-            actions: [{ label: "太好了！", onClick: closeModal }] 
-        });
+        showModal({ title: "表白成功！", description: "恭喜你，从舔狗升级为正式提款机。", type: 'LOVE', actions: [{ label: "太好了！", onClick: closeModal }] });
       } else {
-        // 失败：扣精神 + 扣健康
-        updateStats({ mental: -30, physical: -10 }); // 不传reason
+        updateStats({ mental: -30, physical: -10 });
         modifyAffection(-20);
         showModal({
-            title: "表白惨案",
-            description: `你单膝跪地表白，${partner.name}却后退了一步：“你是个好人，但我只把你当哥哥/饭票。” 你的心碎了，身体也感到了剧痛。`,
-            type: 'DEATH', // 用DEATH图标表示心碎
+            title: "表白惨案", description: `你单膝跪地表白，${partner.name}却后退了一步：“你是个好人，但我只把你当哥哥。”`, type: 'DEATH',
             actions: [{ label: "痛彻心扉 (精神-30, 健康-10)", onClick: closeModal, style: 'danger' }]
         });
       }
@@ -214,13 +204,16 @@ const App: React.FC = () => {
     },
     buyHouse: () => {
        if (gameState.flags.hasHouse) return;
-       updateStats({ money: -ASSET_COSTS.HOUSE_DOWN_PAYMENT }, "背上巨额房贷购入婚房。");
-       setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasHouse: true, parentPressure: 0 } }));
+       const cost = ASSET_COSTS.HOUSE_DOWN_PAYMENT;
+       // 这里即使变成负数，因为有动态判定保护，不会立刻死
+       updateStats({ money: -cost }, "你签下了购房合同，背上了巨额房贷。父母终于闭嘴了。");
+       setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasHouse: true, parentPressure: 0, hasLoan: true } }));
     },
     buyCar: () => {
        if (gameState.flags.hasCar) return;
-       updateStats({ money: -ASSET_COSTS.CAR_COST }, "喜提新车，虽然存款空了。");
-       setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasCar: true } }));
+       const cost = ASSET_COSTS.CAR_COST;
+       updateStats({ money: -cost }, "你提了一辆新车，虽然存款空了，但至少相亲有底气了。");
+       setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasCar: true, hasLoan: true } }));
     }
   };
 
@@ -244,9 +237,7 @@ const App: React.FC = () => {
           onClick: () => {
             if (Math.random() < 0.8) {
               showModal({
-                title: "奔现翻车",
-                description: "到了约定地点，发现对方是开了十级美颜的乔碧萝，而且是个酒托。你被坑了酒钱还受了情伤。",
-                type: 'DEATH',
+                title: "奔现翻车", description: "到了约定地点，发现对方是开了十级美颜的乔碧萝，而且是个酒托。你被坑了酒钱还受了情伤。", type: 'DEATH',
                 actions: [{ label: "含泪回家 (精神-50, 钱-3000)", onClick: () => {
                   updateStats({ mental: -50, money: -3000 }, "精神受到暴击，钱包被掏空。");
                   closeModal();
@@ -369,10 +360,21 @@ const App: React.FC = () => {
         }
     }
 
+    // 4. 房贷/车贷利息计算 (如果是负债状态)
+    let interest = 0;
+    if (gameState.stats.money < 0) {
+        // 每日万分之五的利息 (模拟)
+        interest = Math.floor(Math.abs(gameState.stats.money) * 0.0005);
+    }
+
     const nextDay = new Date(gameState.date);
     nextDay.setDate(nextDay.getDate() + 1);
-    updateStats({ physical: 10, mental: 5, satiety: -20 });
+    
+    // 结算：回血，扣饱食，扣利息
+    updateStats({ physical: 10, mental: 5, satiety: -20, money: -interest });
+    
     setGameState(prev => ({ ...prev, date: nextDay, phase: 'MORNING', time: '07:00' }));
+    if (interest > 0) addLog(`支付了今日贷款利息: ¥${interest}`, 'warning');
     addLog(`=== ${formatDateCN(nextDay)} ===`, 'info');
   };
 
