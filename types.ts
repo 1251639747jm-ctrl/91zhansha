@@ -1,7 +1,8 @@
-export type ProfessionType = 'PROGRAMMER' | 'SALES' | 'CIVIL_SERVANT' | 'DELIVERY' | 'FACTORY_WORKER' | 'UNEMPLOYED';
+import { ModalConfig } from './components/EventModal';
 
-export type WorkSchedule = '965' | '996' | '007'; // 双休 | 单休 | 无休
-import { ModalConfig } from './components/EventModal'; // 引用新组件类型
+export type ProfessionType = 'PROGRAMMER' | 'SALES' | 'CIVIL_SERVANT' | 'DELIVERY' | 'FACTORY_WORKER' | 'UNEMPLOYED';
+export type WorkSchedule = '965' | '996' | '007'; 
+
 export interface Profession {
   id: ProfessionType;
   name: string;
@@ -10,23 +11,31 @@ export interface Profession {
   healthRisk: number;
   description: string;
   schedule: WorkSchedule;
-  workDesc: string[]; // 新增：职业专属工作描述
+  workDesc: string[];
 }
 
 export interface PlayerStats {
-  physical: number; // 0-100
-  mental: number;   // 0-100
+  physical: number;
+  mental: number;
   money: number;
-  satiety: number;  // 0-100
+  satiety: number;
   cookingSkill: number;
   daysSurvived: number;
+}
+
+export interface Partner {
+  name: string;
+  type: string; // "绿茶", "扶弟魔", "白富美" 等
+  affection: number; // 隐藏好感度 0-100
+  materialism: number; // 拜金程度 (消耗倍率)
+  fidelity: number; // 忠诚度 (出轨概率)
 }
 
 export type GamePhase = 
   | 'START' | 'MORNING' | 'WORK_AM' | 'REST_AM' 
   | 'LUNCH' | 'WORK_PM' | 'REST_PM' 
   | 'DINNER' | 'FREE_TIME' | 'SLEEP'
-  | 'GAME_OVER' | 'EVENT_CNY' | 'MODAL_PAUSE'; // 新增 MODAL_PAUSE
+  | 'GAME_OVER' | 'EVENT_CNY' | 'MODAL_PAUSE';
 
 export interface GameState {
   profession: Profession | null;
@@ -37,12 +46,18 @@ export interface GameState {
   log: LogEntry[];
   flags: {
     isDepressed: boolean;
-    disease: string | null; // 具体的疾病名称，null为健康
+    disease: string | null;
     hasLoan: boolean;
-    isSingle: boolean;
-    streamerSimpCount: number; // 打赏计数
+    streamerSimpCount: number;
+    // --- 新增情感/资产标记 ---
+    partner: Partner | null; // 当前对象
+    isPursuing: boolean; // 是否正在追求中
+    hasHouse: boolean;
+    hasCar: boolean;
+    parentPressure: number; // 父母施压值 0-100
   };
-  modal: ModalConfig; // 新增模态框状态
+  modal: ModalConfig;
+  showRelationshipPanel: boolean; // 控制新UI显示
   gameOverReason: string;
 }
 
