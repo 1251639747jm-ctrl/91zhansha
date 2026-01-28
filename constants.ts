@@ -1,78 +1,90 @@
-import { Profession, ProfessionType } from './types';
+--- START OF FILE constants.ts ---
+import { PlayerStats, Profession, ProfessionType } from './types';
+
+export const INITIAL_STATS: PlayerStats = {
+  physical: 75,
+  mental: 80,
+  money: 2000,
+  satiety: 80,
+  cookingSkill: 0,
+  daysSurvived: 0,
+};
 
 export const PROFESSIONS: Record<ProfessionType, Profession> = {
   PROGRAMMER: {
     id: 'PROGRAMMER',
-    name: '牛马程序员',
-    salaryBase: 800,
-    stressFactor: 2.5,
-    healthRisk: 1.5,
-    description: '高薪由于高风险。发际线与存款成反比。'
+    name: '全栈程员',
+    salaryBase: 900,
+    stressFactor: 4,
+    healthRisk: 3,
+    description: '以发际线换取金钱。高薪，但很容易猝死。'
   },
   SALES: {
     id: 'SALES',
-    name: '背锅销售',
-    salaryBase: 400, // + commission random
-    stressFactor: 3.0,
-    healthRisk: 1.0,
-    description: '每天都在喝酒应酬和被客户骂之间反复横跳。'
-  },
-  DESIGNER: {
-    id: 'DESIGNER',
-    name: '秃头设计师',
-    salaryBase: 500,
-    stressFactor: 2.0,
-    healthRisk: 1.2,
-    description: '五彩斑斓的黑，这版不行还是用回第一版吧。'
+    name: '王牌销售',
+    salaryBase: 600,
+    stressFactor: 5,
+    healthRisk: 4,
+    description: '酒桌是你的战场。高压力，容易精神崩溃。'
   },
   SECURITY: {
     id: 'SECURITY',
-    name: '摸鱼保安',
-    salaryBase: 200,
-    stressFactor: 0.5,
-    healthRisk: 0.2,
-    description: '少走四十年弯路。身体倍儿棒，就是没钱。'
+    name: '夜班保安',
+    salaryBase: 350,
+    stressFactor: 1,
+    healthRisk: 1,
+    description: '少走四十年弯路。钱少，但命长。'
+  },
+  DESIGNER: {
+    id: 'DESIGNER',
+    name: '苦逼设计',
+    salaryBase: 550,
+    stressFactor: 6,
+    healthRisk: 2,
+    description: '五彩斑斓的黑。如果甲方死了，世界就和平了。'
   },
   UNEMPLOYED: {
     id: 'UNEMPLOYED',
-    name: '灵活就业者',
+    name: '家里蹲',
     salaryBase: 0,
-    stressFactor: 1.0, // Anxiety
+    stressFactor: 0.5,
     healthRisk: 0.5,
-    description: '只要不饿死，每天都是假期。'
+    description: '啃老本。虽然自由，但由于没钱，极易被饿死。'
   }
 };
 
 export const EVENTS = {
   HIGH_HEALTH_DEATH: [
-    "你感觉身体充满了力量，甚至能打死一头牛。突然，一辆黑色面包车停在你身边，几个黑衣人说你的肾源...啊不，你的体质非常适合他们的'超级士兵计划'。你被带走了。",
-    "体检报告显示你的身体指标完美得像个假人。当晚，神秘组织'健康收割者'潜入你家。你失踪了。",
-    "你过于健康，在公司显得格格不入。老板怀疑你是商业间谍，派人把你做掉了。"
+    "你的身体过于健康，被路过的非法器官贩卖组织强行掳上面包车。",
+    "你被选中参加绝密超级士兵实验，从此人间蒸发。",
+    "你的各项体征完美得不像人类，被抓去研究所切片研究了。"
   ],
   LOW_HEALTH_DEATH: [
-    "心脏一阵剧痛，眼前的代码变成了乱码。你倒在了工位上，成为了新闻里的又一个'过劳死'案例。",
-    "身体彻底罢工了。你在去医院的路上倒下，再也没有醒来。",
-    "连续熬夜让你免疫力归零，一场小感冒引发了多器官衰竭。"
+    "在连续熬夜后的清晨，你的心脏停止了跳动。",
+    "过劳死。新闻上只留下短短的一行字：某男子猝死家中。",
+    "由于免疫力低下，一场普通感冒夺走了你的生命。"
   ],
   LOW_MENTAL_DEATH: [
-    "世界变成了灰色。你站在天台上，觉得引力是唯一的解脱。",
-    "精神崩溃了。你开始对着空气说话，被强制送进了精神病院，游戏结束。",
-    "抑郁症彻底吞噬了你。你失去了起床的力气，在绝望中自行了断。"
+    "你无法承受生活的重压，选择了一个永远不会醒来的夜晚。",
+    "精神彻底崩溃，你疯了，被送进了精神病院度过余生。",
+    "绝望吞噬了你，你看着窗外的霓虹灯，纵身一跃..."
+  ],
+  DEBT_DEATH: [
+    "你欠了太多的网贷。暴力催收人员破门而入，你被打死在巷子里。",
+    "因为还不起钱，你被迫签署了‘自愿’器官捐赠协议，并在当天执行。",
+    "走投无路的你试图抢劫便利店，被店主掏出的散弹枪击毙。"
+  ],
+  ACCIDENT_DEATH: [
+    "你在过马路时低头看手机，没注意到那辆失控的渣土车。",
+    "你路过一栋高楼，不幸被一个坠落的花盆砸中头部。",
+    "家里煤气泄漏，你在睡梦中再也没有醒来。",
+    "你在吃夜宵时被鱼刺卡住喉咙，没能抢救过来。"
   ],
   WORK_EVENTS: [
-    "老板画了个巨大的饼，虽然没吃饱，但你觉得有点恶心。（心情 -5）",
-    "需求又改了！这已经是第12版了！（心情 -10，健康 -2）",
-    "同事甩锅给你，你被迫加班背锅。（时间流逝，心情 -15）",
-    "摸鱼被抓个正着，扣除工资200元。",
-    "公司下午茶，抢到一块劣质蛋糕。（饱腹 +5，心情 +2）"
+    "服务器崩溃！全员紧急修复BUG，压力激增。",
+    "甲方爸爸在下班前一分钟提出了修改意见。",
+    "领导心情不好，把你在会议上痛骂了一顿。",
+    "同事甩锅给你，你被迫背了黑锅。",
+    "公司的咖啡机坏了，全员陷入焦躁状态。"
   ]
-};
-
-export const INITIAL_STATS = {
-  physical: 60,
-  mental: 60,
-  money: 2000,
-  satiety: 80,
-  cookingSkill: 5,
-  daysSurvived: 1
 };
