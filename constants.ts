@@ -1,7 +1,7 @@
 import { PlayerStats, Profession, ProfessionType } from './types';
 
 export const INITIAL_STATS: PlayerStats = {
-  physical: 80,
+  physical: 75, // 初始调低一点，太高容易死
   mental: 80,
   money: 5000,
   satiety: 80,
@@ -17,7 +17,8 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     stressFactor: 2,
     healthRisk: 1,
     schedule: '965',
-    description: '宇宙尽头编制内。工资不高，但丈母娘最爱。双休是你的底气。'
+    description: '宇宙尽头编制内。',
+    workDesc: ['整理毫无意义的表格', '给领导写某种材料', '接待愤怒的居民', '在茶水间研究茶叶']
   },
   PROGRAMMER: {
     id: 'PROGRAMMER',
@@ -26,7 +27,8 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     stressFactor: 7,
     healthRisk: 5,
     schedule: '996',
-    description: '年薪百万不是梦，只要你能活到拿年终奖的那天。'
+    description: '拿命换钱。',
+    workDesc: ['在屎山上雕花', '因为一个分号排查了3小时', '与产品经理进行亲切友好的格斗', '参加无效的复盘会议']
   },
   FACTORY_WORKER: {
     id: 'FACTORY_WORKER',
@@ -35,39 +37,79 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     stressFactor: 4,
     healthRisk: 4,
     schedule: '007',
-    description: '流水线上的螺丝钉。两班倒，人歇机不歇。提桶跑路是常态。'
+    description: '提桶跑路是常态。',
+    workDesc: ['打第1000个螺丝', '在流水线上发呆', '被线长怒吼', '偷偷在厕所抽烟']
   },
   DELIVERY: {
     id: 'DELIVERY',
     name: '金牌骑手',
-    salaryBase: 500, // 多劳多得
+    salaryBase: 500,
     stressFactor: 5,
-    healthRisk: 8, // 极高交通风险
+    healthRisk: 8,
     schedule: '007',
-    description: '困在算法里的人。与死神赛跑，只为不超时的五星好评。'
+    description: '困在算法里的人。',
+    workDesc: ['在暴雨中狂奔', '爬了8楼送一份奶茶', '被保安拦在小区门口', '超时了，向客户道歉']
   },
   SALES: {
     id: 'SALES',
     name: '房产销售',
-    salaryBase: 400, // 波动极大
+    salaryBase: 400,
     stressFactor: 6,
     healthRisk: 3,
     schedule: '996',
-    description: '每天打两百个骚扰电话。不开单就吃土，开单吃三年。'
+    description: '不开单就吃土。',
+    workDesc: ['打了50个骚扰电话', '被客户拉黑', '陪客户喝到胃出血', '在朋友圈发鸡汤']
   },
   UNEMPLOYED: {
     id: 'UNEMPLOYED',
     name: '全职儿女',
-    salaryBase: 50, // 父母给的零花钱
+    salaryBase: 50,
     stressFactor: 1,
     healthRisk: 1,
     schedule: '965',
-    description: '由于找不到工作，决定在家考研/考公（实则打游戏）。'
+    description: '家里蹲。',
+    workDesc: ['假装在考研复习', '帮妈妈洗了一次碗', '被亲戚阴阳怪气', '躺在床上刷视频']
   }
 };
 
+// 疾病池
+export const DISEASES = [
+  { name: '重感冒', harm: 5, cost: 200, desc: '头昏脑涨，浑身无力。' },
+  { name: '急性肠胃炎', harm: 8, cost: 500, desc: '喷射战士，虚脱了。' },
+  { name: '腰椎间盘突出', harm: 3, cost: 1000, desc: '直不起腰，坐立难安。' },
+  { name: '偏头痛', harm: 4, cost: 300, desc: '脑袋像被容嬷嬷扎针一样疼。' }
+];
+
+// 工作中触发的随机选择事件
+export const WORK_CHOICES = [
+  {
+    title: "领导的暗示",
+    desc: "领导暗示你今晚留下来‘自愿’加班，完成一个紧急需求。",
+    options: [
+      { text: "立刻答应 (压力+10, 钱+200)", changes: { mental: -10, money: 200, physical: -5 } },
+      { text: "果断拒绝 (压力-5, 钱-100)", changes: { mental: 5, money: -100, physical: 0 } } // 扣钱是因为绩效
+    ]
+  },
+  {
+    title: "同事的求助",
+    desc: "同事想把他的黑锅甩给你，并承诺请你喝奶茶。",
+    options: [
+      { text: "帮他背锅 (人缘好? 压力+15)", changes: { mental: -15, money: 50 } },
+      { text: "当众拆穿 (心情+20, 职场危机)", changes: { mental: 20, money: 0 } }
+    ]
+  }
+];
 // 复合死亡条件
 export const COMPLEX_DEATHS = [
+  {
+    // 高体质秒杀：必须体质极高，且有一定随机性
+    condition: (s: PlayerStats) => s.physical > 97, 
+    text: "你在单位组织的体检中，身体数据过于完美。当晚，一辆黑色面包车停在你家楼下。你被某种不可抗力‘特招’了，从此查无此人（疑似器官被大人物看中）。"
+  },
+  {
+    condition: (s: PlayerStats) => s.money < -50000,
+    text: "你的网贷全面崩盘。你在睡梦中被带到了公海的一艘渔船上，这是你最后一次看日出。"
+  },
   {
     condition: (s: PlayerStats) => s.physical < 20 && s.mental < 20 && s.money > 100000,
     text: "你在工位上突发脑溢血。遗产变成了亲戚间的纠纷，公司赔偿金还没谈拢。"
