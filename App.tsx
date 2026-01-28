@@ -1,10 +1,15 @@
+--- START OF FILE App.tsx ---
 import React, { useState, useEffect, useCallback } from 'react';
-import { GameState, Profession, ProfessionType, GamePhase, LogEntry } from './types';
+import { GameState, Profession, ProfessionType, LogEntry } from './types';
 import { PROFESSIONS, INITIAL_STATS, EVENTS } from './constants';
-import { getRandomInt, formatCurrency } from './utils';
-import StatBar from './components/StatBar';
-import GameLog from './components/GameLog';
-import { Play, RotateCcw, Utensils, Briefcase, Moon, Coffee, Gamepad2, Pill, ShoppingBag } from 'lucide-react';
+import { getRandomInt } from './utils';
+import StatBar from './StatBar';
+import GameLog from './GameLog';
+import { 
+  Play, RotateCcw, Utensils, Briefcase, Moon, 
+  Gamepad2, Pill, ShoppingBag, Beer, 
+  Dumbbell, Footprints, Dice5, Skull
+} from 'lucide-react';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -13,15 +18,10 @@ const App: React.FC = () => {
     phase: 'START',
     time: '07:00',
     log: [],
-    flags: {
-      isDepressed: false,
-      hasInsurance: false,
-      isSick: false
-    },
+    flags: { isDepressed: false, hasInsurance: false, isSick: false },
     gameOverReason: ''
   });
 
-  // Helper to add log
   const addLog = useCallback((text: string, type: LogEntry['type'] = 'info') => {
     setGameState(prev => ({
       ...prev,
@@ -29,67 +29,54 @@ const App: React.FC = () => {
     }));
   }, []);
 
-  // Check for Death Conditions
+  // --- Core Game Loop Checks ---
   useEffect(() => {
     if (gameState.phase === 'START' || gameState.phase === 'GAME_OVER') return;
 
     const { physical, mental, money, satiety } = gameState.stats;
 
-    // Condition 1: High Health -> Kidnapped
-    if (physical > 92) { // Threshold
-      // Small random chance each tick if super healthy, or guaranteed if hits 100
-      if (physical >= 98 || Math.random() < 0.2) {
-        const reason = EVENTS.HIGH_HEALTH_DEATH[getRandomInt(0, EVENTS.HIGH_HEALTH_DEATH.length - 1)];
-        endGame(reason);
-        return;
-      }
+    // 1. Physical Death
+    if (physical > 95) { 
+      if (Math.random() < 0.15) endGame(EVENTS.HIGH_HEALTH_DEATH[getRandomInt(0, EVENTS.HIGH_HEALTH_DEATH.length - 1)]);
     }
+    if (physical <= 0) endGame(EVENTS.LOW_HEALTH_DEATH[getRandomInt(0, EVENTS.LOW_HEALTH_DEATH.length - 1)]);
 
-    // Condition 2: Low Health -> Overwork
-    if (physical <= 0) {
-      const reason = EVENTS.LOW_HEALTH_DEATH[getRandomInt(0, EVENTS.LOW_HEALTH_DEATH.length - 1)];
-      endGame(reason);
-      return;
-    }
+    // 2. Mental Death
+    if (mental <= 0) endGame(EVENTS.LOW_MENTAL_DEATH[getRandomInt(0, EVENTS.LOW_MENTAL_DEATH.length - 1)]);
 
-    // Condition 3: Low Mental -> Depression/Suicide
-    if (mental <= 0) {
-       const reason = EVENTS.LOW_MENTAL_DEATH[getRandomInt(0, EVENTS.LOW_MENTAL_DEATH.length - 1)];
-       endGame(reason);
-       return;
-    }
-
-    // Condition 4: Starvation
+    // 3. Starvation
     if (satiety <= 0) {
-      if (physical > 10) {
-        updateStats({ physical: -20 }, "饿得头晕眼花，身体机能下降！");
-      } else {
-        endGame("你饿死在了出租屋里，直到房东来收租才发现。");
-      }
-      return;
+        if (physical > 5) updateStats({ physical: -10 }, "饿得头晕眼花，生命在流逝！");
+        else endGame("你饿死在了出租屋里，直到房东来收租才发现。");
+    }
+
+    // 4. Debt Death (New)
+    if (money < -2000) {
+        if (Math.random() < 0.3) endGame(EVENTS.DEBT_DEATH[getRandomInt(0, EVENTS.DEBT_DEATH.length - 1)]);
+        else addLog("警告：催收人员正在疯狂打你电话，由于欠款过多，你的生命受到威胁。", "danger");
     }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.stats, gameState.phase]);
 
-  // Check Depression Flag
+  // Check Depression
   useEffect(() => {
     if (gameState.stats.mental < 30 && !gameState.flags.isDepressed) {
       setGameState(prev => ({ ...prev, flags: { ...prev.flags, isDepressed: true } }));
-      addLog("警告：你的心理防线已崩溃，确诊为重度抑郁。现在做任何娱乐活动效果减半，必须去医院治疗。", "danger");
+      addLog("【确诊重度抑郁】心理防线崩塌。所有娱乐活动效果减半，必须去医院治疗。", "danger");
     }
   }, [gameState.stats.mental, gameState.flags.isDepressed, addLog]);
 
   const updateStats = (changes: Partial<typeof INITIAL_STATS>, reason?: string) => {
     setGameState(prev => {
       const newStats = { ...prev.stats };
+      // Apply changes with limits
       if (changes.physical) newStats.physical = Math.min(100, Math.max(0, newStats.physical + changes.physical));
       if (changes.mental) newStats.mental = Math.min(100, Math.max(0, newStats.mental + changes.mental));
       if (changes.money) newStats.money = newStats.money + changes.money;
       if (changes.satiety) newStats.satiety = Math.min(100, Math.max(0, newStats.satiety + changes.satiety));
       if (changes.cookingSkill) newStats.cookingSkill = newStats.cookingSkill + changes.cookingSkill;
       if (changes.daysSurvived) newStats.daysSurvived = newStats.daysSurvived + changes.daysSurvived;
-
       return { ...prev, stats: newStats };
     });
     if (reason) addLog(reason, changes.physical && changes.physical < 0 ? 'warning' : 'info');
@@ -100,6 +87,15 @@ const App: React.FC = () => {
     addLog(reason, 'danger');
   };
 
+  // Random Accidents that can happen anytime logic runs
+  const checkRandomEvents = () => {
+      if (Math.random() < 0.005) { // 0.5% chance per action for instant death
+          endGame(EVENTS.ACCIDENT_DEATH[getRandomInt(0, EVENTS.ACCIDENT_DEATH.length - 1)]);
+          return true;
+      }
+      return false;
+  };
+
   const startGame = (profType: ProfessionType) => {
     const prof = PROFESSIONS[profType];
     setGameState({
@@ -107,236 +103,205 @@ const App: React.FC = () => {
       stats: { ...INITIAL_STATS },
       phase: 'MORNING',
       time: '07:30',
-      log: [{ id: 1, text: `你开始了新的生活。职业：${prof.name}。${prof.description}`, type: 'info' }],
+      log: [{ id: 1, text: `>>> 初始化完成。身份绑定：${prof.name}。目标：活下去。`, type: 'info' }],
       flags: { isDepressed: false, hasInsurance: false, isSick: false },
       gameOverReason: ''
     });
   };
 
-  // --- Actions ---
+  // --- Action Handlers ---
 
   const handleEat = (type: 'COOK' | 'TAKEOUT' | 'RESTAURANT' | 'BENTO' | 'SKIP') => {
-    let cost = 0;
-    let satGain = 0;
-    let healthChange = 0;
-    let mentalChange = 0;
-    let message = "";
+    if(checkRandomEvents()) return;
+
+    let cost = 0, satGain = 0, healthChange = 0, mentalChange = 0, msg = "";
 
     if (type === 'SKIP') {
-      satGain = -10;
-      healthChange = -2;
-      mentalChange = -2;
-      message = "为了省钱/省时间，你选择不吃。肚子在抗议。";
+      satGain = -10; healthChange = -2; mentalChange = -2;
+      msg = "为了省钱/省时间，你选择不吃。胃酸在腐蚀你的意志。";
     } else if (type === 'COOK') {
       const skill = gameState.stats.cookingSkill;
       cost = 15;
       if (skill < 10 && Math.random() < 0.4) {
-        satGain = 10;
-        healthChange = -5;
-        mentalChange = -5;
-        message = "你炸了厨房，做出一坨不可名状的物体。含泪吃下。";
+        satGain = 10; healthChange = -5; mentalChange = -5;
+        msg = "厨房发生小型爆炸，做出一坨黑炭。含泪吃下。";
       } else {
-        satGain = 30 + (skill / 5);
-        healthChange = 2;
-        mentalChange = 5;
-        message = "你亲自下厨，味道不错，感觉生活有了盼头。";
+        satGain = 35 + (skill / 5); healthChange = 3; mentalChange = 5;
+        msg = "亲自下厨，味道不错，感觉像个人样了。";
         updateStats({ cookingSkill: 1 });
       }
     } else if (type === 'TAKEOUT') {
-      cost = 35;
-      satGain = 40;
-      healthChange = -1; // Heavy oil
-      mentalChange = 2;
-      message = "点了份重油重辣的外卖，虽然不健康但是真香。";
+      cost = 35; satGain = 40; healthChange = -2; mentalChange = 2;
+      msg = "地沟油外卖，真香。血管在哀嚎。";
     } else if (type === 'RESTAURANT') {
-      cost = 100;
-      satGain = 50;
-      healthChange = 1;
-      mentalChange = 10;
-      message = "去馆子搓了一顿，钱包痛但心情舒畅。";
+      cost = 120; satGain = 60; healthChange = 2; mentalChange = 15;
+      msg = "去高档餐厅消费，钱包在滴血，但心情极佳。";
     } else if (type === 'BENTO') {
-      cost = 15;
-      satGain = 25;
-      healthChange = -1;
-      message = "吃了公司提供的劣质盒饭，味同嚼蜡。";
+      cost = 15; satGain = 25; healthChange = -1;
+      msg = "公司的廉价盒饭，维持生命体征而已。";
     }
 
     if (gameState.stats.money < cost) {
-      addLog("余额不足！只能饿肚子了。", "danger");
-      handleEat('SKIP');
+      addLog("余额不足！交易失败。", "danger");
       return;
     }
 
-    updateStats({
-      money: -cost,
-      satiety: satGain,
-      physical: healthChange,
-      mental: mentalChange
-    });
-    addLog(message, healthChange < 0 ? 'warning' : 'success');
+    updateStats({ money: -cost, satiety: satGain, physical: healthChange, mental: mentalChange });
+    addLog(msg, healthChange < 0 ? 'warning' : 'success');
     advanceTime();
   };
 
   const handleWork = () => {
-    if (!gameState.profession) return;
+    if (!gameState.profession || checkRandomEvents()) return;
     
-    // Work Stats Logic
     const { stressFactor, healthRisk, salaryBase } = gameState.profession;
-    let actualStress = stressFactor;
-    let actualHealthRisk = healthRisk;
+    let stress = stressFactor;
+    let risk = healthRisk;
     
-    // Random Event
     const roll = Math.random();
-    let eventText = "";
-
-    if (roll < 0.2) {
+    if (roll < 0.25) {
       const evt = EVENTS.WORK_EVENTS[getRandomInt(0, EVENTS.WORK_EVENTS.length - 1)];
       addLog(evt, 'warning');
-      actualStress += 5;
-      actualHealthRisk += 2;
+      stress += 8; risk += 3;
     } else if (roll > 0.9) {
-       addLog("今天出奇的顺利，甚至还能摸鱼。", 'success');
-       actualStress = 0;
-       actualHealthRisk = 0;
+       addLog("摸鱼成功！带薪拉屎半小时。", 'success');
+       stress = 0; risk = 0;
     } else {
-      addLog("枯燥的工作时间...", 'info');
+      addLog("枯燥的工作... 寿命-1s", 'info');
     }
 
     updateStats({
-      physical: -actualHealthRisk * (getRandomInt(2, 4)),
-      mental: -actualStress * (getRandomInt(2, 4)),
-      satiety: -20
+      physical: -risk * getRandomInt(1, 3),
+      mental: -stress * getRandomInt(1, 3),
+      satiety: -15
     });
 
-    // Check phase for transition
-    if (gameState.phase === 'WORK_AM') {
-      setGameState(prev => ({ ...prev, phase: 'LUNCH', time: '12:00' }));
-    } else if (gameState.phase === 'WORK_PM') {
-      // Calculate daily earning
-      const dailyPay = salaryBase + getRandomInt(-50, 50); 
+    if (gameState.phase === 'WORK_AM') setGameState(prev => ({ ...prev, phase: 'LUNCH', time: '12:00' }));
+    else if (gameState.phase === 'WORK_PM') {
+      const dailyPay = salaryBase + getRandomInt(-20, 50); 
       updateStats({ money: dailyPay });
-      addLog(`下班了！今日工资到账: ¥${dailyPay}`, 'success');
+      addLog(`【下班打卡】 到账 ¥${dailyPay}`, 'success');
       setGameState(prev => ({ ...prev, phase: 'DINNER', time: '18:30' }));
     }
   };
 
-  const handleFreeTimeAction = (action: 'GAME' | 'SLEEP_EARLY' | 'HOSPITAL' | 'STUDY' | 'PART_TIME') => {
+  const handleFreeTimeAction = (action: string) => {
+    if(checkRandomEvents()) return;
+
     const isDepressed = gameState.flags.isDepressed;
-    const moodMultiplier = isDepressed ? 0.5 : 1;
+    const moodMult = isDepressed ? 0.5 : 1;
 
     switch (action) {
       case 'GAME':
-        addLog("打了一晚上游戏，" + (isDepressed ? "但内心依然空虚。" : "爽！"), 'success');
-        updateStats({ mental: 15 * moodMultiplier, physical: -2, satiety: -5 });
+        addLog("沉迷赛博游戏，" + (isDepressed ? "但内心依然空虚。" : "短暂逃避现实。"), 'success');
+        updateStats({ mental: 15 * moodMult, physical: -2, satiety: -5 });
         break;
-      case 'HOSPITAL':
-        if (gameState.stats.money < 500) {
-          addLog("医院挂号费太贵了，你付不起。", 'danger');
-          return;
-        }
-        updateStats({ money: -500, physical: 10, mental: 20 });
-        if (isDepressed) {
-          if (Math.random() > 0.5) {
-            setGameState(prev => ({ ...prev, flags: { ...prev.flags, isDepressed: false } }));
-            addLog("经过医生的治疗，你的抑郁症状有所缓解。", 'success');
-          } else {
-             addLog("医生给你开了药，但效果似乎不明显。", 'warning');
-          }
+      case 'GYM':
+        if(gameState.stats.money < 50) { addLog("办不起健身卡。", "danger"); return; }
+        updateStats({ money: -50, physical: 8, mental: 5 * moodMult, satiety: -15 });
+        addLog("在健身房挥汗如雨，肌肉酸痛但很爽。", "success");
+        break;
+      case 'BAR':
+        if(gameState.stats.money < 150) { addLog("酒保把你赶了出来，因为没钱。", "danger"); return; }
+        updateStats({ money: -150, physical: -5, mental: 25 * moodMult, satiety: 5 });
+        addLog("酒精麻痹了神经，今晚你是自由的。", "warning");
+        break;
+      case 'GAMBLE':
+        const bet = 200;
+        if(gameState.stats.money < bet) { addLog("没赌本了。", "danger"); return; }
+        const win = Math.random() > 0.6; // 40% win rate
+        if(win) {
+            updateStats({ money: bet * 1.5, mental: 20 * moodMult });
+            addLog(`赌赢了！赢了 ¥${bet * 1.5}，这种快感令人上瘾。`, "success");
         } else {
-          addLog("做了个体检，身体稍微舒服了点。", 'success');
+            updateStats({ money: -bet, mental: -10 });
+            addLog(`全输光了... 甚至想剁手。`, "danger");
         }
         break;
-      case 'STUDY':
-        updateStats({ cookingSkill: 5, mental: -5, satiety: -5 });
-        addLog("你钻研了菜谱，厨艺大涨。", 'info');
-        break;
-      case 'PART_TIME':
-        const pay = 150;
-        updateStats({ money: pay, physical: -5, mental: -5, satiety: -10 });
-        addLog(`你去送了几单外卖，赚了 ¥${pay}，累得像狗。`, 'warning');
+      case 'WALK':
+         if(Math.random() < 0.1) {
+             updateStats({ money: -200, physical: -10, mental: -20 });
+             addLog("在小巷子里被抢劫了！破财消灾。", "danger");
+         } else {
+             updateStats({ mental: 5 * moodMult, physical: 2, satiety: -5 });
+             addLog("在城市漫步，看尽人间百态。", "info");
+         }
+         break;
+      case 'HOSPITAL':
+        if (gameState.stats.money < 600) { addLog("医院大门朝南开，有病没钱莫进来。", 'danger'); return; }
+        updateStats({ money: -600, physical: 15, mental: 15 });
+        if (isDepressed && Math.random() > 0.4) {
+            setGameState(prev => ({ ...prev, flags: { ...prev.flags, isDepressed: false } }));
+            addLog("医生开了特效药，抑郁症状缓解了。", 'success');
+        } else {
+            addLog("稍微检查了一下，身体恢复了一些。", 'info');
+        }
         break;
       case 'SLEEP_EARLY':
-        addLog("你决定放弃夜生活，早点睡觉保狗命。", 'success');
-        updateStats({ physical: 5, mental: 5 });
+        addLog("养生局。放弃夜生活，保住狗命。", 'success');
+        updateStats({ physical: 8, mental: 5 });
         setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '22:00' }));
-        return; // Skip advanceTime here as sleep handles it
+        return; 
     }
-    
-    // Advance specific amount of time or move to Sleep
-    setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:30' }));
+    setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:45' }));
   };
 
   const handleSleep = () => {
-    const { physical, mental, satiety } = gameState.stats;
-    let healPhys = 10;
-    let healMental = 10;
+    const { physical, satiety, money } = gameState.stats;
+    let healPhys = 10, healMental = 10;
 
-    if (satiety < 30) {
-      addLog("肚子太饿了，睡不踏实。", 'warning');
-      healPhys = 2;
-      healMental = -5;
+    if (satiety < 20) {
+      addLog("饿得睡不着，胃在抽搐。", 'warning');
+      healPhys = 2; healMental = -5;
+    }
+    if (money < 0) {
+       addLog("梦里都在被追债，冷汗直流。", 'danger');
+       healMental = -15;
     }
     
     // Random night event
     if (Math.random() < 0.1) {
-       addLog("失眠了，想到了房贷和未来。", 'warning');
-       healMental = -10;
+       addLog("邻居半夜吵架/装修，睡眠质量极差。", 'warning');
+       healPhys = 5; healMental = -5;
     }
 
-    updateStats({ 
-      physical: healPhys, 
-      mental: healMental, 
-      satiety: -15, 
-      daysSurvived: 1 
-    });
-
+    updateStats({ physical: healPhys, mental: healMental, satiety: -20, daysSurvived: 1 });
     setGameState(prev => ({ ...prev, phase: 'MORNING', time: '07:00' }));
     addLog(`=== 第 ${gameState.stats.daysSurvived + 1} 天 ===`, 'info');
   };
 
   const advanceTime = () => {
-    // State machine transitions
     setGameState(prev => {
       let nextPhase = prev.phase;
       let nextTime = prev.time;
-
-      if (prev.phase === 'MORNING') {
-        nextPhase = 'WORK_AM';
-        nextTime = '09:00';
-      } else if (prev.phase === 'LUNCH') {
-        nextPhase = 'WORK_PM';
-        nextTime = '13:00';
-      } else if (prev.phase === 'DINNER') {
-        nextPhase = 'FREE_TIME';
-        nextTime = '20:00';
-      }
+      if (prev.phase === 'MORNING') { nextPhase = 'WORK_AM'; nextTime = '09:00'; }
+      else if (prev.phase === 'LUNCH') { nextPhase = 'WORK_PM'; nextTime = '13:00'; }
+      else if (prev.phase === 'DINNER') { nextPhase = 'FREE_TIME'; nextTime = '20:00'; }
       return { ...prev, phase: nextPhase, time: nextTime };
     });
   };
 
-  // --- Render Functions ---
+  // --- Render ---
 
   if (gameState.phase === 'START') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700">
-          <h1 className="text-4xl font-bold text-red-500 mb-2 text-center tracking-tighter">牢中秒杀线</h1>
-          <p className="text-slate-400 text-center mb-8">职场求生指南 v1.0</p>
-          <div className="space-y-4">
-            <p className="text-white mb-4">请选择你的开局身份：</p>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-950 font-sans">
+        <div className="max-w-2xl w-full bg-zinc-900/80 p-8 rounded-xl shadow-2xl border border-zinc-800 backdrop-blur">
+          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-2 text-center tracking-tighter">SURVIVE_OS</h1>
+          <p className="text-zinc-500 text-center mb-10 font-mono text-sm">/// 选择你的开局身份载入模拟 ///</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Object.values(PROFESSIONS).map((p) => (
-              <button
-                key={p.id}
-                onClick={() => startGame(p.id as ProfessionType)}
-                className="w-full p-4 bg-slate-700 hover:bg-slate-600 rounded-lg text-left transition-colors flex justify-between items-center group"
-              >
-                <div>
-                  <div className="font-bold text-indigo-300 group-hover:text-indigo-200">{p.name}</div>
-                  <div className="text-xs text-slate-400">{p.description}</div>
-                </div>
-                <div className="text-right text-xs text-slate-500">
-                  <div>薪资: {p.salaryBase}</div>
-                  <div>压力: {p.stressFactor}</div>
+              <button key={p.id} onClick={() => startGame(p.id as ProfessionType)}
+                className="p-4 bg-zinc-800/50 hover:bg-cyan-900/20 border border-zinc-700 hover:border-cyan-500/50 rounded-lg text-left transition-all group relative overflow-hidden">
+                <div className="relative z-10">
+                  <div className="font-bold text-cyan-100 group-hover:text-cyan-400 flex justify-between">
+                      {p.name} <span className="text-xs font-mono opacity-50">SALARY: {p.salaryBase}</span>
+                  </div>
+                  <div className="text-xs text-zinc-400 mt-1">{p.description}</div>
+                  <div className="mt-2 flex gap-2 text-[10px] text-zinc-500 font-mono uppercase">
+                      <span>压力: {'★'.repeat(Math.ceil(p.stressFactor))}</span>
+                      <span>危险: {'★'.repeat(Math.ceil(p.healthRisk))}</span>
+                  </div>
                 </div>
               </button>
             ))}
@@ -348,19 +313,19 @@ const App: React.FC = () => {
 
   if (gameState.phase === 'GAME_OVER') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-black">
-        <div className="max-w-md w-full text-center">
-          <h1 className="text-6xl font-black text-red-600 mb-6 animate-pulse">GAME OVER</h1>
-          <div className="bg-slate-900 p-6 rounded-lg border border-red-900 mb-8">
-            <p className="text-xl text-slate-200 mb-2">生存天数: <span className="text-white font-bold">{gameState.stats.daysSurvived}</span></p>
-            <p className="text-slate-400 mb-4">死因:</p>
-            <p className="text-2xl text-red-400 font-serif border-t border-slate-800 pt-4">{gameState.gameOverReason}</p>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-black font-mono">
+        <div className="max-w-md w-full text-center relative">
+          <Skull className="w-20 h-20 text-red-600 mx-auto mb-4 animate-pulse" />
+          <h1 className="text-6xl font-black text-red-600 mb-6 tracking-widest glitch-text">TERMINATED</h1>
+          <div className="bg-red-950/20 p-6 rounded border border-red-900/50 mb-8 backdrop-blur">
+            <p className="text-zinc-400 mb-2 text-sm uppercase">Survival Time</p>
+            <p className="text-4xl text-white font-bold mb-6">{gameState.stats.daysSurvived} DAYS</p>
+            <p className="text-zinc-500 mb-2 text-xs uppercase">Cause of Death</p>
+            <p className="text-lg text-red-400 font-bold border-t border-red-900/30 pt-4">{gameState.gameOverReason}</p>
           </div>
-          <button
-            onClick={() => setGameState({ ...gameState, phase: 'START', log: [], stats: INITIAL_STATS, gameOverReason: '' })}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-8 rounded-full font-bold transition-all transform hover:scale-105 flex items-center justify-center mx-auto"
-          >
-            <RotateCcw className="w-5 h-5 mr-2" /> 再来一次
+          <button onClick={() => setGameState({ ...gameState, phase: 'START', log: [], stats: INITIAL_STATS, gameOverReason: '' })}
+            className="bg-zinc-800 hover:bg-zinc-700 text-white py-3 px-8 rounded font-bold transition-all flex items-center justify-center mx-auto border border-zinc-600 hover:border-white">
+            <RotateCcw className="w-4 h-4 mr-2" /> RESTART_SYSTEM
           </button>
         </div>
       </div>
@@ -368,125 +333,114 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen p-4 max-w-4xl mx-auto flex flex-col">
-      <StatBar 
-        stats={gameState.stats} 
-        profession={gameState.profession} 
-        time={gameState.time} 
-        isDepressed={gameState.flags.isDepressed}
-      />
+    <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-cyan-500/30 pb-10">
+      <StatBar stats={gameState.stats} profession={gameState.profession} time={gameState.time} isDepressed={gameState.flags.isDepressed} />
       
-      <GameLog logs={gameState.log} />
+      <main className="max-w-4xl mx-auto p-4 flex flex-col gap-6">
+        <GameLog logs={gameState.log} />
 
-      {/* Action Panel */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-auto">
-        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
-          <h3 className="text-slate-400 text-sm uppercase tracking-widest mb-3 flex items-center">
-            <Play className="w-4 h-4 mr-1" /> 当前状态: {
-              gameState.phase === 'MORNING' ? '清晨 - 准备上班' :
-              gameState.phase === 'WORK_AM' || gameState.phase === 'WORK_PM' ? '打工中...' :
-              gameState.phase === 'LUNCH' ? '午休 - 干饭' :
-              gameState.phase === 'DINNER' ? '下班 - 晚餐' :
-              gameState.phase === 'FREE_TIME' ? '自由活动' :
-              gameState.phase === 'SLEEP' ? '准备睡觉' : ''
-            }
-          </h3>
+        {/* Action Command Center */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Status Panel */}
+            <div className="lg:col-span-1 bg-zinc-900/80 p-5 rounded-xl border border-zinc-800 shadow-lg">
+                <h3 className="text-zinc-500 text-xs font-mono uppercase tracking-widest mb-4 flex items-center">
+                    <Play className="w-3 h-3 mr-2 text-cyan-500" /> System Status
+                </h3>
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-zinc-400">当前阶段</span>
+                        <span className="text-cyan-300 font-bold bg-cyan-950/50 px-2 py-1 rounded border border-cyan-900">
+                             {gameState.phase === 'MORNING' ? '清晨准备' :
+                              gameState.phase.includes('WORK') ? '工作中' :
+                              gameState.phase === 'LUNCH' ? '午休' :
+                              gameState.phase === 'DINNER' ? '下班时间' :
+                              gameState.phase === 'FREE_TIME' ? '自由活动' :
+                              gameState.phase === 'SLEEP' ? '休眠中' : ''}
+                        </span>
+                    </div>
+                    <div className="text-xs text-zinc-500 leading-relaxed border-t border-zinc-800 pt-4">
+                        提示：保持所有数值在安全范围。太高或太低都会导致系统崩溃（死亡）。注意随机事件和债务危机。
+                    </div>
+                </div>
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {gameState.phase === 'MORNING' && (
-              <>
-                <button onClick={() => handleEat('COOK')} className="btn-action bg-teal-800 hover:bg-teal-700">
-                  <Utensils className="w-4 h-4 mr-1" /> 自己做早餐
-                </button>
-                <button onClick={() => handleEat('TAKEOUT')} className="btn-action bg-orange-800 hover:bg-orange-700">
-                  <ShoppingBag className="w-4 h-4 mr-1" /> 买路边摊 (-¥35)
-                </button>
-                <button onClick={() => handleEat('SKIP')} className="btn-action bg-slate-700 hover:bg-slate-600 col-span-2">
-                  不吃赶地铁 (空腹上班)
-                </button>
-              </>
-            )}
+            {/* Controls Panel */}
+            <div className="lg:col-span-2 bg-zinc-900/80 p-5 rounded-xl border border-zinc-800 shadow-lg">
+                 <h3 className="text-zinc-500 text-xs font-mono uppercase tracking-widest mb-4">Available Actions</h3>
+                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    
+                    {/* Morning & Eating Actions */}
+                    {(gameState.phase === 'MORNING' || gameState.phase === 'DINNER' || gameState.phase === 'LUNCH') && (
+                        <>
+                            <ActionButton onClick={() => handleEat('COOK')} icon={<Utensils/>} label="自己做饭" sub="Cheap & Healthy" color="teal" />
+                            <ActionButton onClick={() => handleEat('TAKEOUT')} icon={<ShoppingBag/>} label="点外卖" sub="-¥35 | Unhealthy" color="orange" />
+                            {gameState.phase !== 'LUNCH' && <ActionButton onClick={() => handleEat('RESTAURANT')} icon={<Utensils/>} label="下馆子" sub="-¥120 | ++Mood" color="purple" />}
+                            {gameState.phase === 'LUNCH' && <ActionButton onClick={() => handleEat('BENTO')} icon={<Utensils/>} label="公司盒饭" sub="-¥15 | Sad" color="zinc" />}
+                            {gameState.phase === 'MORNING' && <ActionButton onClick={() => handleEat('SKIP')} icon={<RotateCcw className="rotate-180"/>} label="不吃了" sub="Save Money" color="red" />}
+                        </>
+                    )}
 
-            {(gameState.phase === 'WORK_AM' || gameState.phase === 'WORK_PM') && (
-              <button onClick={handleWork} className="btn-action bg-blue-900 hover:bg-blue-800 col-span-2 py-8 text-lg animate-pulse">
-                <Briefcase className="w-6 h-6 mr-2" /> 搬砖 (点击推进时间)
-              </button>
-            )}
+                    {/* Work Actions */}
+                    {gameState.phase.includes('WORK') && (
+                        <button onClick={handleWork} className="col-span-full py-12 bg-blue-900/20 hover:bg-blue-900/40 border border-blue-800/50 hover:border-blue-500 text-blue-200 rounded-xl transition-all group flex flex-col items-center justify-center gap-2">
+                            <Briefcase className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                            <span className="text-xl font-bold tracking-widest">推进工作进度</span>
+                            <span className="text-xs text-blue-400 opacity-60 font-mono">CLICK TO WORK</span>
+                        </button>
+                    )}
 
-            {gameState.phase === 'LUNCH' && (
-               <>
-                <button onClick={() => handleEat('BENTO')} className="btn-action bg-slate-700 hover:bg-slate-600">
-                   吃公司盒饭 (-¥15)
-                </button>
-                <button onClick={() => handleEat('TAKEOUT')} className="btn-action bg-orange-800 hover:bg-orange-700">
-                   点外卖 (-¥35)
-                </button>
-              </>
-            )}
+                    {/* Free Time Actions */}
+                    {gameState.phase === 'FREE_TIME' && (
+                        <>
+                            <ActionButton onClick={() => handleFreeTimeAction('GAME')} icon={<Gamepad2/>} label="打游戏" sub="Free | +Mental" color="indigo" />
+                            <ActionButton onClick={() => handleFreeTimeAction('GYM')} icon={<Dumbbell/>} label="健身房" sub="-¥50 | +Phys" color="cyan" />
+                            <ActionButton onClick={() => handleFreeTimeAction('BAR')} icon={<Beer/>} label="酒吧买醉" sub="-¥150 | ++Mental" color="pink" />
+                            <ActionButton onClick={() => handleFreeTimeAction('GAMBLE')} icon={<Dice5/>} label="地下赌博" sub="Risk High" color="yellow" />
+                            <ActionButton onClick={() => handleFreeTimeAction('WALK')} icon={<Footprints/>} label="城市漫步" sub="Random Event" color="zinc" />
+                            <ActionButton onClick={() => handleFreeTimeAction('HOSPITAL')} icon={<Pill/>} label="私人医院" sub="-¥600 | Cure" color="red" />
+                            <ActionButton onClick={() => handleFreeTimeAction('SLEEP_EARLY')} icon={<Moon/>} label="早睡" sub="Safe Choice" color="slate" />
+                        </>
+                    )}
 
-            {gameState.phase === 'DINNER' && (
-               <>
-                <button onClick={() => handleEat('COOK')} className="btn-action bg-teal-800 hover:bg-teal-700">
-                  <Utensils className="w-4 h-4 mr-1" /> 自己做饭
-                </button>
-                <button onClick={() => handleEat('RESTAURANT')} className="btn-action bg-purple-800 hover:bg-purple-700">
-                   下馆子 (-¥100)
-                </button>
-                <button onClick={() => handleEat('TAKEOUT')} className="btn-action bg-orange-800 hover:bg-orange-700 col-span-2">
-                   点外卖 (-¥35)
-                </button>
-              </>
-            )}
-
-            {gameState.phase === 'FREE_TIME' && (
-              <>
-                <button onClick={() => handleFreeTimeAction('GAME')} className="btn-action bg-indigo-900 hover:bg-indigo-800">
-                  <Gamepad2 className="w-4 h-4 mr-1" /> 打游戏/刷剧
-                </button>
-                <button onClick={() => handleFreeTimeAction('PART_TIME')} className="btn-action bg-yellow-900 hover:bg-yellow-800">
-                  <Briefcase className="w-4 h-4 mr-1" /> 兼职送外卖
-                </button>
-                <button onClick={() => handleFreeTimeAction('STUDY')} className="btn-action bg-emerald-900 hover:bg-emerald-800">
-                  <Utensils className="w-4 h-4 mr-1" /> 练习厨艺
-                </button>
-                <button onClick={() => handleFreeTimeAction('HOSPITAL')} className="btn-action bg-red-900 hover:bg-red-800">
-                  <Pill className="w-4 h-4 mr-1" /> 去医院 (-¥500)
-                </button>
-                <button onClick={() => handleFreeTimeAction('SLEEP_EARLY')} className="btn-action bg-slate-600 hover:bg-slate-500 col-span-2">
-                   早点睡 (养生)
-                </button>
-              </>
-            )}
-
-            {gameState.phase === 'SLEEP' && (
-              <button onClick={handleSleep} className="btn-action bg-slate-900 hover:bg-black border border-slate-600 col-span-2 py-6">
-                <Moon className="w-5 h-5 mr-2" /> 睡觉 (进入下一天)
-              </button>
-            )}
-          </div>
+                    {/* Sleep Action */}
+                    {gameState.phase === 'SLEEP' && (
+                         <button onClick={handleSleep} className="col-span-full py-10 bg-black/40 hover:bg-black/60 border border-zinc-700 hover:border-zinc-500 text-zinc-300 rounded-xl transition-all flex flex-col items-center justify-center">
+                            <Moon className="w-6 h-6 mb-2" />
+                            <span className="font-bold">进入休眠 (NEXT DAY)</span>
+                        </button>
+                    )}
+                 </div>
+            </div>
         </div>
-
-        {/* Info Panel */}
-        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 text-sm text-slate-300">
-          <h3 className="text-slate-400 text-sm uppercase tracking-widest mb-3">生存提示</h3>
-          <ul className="list-disc pl-5 space-y-1">
-             <li><span className="text-red-400">身体健康</span> 过低会猝死。但如果超过92，会被神秘组织盯上。</li>
-             <li><span className="text-blue-400">心理健康</span> 过低会触发抑郁，降低所有回复效果。</li>
-             <li>自己做饭更健康，但需要运气和熟练度。</li>
-             <li>除了上班，你也可以选择兼职，或者去医院挥霍存款。</li>
-             <li>保持中庸，不要太强，也不要太弱。</li>
-          </ul>
-        </div>
-      </div>
-      
-      {/* CSS Helper for buttons */}
-      <style>{`
-        .btn-action {
-          @apply text-white font-bold py-3 px-4 rounded transition-all flex items-center justify-center;
-        }
-      `}</style>
+      </main>
     </div>
   );
+};
+
+// Helper Component for consistency
+const ActionButton = ({ onClick, icon, label, sub, color }: any) => {
+    const colors: any = {
+        teal: 'bg-teal-900/30 border-teal-800 hover:border-teal-500 text-teal-200 hover:bg-teal-900/50',
+        orange: 'bg-orange-900/30 border-orange-800 hover:border-orange-500 text-orange-200 hover:bg-orange-900/50',
+        purple: 'bg-purple-900/30 border-purple-800 hover:border-purple-500 text-purple-200 hover:bg-purple-900/50',
+        red: 'bg-red-900/30 border-red-800 hover:border-red-500 text-red-200 hover:bg-red-900/50',
+        indigo: 'bg-indigo-900/30 border-indigo-800 hover:border-indigo-500 text-indigo-200 hover:bg-indigo-900/50',
+        cyan: 'bg-cyan-900/30 border-cyan-800 hover:border-cyan-500 text-cyan-200 hover:bg-cyan-900/50',
+        pink: 'bg-pink-900/30 border-pink-800 hover:border-pink-500 text-pink-200 hover:bg-pink-900/50',
+        yellow: 'bg-yellow-900/30 border-yellow-800 hover:border-yellow-500 text-yellow-200 hover:bg-yellow-900/50',
+        slate: 'bg-slate-800/50 border-slate-700 hover:border-slate-500 text-slate-300 hover:bg-slate-800',
+        zinc: 'bg-zinc-800/50 border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:bg-zinc-800'
+    };
+
+    return (
+        <button onClick={onClick} className={`${colors[color] || colors.zinc} p-3 rounded-lg border transition-all flex flex-col items-center justify-center text-center h-24 group relative overflow-hidden`}>
+             <div className="mb-1 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-transform">
+                {React.cloneElement(icon, { size: 20 })}
+             </div>
+             <span className="font-bold text-sm">{label}</span>
+             <span className="text-[10px] opacity-60 font-mono mt-1">{sub}</span>
+        </button>
+    );
 };
 
 export default App;
