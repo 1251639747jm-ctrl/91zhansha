@@ -8,70 +8,41 @@ export const INITIAL_STATS: PlayerStats = {
   cookingSkill: 0,
   daysSurvived: 0,
 };
+export const ASSET_COSTS = {
+  HOUSE_DOWN_PAYMENT: 1000000, // 首付100万，不够就负债
+  CAR_COST: 200000, // 车20万
+};
 
+// 潜在攻略对象库
+export const POTENTIAL_PARTNERS: Partner[] = [
+  { name: "茶艺大师·小美", type: "绿茶", affection: 10, materialism: 3.0, fidelity: 20 },
+  { name: "吞金兽·娜娜", type: "拜金", affection: 5, materialism: 5.0, fidelity: 40 },
+  { name: "老实人·阿芳", type: "普通", affection: 30, materialism: 1.0, fidelity: 80 },
+  { name: "扶弟魔·招娣", type: "深坑", affection: 20, materialism: 2.5, fidelity: 60 },
+  { name: "白月光·校花", type: "女神", affection: 0, materialism: 1.5, fidelity: 50 } // 极难攻略
+];
 // 职业基础定义
 export const PROFESSIONS: Record<ProfessionType, Profession> = {
-  CIVIL_SERVANT: {
-    id: 'CIVIL_SERVANT',
-    name: '街道办科员',
-    salaryBase: 240, 
-    stressFactor: 3,
-    healthRisk: 1,
-    schedule: '965',
-    description: '宇宙尽头编制内。',
-    workDesc: [] // 下面单独定义
-  },
-  PROGRAMMER: {
-    id: 'PROGRAMMER',
-    name: '大厂架构师',
-    salaryBase: 1200,
-    stressFactor: 8,
-    healthRisk: 6,
-    schedule: '996',
-    description: '拿命换钱。',
-    workDesc: []
-  },
-  FACTORY_WORKER: {
-    id: 'FACTORY_WORKER',
-    name: '电子厂普工',
-    salaryBase: 280,
-    stressFactor: 5,
-    healthRisk: 5,
-    schedule: '007',
-    description: '流水线上的螺丝钉。',
-    workDesc: []
-  },
-  DELIVERY: {
-    id: 'DELIVERY',
-    name: '金牌骑手',
-    salaryBase: 600,
-    stressFactor: 6,
-    healthRisk: 9, // 极高风险
-    schedule: '007',
-    description: '困在算法里的人。',
-    workDesc: []
-  },
-  SALES: {
-    id: 'SALES',
-    name: '房产销售',
-    salaryBase: 400,
-    stressFactor: 7,
-    healthRisk: 4,
-    schedule: '996',
-    description: '不开单就吃土。',
-    workDesc: []
-  },
-  UNEMPLOYED: {
-    id: 'UNEMPLOYED',
-    name: '全职儿女',
-    salaryBase: 50,
-    stressFactor: 2,
-    healthRisk: 1,
-    schedule: '965',
-    description: '家里蹲。',
-    workDesc: []
-  }
+  CIVIL_SERVANT: { id: 'CIVIL_SERVANT', name: '街道办科员', salaryBase: 240, stressFactor: 3, healthRisk: 1, schedule: '965', description: '宇宙尽头编制内。', workDesc: [] },
+  PROGRAMMER: { id: 'PROGRAMMER', name: '大厂架构师', salaryBase: 1200, stressFactor: 8, healthRisk: 6, schedule: '996', description: '拿命换钱。', workDesc: [] },
+  FACTORY_WORKER: { id: 'FACTORY_WORKER', name: '电子厂普工', salaryBase: 280, stressFactor: 5, healthRisk: 5, schedule: '007', description: '流水线上的螺丝钉。', workDesc: [] },
+  DELIVERY: { id: 'DELIVERY', name: '金牌骑手', salaryBase: 600, stressFactor: 6, healthRisk: 9, schedule: '007', description: '困在算法里的人。', workDesc: [] },
+  SALES: { id: 'SALES', name: '房产销售', salaryBase: 400, stressFactor: 7, healthRisk: 4, schedule: '996', description: '不开单就吃土。', workDesc: [] },
+  UNEMPLOYED: { id: 'UNEMPLOYED', name: '全职儿女', salaryBase: 50, stressFactor: 2, healthRisk: 1, schedule: '965', description: '家里蹲。', workDesc: [] }
 };
+// 注意：实际项目中请把上一轮给你的 JOB_LOGS 等常量也放进来，不要丢失。
+export const JOB_LOGS = {}; // 占位，请用上一轮的
+export const JOB_EVENTS = {}; // 占位，请用上一轮的
+export const DISEASES = [
+  { name: '重感冒', harm: 5, cost: 300, desc: '头昏脑涨' },
+  { name: '急性肠胃炎', harm: 10, cost: 800, desc: '喷射战士' }
+]; // 简化占位
+export const COMPLEX_DEATHS = [
+    { condition: (s: PlayerStats) => s.money < -2000000, text: "你背负了几百万的房贷车贷，最终不堪重负，在一个雨夜跳了江。" }, // 新增负债死亡
+    { condition: (s: PlayerStats) => s.physical <= 0, text: "过劳死。" },
+    { condition: (s: PlayerStats) => s.mental <= 0, text: "精神崩溃。" },
+    { condition: (s: PlayerStats) => s.satiety <= 0, text: "饿死。" }
+];
 
 // --- 1. 职业专属：普通搬砖日志 (Log) ---
 // 每个职业至少 10 条，用于非弹窗时的随机文本
