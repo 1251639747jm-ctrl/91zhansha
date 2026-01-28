@@ -31,14 +31,14 @@ export type GamePhase =
   | 'FREE_TIME' 
   | 'SLEEP'
   | 'GAME_OVER'
-  | 'EVENT_CNY'; // 特殊事件：春节
+  | 'EVENT_CNY'; // 春节特殊事件
 
 export interface GameState {
   profession: Profession | null;
   stats: PlayerStats;
   phase: GamePhase;
   date: Date; // 真实日期对象
-  time: string;
+  time: string; // "07:00"
   log: LogEntry[];
   flags: {
     isDepressed: boolean;
