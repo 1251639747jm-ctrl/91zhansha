@@ -385,10 +385,6 @@ export const DISEASES = [
 // 复合死亡条件
 export const COMPLEX_DEATHS = [
   {
-    condition: (s: PlayerStats) => s.money < -2000000, 
-    text: "你背负了几百万的房贷车贷，最终不堪重负，在一个雨夜跳了江。"
-  },
-  {
     condition: (s: PlayerStats) => s.physical > 97, 
     text: "你在单位体检中，身体数据过于完美。当晚，一辆黑色面包车停在你家楼下。你被某种不可抗力‘特招’了，从此查无此人（传闻某位大人物急需一个健康的肾脏）。"
   },
