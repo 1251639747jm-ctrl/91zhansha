@@ -1,4 +1,4 @@
-import { PlayerStats, Profession, ProfessionType } from './types';
+import { PlayerStats, Profession, ProfessionType, Partner } from './types';
 
 export const INITIAL_STATS: PlayerStats = {
   physical: 80,
@@ -8,8 +8,10 @@ export const INITIAL_STATS: PlayerStats = {
   cookingSkill: 0,
   daysSurvived: 0,
 };
+
+// 资产成本
 export const ASSET_COSTS = {
-  HOUSE_DOWN_PAYMENT: 1000000, // 首付100万，不够就负债
+  HOUSE_DOWN_PAYMENT: 1000000, // 首付100万
   CAR_COST: 200000, // 车20万
 };
 
@@ -19,33 +21,74 @@ export const POTENTIAL_PARTNERS: Partner[] = [
   { name: "吞金兽·娜娜", type: "拜金", affection: 5, materialism: 5.0, fidelity: 40 },
   { name: "老实人·阿芳", type: "普通", affection: 30, materialism: 1.0, fidelity: 80 },
   { name: "扶弟魔·招娣", type: "深坑", affection: 20, materialism: 2.5, fidelity: 60 },
-  { name: "白月光·校花", type: "女神", affection: 0, materialism: 1.5, fidelity: 50 } // 极难攻略
-];
-// 职业基础定义
-export const PROFESSIONS: Record<ProfessionType, Profession> = {
-  CIVIL_SERVANT: { id: 'CIVIL_SERVANT', name: '街道办科员', salaryBase: 240, stressFactor: 3, healthRisk: 1, schedule: '965', description: '宇宙尽头编制内。', workDesc: [] },
-  PROGRAMMER: { id: 'PROGRAMMER', name: '大厂架构师', salaryBase: 1200, stressFactor: 8, healthRisk: 6, schedule: '996', description: '拿命换钱。', workDesc: [] },
-  FACTORY_WORKER: { id: 'FACTORY_WORKER', name: '电子厂普工', salaryBase: 280, stressFactor: 5, healthRisk: 5, schedule: '007', description: '流水线上的螺丝钉。', workDesc: [] },
-  DELIVERY: { id: 'DELIVERY', name: '金牌骑手', salaryBase: 600, stressFactor: 6, healthRisk: 9, schedule: '007', description: '困在算法里的人。', workDesc: [] },
-  SALES: { id: 'SALES', name: '房产销售', salaryBase: 400, stressFactor: 7, healthRisk: 4, schedule: '996', description: '不开单就吃土。', workDesc: [] },
-  UNEMPLOYED: { id: 'UNEMPLOYED', name: '全职儿女', salaryBase: 50, stressFactor: 2, healthRisk: 1, schedule: '965', description: '家里蹲。', workDesc: [] }
-};
-// 注意：实际项目中请把上一轮给你的 JOB_LOGS 等常量也放进来，不要丢失。
-export const JOB_LOGS = {}; // 占位，请用上一轮的
-export const JOB_EVENTS = {}; // 占位，请用上一轮的
-export const DISEASES = [
-  { name: '重感冒', harm: 5, cost: 300, desc: '头昏脑涨' },
-  { name: '急性肠胃炎', harm: 10, cost: 800, desc: '喷射战士' }
-]; // 简化占位
-export const COMPLEX_DEATHS = [
-    { condition: (s: PlayerStats) => s.money < -2000000, text: "你背负了几百万的房贷车贷，最终不堪重负，在一个雨夜跳了江。" }, // 新增负债死亡
-    { condition: (s: PlayerStats) => s.physical <= 0, text: "过劳死。" },
-    { condition: (s: PlayerStats) => s.mental <= 0, text: "精神崩溃。" },
-    { condition: (s: PlayerStats) => s.satiety <= 0, text: "饿死。" }
+  { name: "白月光·校花", type: "女神", affection: 0, materialism: 1.5, fidelity: 50 }
 ];
 
+// 职业基础定义
+export const PROFESSIONS: Record<ProfessionType, Profession> = {
+  CIVIL_SERVANT: {
+    id: 'CIVIL_SERVANT',
+    name: '街道办科员',
+    salaryBase: 240, 
+    stressFactor: 3,
+    healthRisk: 1,
+    schedule: '965',
+    description: '宇宙尽头编制内。',
+    workDesc: [] 
+  },
+  PROGRAMMER: {
+    id: 'PROGRAMMER',
+    name: '大厂架构师',
+    salaryBase: 1200,
+    stressFactor: 8,
+    healthRisk: 6,
+    schedule: '996',
+    description: '拿命换钱。',
+    workDesc: []
+  },
+  FACTORY_WORKER: {
+    id: 'FACTORY_WORKER',
+    name: '电子厂普工',
+    salaryBase: 280,
+    stressFactor: 5,
+    healthRisk: 5,
+    schedule: '007',
+    description: '流水线上的螺丝钉。',
+    workDesc: []
+  },
+  DELIVERY: {
+    id: 'DELIVERY',
+    name: '金牌骑手',
+    salaryBase: 600,
+    stressFactor: 6,
+    healthRisk: 9, 
+    schedule: '007',
+    description: '困在算法里的人。',
+    workDesc: []
+  },
+  SALES: {
+    id: 'SALES',
+    name: '房产销售',
+    salaryBase: 400,
+    stressFactor: 7,
+    healthRisk: 4,
+    schedule: '996',
+    description: '不开单就吃土。',
+    workDesc: []
+  },
+  UNEMPLOYED: {
+    id: 'UNEMPLOYED',
+    name: '全职儿女',
+    salaryBase: 50,
+    stressFactor: 2,
+    healthRisk: 1,
+    schedule: '965',
+    description: '家里蹲。',
+    workDesc: []
+  }
+};
+
 // --- 1. 职业专属：普通搬砖日志 (Log) ---
-// 每个职业至少 10 条，用于非弹窗时的随机文本
 export const JOB_LOGS: Record<ProfessionType, string[]> = {
   CIVIL_SERVANT: [
     "整理了一上午关于‘社区垃圾分类’的红头文件，感觉人生毫无意义。",
@@ -122,7 +165,6 @@ export const JOB_LOGS: Record<ProfessionType, string[]> = {
 };
 
 // --- 2. 职业专属：突发抉择事件 (Modal) ---
-// 每个职业专属事件，包含高风险高回报，或者单纯的恶心人
 export const JOB_EVENTS: Record<ProfessionType, Array<{title: string, desc: string, options: any[]}>> = {
   CIVIL_SERVANT: [
     {
@@ -137,7 +179,7 @@ export const JOB_EVENTS: Record<ProfessionType, Array<{title: string, desc: stri
       title: "【职场站队】科长的暗示",
       desc: "科长暗示你，要在下周的评选里给副科长投反对票。这可是职场大忌。",
       options: [
-        { text: "听科长的 (卷入斗争)", changes: { mental: -20, stressFactor: 1 } }, // 长期压力增加
+        { text: "听科长的 (卷入斗争)", changes: { mental: -20, stressFactor: 1 } }, 
         { text: "装傻充愣 (两边得罪)", changes: { mental: -10, money: -200 } }
       ]
     },
@@ -164,7 +206,7 @@ export const JOB_EVENTS: Record<ProfessionType, Array<{title: string, desc: stri
       desc: "你在清理日志时，手一抖敲了 rm -rf /*。虽然权限不够删根目录，但也删了不少业务数据。",
       options: [
         { text: "立即上报 (扣工资)", changes: { money: -2000, mental: -20 } },
-        { text: "试图偷偷恢复 (高风险)", changes: { mental: -50, physical: -10 } } // 精神压力极大
+        { text: "试图偷偷恢复 (高风险)", changes: { mental: -50, physical: -10 } }
       ]
     },
     {
@@ -179,7 +221,7 @@ export const JOB_EVENTS: Record<ProfessionType, Array<{title: string, desc: stri
       title: "【福报】996变007",
       desc: "项目到了攻坚阶段，老板宣布全员封闭开发一个月，吃住都在公司。",
       options: [
-        { text: "接受福报 (身体-30)", changes: { physical: -30, money: 500 } }, // 加班费
+        { text: "接受福报 (身体-30)", changes: { physical: -30, money: 500 } },
         { text: "请病假 (扣钱)", changes: { money: -1000, physical: 5 } }
       ]
     },
@@ -221,7 +263,7 @@ export const JOB_EVENTS: Record<ProfessionType, Array<{title: string, desc: stri
       title: "【诱惑】偷零件",
       desc: "老乡跟你说，偷偷带点铜线出去卖，没人会发现。",
       options: [
-        { text: "同流合污 (风险)", changes: { money: 500, mental: -30 } }, // 担心被抓
+        { text: "同流合污 (风险)", changes: { money: 500, mental: -30 } }, 
         { text: "严词拒绝", changes: { mental: 5 } }
       ]
     }
@@ -290,7 +332,7 @@ export const JOB_EVENTS: Record<ProfessionType, Array<{title: string, desc: stri
       desc: "你跟了一个月的客户，被同事用更低的价格截胡了。",
       options: [
         { text: "扎小人诅咒他", changes: { mental: -15 } },
-        { text: "去老板那告状", changes: { mental: -20, money: -50 } } // 被穿小鞋
+        { text: "去老板那告状", changes: { mental: -20, money: -50 } }
       ]
     }
   ],
@@ -343,12 +385,16 @@ export const DISEASES = [
 // 复合死亡条件
 export const COMPLEX_DEATHS = [
   {
-    condition: (s: PlayerStats) => s.physical > 97, 
-    text: "你在单位体检中，身体数据过于完美。当晚，一辆黑色面包车停在你家楼下。你被某种不可抗力‘特招’了，从此查无此人（传闻某位大人物急需一个健康的肾脏）。"
+    condition: (s: PlayerStats) => s.money < -2000000, 
+    text: "你背负了几百万的房贷车贷，最终不堪重负，在一个雨夜跳了江。"
   },
   {
     condition: (s: PlayerStats) => s.money < -50000,
     text: "你的网贷全面崩盘，暴力催收逼得你走投无路。你在睡梦中被带到了公海的一艘渔船上，这是你最后一次看日出。"
+  },
+  {
+    condition: (s: PlayerStats) => s.physical > 97, 
+    text: "你在单位体检中，身体数据过于完美。当晚，一辆黑色面包车停在你家楼下。你被某种不可抗力‘特招’了，从此查无此人（传闻某位大人物急需一个健康的肾脏）。"
   },
   {
     condition: (s: PlayerStats) => s.mental < 10 && s.physical < 20,
