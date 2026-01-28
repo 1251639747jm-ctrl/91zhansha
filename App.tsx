@@ -1,17 +1,31 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, ProfessionType, LogEntry } from './types';
-import { PROFESSIONS, INITIAL_STATS, COMPLEX_DEATHS } from './constants';
+import { PROFESSIONS, INITIAL_STATS, COMPLEX_DEATHS, WORK_CHOICES, DISEASES } from './constants';
 import { getRandomInt, formatDateCN, isWeekend } from './utils';
 import StatBar from './components/StatBar';
 import GameLog from './components/GameLog';
+import EventModal, { ModalConfig } from './components/EventModal';
 import { 
   Play, RotateCcw, Utensils, Briefcase, Moon, 
   Gamepad2, ShoppingBag, Beer, 
   Dumbbell, Footprints, MonitorPlay, HeartHandshake, Coffee, PartyPopper
 } from 'lucide-react';
 
+// 新增：日常意外死亡库（直接定义在这里确保生效）
+const DAILY_ACCIDENTS = [
+  "走在路上玩手机，不慎掉进没有井盖的下水道。",
+  "路过高层建筑时，被一个坠落的花盆精准命中。",
+  "吃夜宵时被鱼刺卡住喉咙，引发剧烈咳血窒息。",
+  "手机充电时玩大型游戏，电池爆炸引发火灾。",
+  "过马路时被一辆闯红灯的渣土车卷入车底。",
+  "洗澡时燃气热水器泄漏，在不知不觉中一氧化碳中毒。",
+  "喝水喝太急呛到了，引发剧烈咳嗽导致肺泡破裂。",
+  "早高峰挤地铁时被人群挤压导致肋骨骨折刺破内脏。",
+  "在路边看热闹，被失控的车辆撞飞。",
+  "熬夜后突然猛地起床，导致脑血管破裂。"
+];
+
 const App: React.FC = () => {
-  // 初始化日期为2024年1月1日
   const [gameState, setGameState] = useState<GameState>({
     profession: null,
     stats: INITIAL_STATS,
@@ -19,7 +33,8 @@ const App: React.FC = () => {
     date: new Date('2024-01-01T07:00:00'),
     time: '07:00',
     log: [],
-    flags: { isDepressed: false, isSick: false, hasLoan: false, isSingle: true },
+    flags: { isDepressed: false, disease: null, hasLoan: false, isSingle: true, streamerSimpCount: 0 },
+    modal: { isOpen: false, title: '', description: '', type: 'EVENT', actions: [] },
     gameOverReason: ''
   });
 
@@ -30,29 +45,71 @@ const App: React.FC = () => {
     }));
   }, []);
 
-  // --- 核心生存检查 ---
+  // --- 弹窗控制器 ---
+  const showModal = (config: Omit<ModalConfig, 'isOpen'>) => {
+    setGameState(prev => ({
+      ...prev,
+      phase: 'MODAL_PAUSE', // 暂停游戏进程
+      modal: { ...config, isOpen: true }
+    }));
+  };
+
+  const closeModal = () => {
+    setGameState(prev => ({
+      ...prev,
+      // 简单的回退逻辑：如果在晚上就准备睡觉，如果在中午就午休，否则晚餐
+      phase: prev.time.includes('23') ? 'SLEEP' : (prev.time.includes('12') ? 'LUNCH' : 'DINNER'),
+      modal: { ...prev.modal, isOpen: false }
+    }));
+  };
+
+  // --- 核心生存检查 (死亡判定) ---
   useEffect(() => {
-    if (gameState.phase === 'START' || gameState.phase === 'GAME_OVER') return;
+    if (gameState.phase === 'START' || gameState.phase === 'GAME_OVER' || gameState.phase === 'MODAL_PAUSE') return;
 
     const { stats } = gameState;
 
-    // 1. 复合死亡判定 (Priority 1)
+    // 1. 优先检查高体质“被消失” (独立判定)
+    // 每天有极小概率，或者体质超过98直接触发
+    if (stats.physical >= 98 || (stats.physical > 92 && Math.random() < 0.005)) {
+      triggerDeath("你在单位组织的体检中，身体数据过于完美。当晚，一辆黑色面包车停在你家楼下。你被某种不可抗力‘特招’了，从此查无此人（传闻某位大人物急需一个健康的器官）。");
+      return;
+    }
+
+    // 2. 复合死亡判定 (从 constants 引入)
     for (const death of COMPLEX_DEATHS) {
       if (death.condition(stats)) {
-        endGame(death.text);
+        triggerDeath(death.text);
         return;
       }
     }
 
-    // 2. 基础数值死亡
-    if (stats.physical <= 0) endGame("过劳死。为了那点窝囊费，你把命搭进去了。");
-    if (stats.mental <= 0) endGame("由于长期精神内耗，你彻底疯了，被送进宛平南路600号。");
-    if (stats.satiety <= 0) endGame("饿死。在这个全面小康的时代，你是个特例。");
+    // 3. 基础数值死亡
+    if (stats.physical <= 0) {
+        triggerDeath("过劳死。为了那点窝囊费，你把命搭进去了。尸体在出租屋发臭了才被发现。");
+        return;
+    }
+    if (stats.mental <= 0) {
+        triggerDeath("由于长期精神内耗，你的理智断线了。你赤身裸体冲上大街，最后被送进宛平南路600号终老。");
+        return;
+    }
+    if (stats.satiety <= 0) {
+        triggerDeath("饿死。在这个全面小康的时代，你是个特例。");
+        return;
+    }
+
+    // 4. 新增：日常意外随机秒杀 (0.3% 概率每次状态变更时触发)
+    // 只有在非休息状态下才容易出意外
+    if (!gameState.phase.includes('SLEEP') && Math.random() < 0.003) {
+        const accident = DAILY_ACCIDENTS[getRandomInt(0, DAILY_ACCIDENTS.length - 1)];
+        triggerDeath(`【飞来横祸】${accident}`);
+        return;
+    }
     
-    // 3. 随机意外 (骑手高风险)
-    const riskFactor = gameState.profession?.healthRisk || 1;
-    if (gameState.phase.includes('WORK') && Math.random() < (0.0005 * riskFactor)) {
-      endGame("工伤事故。没有保险，没有人道主义赔偿，只有一张火化证明。");
+    // 5. 职业高风险意外 (骑手/工厂 额外 0.5%)
+    const riskFactor = gameState.profession?.healthRisk || 0;
+    if (gameState.phase.includes('WORK') && Math.random() < (0.001 * riskFactor)) {
+      triggerDeath("工伤事故。机器故障/交通事故带走了你的生命。没有保险，没有人道主义赔偿，只有一张火化证明。");
       return;
     }
 
@@ -73,20 +130,35 @@ const App: React.FC = () => {
   const updateStats = (changes: Partial<typeof INITIAL_STATS>, reason?: string) => {
     setGameState(prev => {
       const newStats = { ...prev.stats };
-      if (changes.physical) newStats.physical = Math.min(100, Math.max(0, newStats.physical + changes.physical));
-      if (changes.mental) newStats.mental = Math.min(100, Math.max(0, newStats.mental + changes.mental));
-      if (changes.money) newStats.money = newStats.money + changes.money;
-      if (changes.satiety) newStats.satiety = Math.min(100, Math.max(0, newStats.satiety + changes.satiety));
-      if (changes.cookingSkill) newStats.cookingSkill = newStats.cookingSkill + changes.cookingSkill;
-      // Survived days increment is handled in Sleep
+      // 疾病 Debuff：生病时回血效果减半，扣血效果加倍
+      let physicalChange = changes.physical || 0;
+      if (prev.flags.disease) {
+          if (physicalChange > 0) physicalChange = Math.floor(physicalChange * 0.5);
+          if (physicalChange < 0) physicalChange = Math.floor(physicalChange * 1.5);
+      }
+
+      if (changes.physical) newStats.physical = Math.min(100, Math.max(0, newStats.physical + physicalChange));
+      if (changes.mental) newStats.mental = Math.min(100, Math.max(0, newStats.mental + (changes.mental || 0)));
+      if (changes.money) newStats.money = newStats.money + (changes.money || 0);
+      if (changes.satiety) newStats.satiety = Math.min(100, Math.max(0, newStats.satiety + (changes.satiety || 0)));
+      if (changes.cookingSkill) newStats.cookingSkill = newStats.cookingSkill + (changes.cookingSkill || 0);
       return { ...prev, stats: newStats };
     });
     if (reason) addLog(reason, changes.physical && changes.physical < 0 ? 'warning' : 'info');
   };
 
-  const endGame = (reason: string) => {
-    setGameState(prev => ({ ...prev, phase: 'GAME_OVER', gameOverReason: reason }));
-    addLog(reason, 'danger');
+  const triggerDeath = (reason: string) => {
+    setGameState(prev => ({ 
+      ...prev, 
+      phase: 'MODAL_PAUSE', // 防止后续逻辑执行
+      modal: {
+        isOpen: true,
+        type: 'DEATH',
+        title: '人生重启',
+        description: reason,
+        actions: [{ label: '投胎重开', onClick: () => setGameState({ ...gameState, phase: 'GAME_OVER', gameOverReason: reason, modal: { ...gameState.modal, isOpen: false } }), style: 'danger' }]
+      }
+    }));
   };
 
   const startGame = (profType: ProfessionType) => {
@@ -97,142 +169,168 @@ const App: React.FC = () => {
       phase: 'MORNING',
       date: new Date('2024-01-01T07:30:00'),
       time: '07:30',
-      log: [{ id: 1, text: `>>> 也是这一天。身份：${prof.name}。排班：${prof.schedule}。祝你好运。`, type: 'info' }],
-      flags: { isDepressed: false, isSick: false, hasLoan: false, isSingle: true },
+      log: [{ id: 1, text: `>>> 档案载入。身份：${prof.name}。排班：${prof.schedule}。`, type: 'info' }],
+      flags: { isDepressed: false, disease: null, hasLoan: false, isSingle: true, streamerSimpCount: 0 },
+      modal: { isOpen: false, title: '', description: '', type: 'EVENT', actions: [] },
       gameOverReason: ''
     });
   };
 
-  // --- Actions ---
-
-  const handleCNYChoice = (choice: 'ARGUE' | 'SILENT' | 'GIVE_MONEY') => {
-      if (choice === 'ARGUE') {
-          updateStats({ mental: 20, physical: -5 }, "你舌战群儒，怼得亲戚哑口无言！心里爽翻了。");
-      } else if (choice === 'SILENT') {
-          updateStats({ mental: -15 }, "你默默忍受了催婚和攀比，感觉自己像个废物。");
-      } else if (choice === 'GIVE_MONEY') {
-          if (gameState.stats.money < 2000) { addLog("没钱发红包，被亲戚翻了白眼。", "danger"); updateStats({mental: -20}); }
-          else { updateStats({ money: -2000, mental: 10 }, "破财免灾，发了红包后耳根子清净了。"); }
-      }
-      setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:00' }));
-  };
+  // --- Work Logic with Events ---
 
   const handleWork = () => {
     if (!gameState.profession) return;
-    const { stressFactor, healthRisk, salaryBase } = gameState.profession;
+    const { stressFactor, healthRisk, workDesc } = gameState.profession;
     
-    // 摸鱼判定
-    const isSlacking = Math.random() > 0.8;
-    const actualStress = isSlacking ? 0 : stressFactor + getRandomInt(0, 2);
-    const actualRisk = isSlacking ? 0 : healthRisk;
+    // 30% 概率触发特殊工作抉择 (提高概率)
+    if (Math.random() < 0.3) {
+      const event = WORK_CHOICES[getRandomInt(0, WORK_CHOICES.length - 1)];
+      showModal({
+        title: event.title,
+        description: event.desc,
+        type: 'WORK',
+        actions: event.options.map(opt => ({
+          label: opt.text,
+          onClick: () => {
+            updateStats(opt.changes, "你做出了选择。");
+            closeModal();
+            finishWorkBlock();
+          }
+        }))
+      });
+      return;
+    }
 
-    let msg = isSlacking ? "带薪拉屎半小时，神清气爽。" : "疯狂搬砖，感觉身体被掏空。";
-    if (gameState.profession.id === 'DELIVERY' && Math.random() < 0.2) msg = "差点被逆行的三轮车撞到，吓出一身冷汗。";
-    if (gameState.profession.id === 'PROGRAMMER' && Math.random() < 0.2) msg = "遇到一个史山代码，改BUG改到头秃。";
-
+    // 正常工作
+    const desc = workDesc[getRandomInt(0, workDesc.length - 1)];
+    const actualRisk = healthRisk + (gameState.flags.disease ? 5 : 0); // 生病工作风险大幅增加
+    
     updateStats({
       physical: -actualRisk,
-      mental: -actualStress,
+      mental: -stressFactor,
       satiety: -15
-    });
-    addLog(msg, isSlacking ? 'success' : 'info');
+    }, desc);
 
-    if (gameState.phase === 'WORK_AM') setGameState(prev => ({ ...prev, phase: 'LUNCH', time: '12:00' }));
-    else {
-      // 下班结算
-      const dailyPay = salaryBase + getRandomInt(-50, 50); 
-      updateStats({ money: dailyPay });
-      addLog(`【下班】今日也是牛马的一天。获得: ¥${dailyPay}`, 'success');
+    finishWorkBlock();
+  };
+
+  const finishWorkBlock = () => {
+    // 推进时间逻辑
+    if (gameState.phase === 'WORK_AM') {
+        setGameState(prev => ({ ...prev, phase: 'LUNCH', time: '12:00' }));
+    } else {
+      const salary = (gameState.profession?.salaryBase || 0) + getRandomInt(-20, 20); 
+      updateStats({ money: salary });
+      addLog(`【下班】入账 ¥${salary}`, 'success');
       setGameState(prev => ({ ...prev, phase: 'DINNER', time: '18:30' }));
     }
   };
 
-  const handleRestDayActivity = (type: string) => {
-    // 休息日专属活动
-    switch(type) {
-        case 'SLEEP_IN':
-            updateStats({ physical: 15, mental: 10, satiety: -10 }, "睡到自然醒，这才是生活！");
-            break;
-        case 'STUDY':
-            updateStats({ mental: -5, money: -50 }, "去图书馆卷了一上午，感觉离升职加薪近了一步。");
-            break;
-        case 'GAME_ALL_DAY':
-            updateStats({ mental: 20, physical: -5, satiety: -10 }, "通宵排位，虽然赢了但腰快断了。");
-            break;
-        case 'DATE_BLIND': // 相亲
-             if (Math.random() < 0.4) {
-                 updateStats({ mental: -20, money: -300 }, "遇到了奇葩相亲对象，气得你当场买单走人。");
-             } else {
-                 updateStats({ mental: 10, money: -300 }, "对方还不错，加了微信，但花了一大笔饭钱。");
-             }
-             break;
-    }
-    // 休息日时间流逝快
-    if (gameState.phase === 'REST_AM') setGameState(prev => ({ ...prev, phase: 'LUNCH', time: '12:00' }));
-    else setGameState(prev => ({ ...prev, phase: 'DINNER', time: '18:00' }));
-  };
+  // --- Free Time Logic with Streamer Event ---
 
   const handleFreeTime = (action: string) => {
-      // 中国特色夜生活
       switch(action) {
-          case 'SPA': // 洗脚城
-              if (gameState.stats.money < 298) { addLog("298的套餐都点不起，被服务员鄙视了。", "danger"); return; }
-              updateStats({ money: -298, physical: 15, mental: 15 }, "‘贵宾一位！’ 技师的手法让你忘记了尘世的烦恼。");
+          case 'SPA': 
+              if (gameState.stats.money < 1288) { addLog("1288的至尊套餐点不起，只能在前台喝杯水。", "danger"); return; }
+              updateStats({ money: -1288, physical: 25, mental: 20 }, "技师说你这腰得加钟。一阵酥麻后，感觉活过来了。");
               break;
-          case 'STREAMER': // 打赏主播
-              if (gameState.stats.money < 500) { addLog("余额不足，无法守护最好的giegie/妹妹。", "warning"); return; }
-              updateStats({ money: -500, mental: 25 }, "刷了一个大火箭！主播喊了你的名字，你感觉人生到达了巅峰。");
+          case 'STREAMER': 
+              if (gameState.stats.money < 1000) { addLog("只刷1000块？主播连头都没抬。", "warning"); return; }
+              const newCount = gameState.flags.streamerSimpCount + 1;
+              setGameState(prev => ({ ...prev, flags: { ...prev.flags, streamerSimpCount: newCount } }));
+              updateStats({ money: -1000, mental: 15 }, "刷了一个嘉年华！主播喊了句‘感谢大哥’。");
+              
+              // 触发奔现剧情 (刷满3次有概率)
+              if (newCount >= 3 && Math.random() < 0.4) {
+                 triggerStreamerEvent();
+                 return; // 模态框接管，不推进时间，在回调里推进
+              }
               break;
-          case 'BBQ': // 撸串
-              updateStats({ money: -100, physical: -5, mental: 10, satiety: 30 }, "没有什么是一顿烧烤解决不了的，如果有，就两顿。");
+          case 'BBQ': 
+              updateStats({ money: -100, physical: -5, mental: 10, satiety: 30 }, "路边摊撸串，虽然不卫生但是真香。");
               break;
-          case 'SQUARE_DANCE': // 广场舞
-              updateStats({ physical: 5, mental: 5, satiety: -5 }, "混入大妈队伍跳广场舞，意外地解压。");
+          case 'SQUARE_DANCE': 
+              updateStats({ physical: 5, mental: 5, satiety: -5 }, "和楼下大妈抢地盘跳舞，身心舒畅。");
               break;
       }
+      // 如果没有触发模态框，正常结束
       setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:30' }));
   };
 
-  const handleEat = (type: string) => {
-      if (type === 'TAKEOUT') {
-          updateStats({ money: -30, satiety: 40, physical: -2 }, "拼好饭的外卖，不知道是不是淋巴肉，凑合吃吧。");
-          addLog("吃了份重油重盐的外卖。");
-      } else if (type === 'COOK') {
-          updateStats({ satiety: 35, cookingSkill: 1, money: -15 }, "自己做的西红柿炒蛋，虽然卖相不好但健康。");
-          addLog("自己做饭，充满生活气息。");
-      }
-      advanceTime();
-  };
-
-  const advanceTime = () => {
-    setGameState(prev => {
-      let nextPhase = prev.phase;
-      let nextTime = prev.time;
-
-      const schedule = prev.profession?.schedule || '965';
-      const isTodayWeekend = isWeekend(prev.date, schedule);
-
-      if (prev.phase === 'MORNING') {
-          // 判断今天是否休息
-          if (isTodayWeekend) {
-              nextPhase = 'REST_AM'; nextTime = '10:00';
-              addLog(`今天是休息日 (${schedule})，不用去当牛马了！`, 'success');
-          } else {
-              nextPhase = 'WORK_AM'; nextTime = '09:00';
+  const triggerStreamerEvent = () => {
+    showModal({
+      title: "主播的私信",
+      description: "‘榜一大哥，为了感谢你的支持，今晚出来见一面？’ 你看着手机屏幕，心跳加速。",
+      type: 'LOVE',
+      actions: [
+        {
+          label: "必须去！(充满期待)",
+          onClick: () => {
+            // 80% 概率翻车，很真实
+            if (Math.random() < 0.8) {
+              showModal({
+                title: "奔现翻车",
+                description: "你到了约定地点，发现对方和直播间不能说一模一样，只能说毫无关系。是一个开了十级美颜的乔碧萝，而且还是个酒托。你被坑了酒钱还受了情伤。",
+                type: 'DEATH', // 用震惊图标
+                actions: [{ label: "含泪回家 (精神-50, 钱-2000)", onClick: () => {
+                  updateStats({ mental: -50, money: -2000 }, "精神受到了一万点暴击，钱包也被掏空。");
+                  closeModal();
+                }, style: 'danger' }]
+              });
+            } else {
+              // 成功
+              updateStats({ mental: 50 }, "虽然是酒托，但至少长得和照片一样，你度过了愉快的一晚。");
+              closeModal();
+            }
           }
-      } 
-      else if (prev.phase === 'REST_AM') { nextPhase = 'LUNCH'; nextTime = '12:00'; }
-      else if (prev.phase === 'LUNCH') {
-          if (isTodayWeekend) { nextPhase = 'REST_PM'; nextTime = '14:00'; }
-          else { nextPhase = 'WORK_PM'; nextTime = '13:00'; }
-      }
-      else if (prev.phase === 'DINNER') { nextPhase = 'FREE_TIME'; nextTime = '20:00'; }
-
-      return { ...prev, phase: nextPhase, time: nextTime };
+        },
+        {
+          label: "算了，那是电子老婆",
+          onClick: () => {
+            updateStats({ mental: -5 }, "你拒绝了诱惑，虽然有点遗憾。");
+            closeModal();
+          },
+          style: 'secondary'
+        }
+      ]
     });
   };
 
   const handleSleep = () => {
+    // 疾病检查逻辑
+    let diseaseText = "";
+    // 如果健康且体质低(<60)，或者运气不好，容易得病
+    if (!gameState.flags.disease) {
+       if ((gameState.stats.physical < 60 && Math.random() < 0.3) || Math.random() < 0.05) {
+         const disease = DISEASES[getRandomInt(0, DISEASES.length - 1)];
+         setGameState(prev => ({ ...prev, flags: { ...prev.flags, disease: disease.name } }));
+         diseaseText = `你感觉身体不适，确诊了【${disease.name}】。`;
+         // 弹出疾病警告
+         showModal({
+           title: "突发恶疾",
+           description: `早起感觉不对劲。医生告诉你确诊了【${disease.name}】。${disease.desc} 治疗需要花费 ¥${disease.cost}。`,
+           type: 'DISEASE',
+           actions: [
+             { label: `去医院治疗 (-¥${disease.cost})`, onClick: () => {
+                if (gameState.stats.money >= disease.cost) {
+                   updateStats({ money: -disease.cost });
+                   setGameState(prev => ({ ...prev, flags: { ...prev.flags, disease: null } }));
+                   closeModal();
+                } else {
+                   addLog("钱不够，被医生赶了出来。只能硬扛了。", "danger");
+                   closeModal();
+                }
+             }},
+             { label: "硬扛 (体力回复减半)", onClick: () => closeModal(), style: 'secondary' }
+           ]
+         });
+         return; // 模态框会暂停后续逻辑，直到关闭
+       }
+    } else {
+       // 已有疾病，持续扣血
+       updateStats({ physical: -8, mental: -5 }, `受到【${gameState.flags.disease}】的折磨，身体在衰弱。`);
+    }
+
     const nextDay = new Date(gameState.date);
     nextDay.setDate(nextDay.getDate() + 1);
 
@@ -249,7 +347,69 @@ const App: React.FC = () => {
         phase: 'MORNING', 
         time: '07:00' 
     }));
+    if (diseaseText) addLog(diseaseText, 'danger');
     addLog(`=== ${formatDateCN(nextDay)} ===`, 'info');
+  };
+
+  // --- Actions Wrappers (保持UI调用一致) ---
+  const handleRestDayActivity = (type: string) => {
+     if (type === 'DATE_BLIND') {
+        if (Math.random() < 0.5) {
+            updateStats({ money: -500, mental: -20 }, "遇到了奇葩相亲对象，对方带了全家来蹭饭，吃完就拉黑了你。");
+        } else {
+            updateStats({ money: -200, mental: 5 }, "对方还算正常，加了微信，但回复很慢。");
+        }
+     } else if (type === 'SLEEP_IN') {
+        updateStats({ physical: 20, mental: 15, satiety: -10 }, "睡到自然醒，这才是生活！");
+     }
+     if (gameState.phase === 'REST_AM') setGameState(prev => ({ ...prev, phase: 'LUNCH', time: '12:00' }));
+     else setGameState(prev => ({ ...prev, phase: 'DINNER', time: '18:00' }));
+  };
+  
+  const handleEat = (type: string) => {
+      if (type === 'TAKEOUT') {
+        if (Math.random() < 0.1) {
+            updateStats({ money: -30, satiety: 40, physical: -10 }, "外卖里吃出了半只蟑螂，恶心得你吐了一天。");
+        } else {
+            updateStats({ money: -30, satiety: 40, physical: -2 }, "拼好饭的外卖，科技与狠活的味道。");
+        }
+      } else if (type === 'COOK') {
+        updateStats({ money: -15, satiety: 35, cookingSkill: 1 }, "自己做饭，虽然刷碗很累，但吃得放心。");
+      }
+      advanceTime();
+  };
+
+  const handleCNYChoice = (choice: 'ARGUE' | 'SILENT' | 'GIVE_MONEY') => {
+      if (choice === 'ARGUE') {
+          updateStats({ mental: 20, physical: -5 }, "你舌战群儒，怼得亲戚哑口无言！心里爽翻了。");
+      } else if (choice === 'SILENT') {
+          updateStats({ mental: -15 }, "你默默忍受了催婚和攀比，感觉自己像个废物。");
+      } else if (choice === 'GIVE_MONEY') {
+          if (gameState.stats.money < 2000) { addLog("没钱发红包，被亲戚翻了白眼。", "danger"); updateStats({mental: -20}); }
+          else { updateStats({ money: -2000, mental: 10 }, "破财免灾，发了红包后耳根子清净了。"); }
+      }
+      setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:00' }));
+  };
+
+  const advanceTime = () => {
+    setGameState(prev => {
+      let nextPhase = prev.phase;
+      let nextTime = prev.time;
+      const schedule = prev.profession?.schedule || '965';
+      const isTodayWeekend = isWeekend(prev.date, schedule);
+
+      if (prev.phase === 'MORNING') {
+          if (isTodayWeekend) { nextPhase = 'REST_AM'; nextTime = '10:00'; addLog("休息日！", 'success'); } 
+          else { nextPhase = 'WORK_AM'; nextTime = '09:00'; }
+      } 
+      else if (prev.phase === 'REST_AM') { nextPhase = 'LUNCH'; nextTime = '12:00'; }
+      else if (prev.phase === 'LUNCH') {
+          if (isTodayWeekend) { nextPhase = 'REST_PM'; nextTime = '14:00'; }
+          else { nextPhase = 'WORK_PM'; nextTime = '13:00'; }
+      }
+      else if (prev.phase === 'DINNER') { nextPhase = 'FREE_TIME'; nextTime = '20:00'; }
+      return { ...prev, phase: nextPhase, time: nextTime };
+    });
   };
 
   // --- Render ---
@@ -283,7 +443,7 @@ const App: React.FC = () => {
   }
 
   if (gameState.phase === 'GAME_OVER') {
-      return (
+     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-black font-mono">
         <div className="max-w-md w-full text-center relative">
           <h1 className="text-6xl font-black text-red-600 mb-6 tracking-widest">已销户</h1>
@@ -301,7 +461,7 @@ const App: React.FC = () => {
           </button>
         </div>
       </div>
-      );
+     );
   }
 
   if (gameState.phase === 'EVENT_CNY') {
@@ -334,8 +494,12 @@ const App: React.FC = () => {
       );
   }
 
+  // 主界面
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-red-500/30 pb-10">
+      {/* 插入全局模态框 */}
+      <EventModal config={gameState.modal} />
+
       <StatBar stats={gameState.stats} profession={gameState.profession} time={gameState.time} isDepressed={gameState.flags.isDepressed} date={gameState.date} />
       
       <main className="max-w-4xl mx-auto p-4 flex flex-col gap-6">
@@ -359,16 +523,12 @@ const App: React.FC = () => {
                               gameState.phase === 'SLEEP' ? '梦乡' : '通勤'}
                         </span>
                     </div>
-                    <div className="flex justify-between items-center text-sm border-b border-zinc-800 pb-2">
-                        <span className="text-zinc-400">排班制度</span>
-                        <span className="text-zinc-200 font-mono bg-zinc-800 px-2 rounded text-xs py-0.5">{gameState.profession?.schedule || '无'}</span>
-                    </div>
-                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-zinc-400">今日类型</span>
-                        <span className={`${gameState.phase.includes('REST') ? 'text-green-400' : 'text-zinc-500'} font-bold text-xs`}>
-                            {gameState.phase.includes('REST') ? 'WEEKEND / HOLIDAY' : 'WORKDAY'}
-                        </span>
-                    </div>
+                    {/* 疾病状态显示 */}
+                    {gameState.flags.disease && (
+                        <div className="bg-red-900/30 p-2 rounded border border-red-800 text-xs text-red-300 flex items-center animate-pulse">
+                             <span className="mr-2">●</span> 患病: {gameState.flags.disease}
+                        </div>
+                    )}
                  </div>
             </div>
 
@@ -377,7 +537,6 @@ const App: React.FC = () => {
                  <h3 className="text-zinc-500 text-xs font-mono uppercase tracking-widest mb-4">Available Actions</h3>
                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     
-                    {/* 饮食 (通用) */}
                     {(gameState.phase === 'MORNING' || gameState.phase === 'LUNCH' || gameState.phase === 'DINNER') && (
                         <>
                            <ActionButton onClick={() => handleEat('TAKEOUT')} icon={<ShoppingBag/>} label="拼好饭" sub="-¥30" color="orange" />
@@ -385,40 +544,37 @@ const App: React.FC = () => {
                         </>
                     )}
 
-                    {/* 工作 (工作日) */}
                     {gameState.phase.includes('WORK') && (
                         <button onClick={handleWork} className="col-span-full py-12 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white rounded-xl transition-all group flex flex-col items-center justify-center gap-2 hover:shadow-lg hover:shadow-zinc-900/50">
                             <Briefcase className="w-8 h-8 group-hover:animate-bounce text-zinc-400 group-hover:text-white" />
-                            <span className="text-xl font-bold tracking-widest">打工 (搬砖)</span>
-                            <span className="text-xs text-zinc-500 font-mono">CLICK TO SURVIVE</span>
+                            <span className="text-xl font-bold tracking-widest">
+                                {gameState.profession?.id === 'PROGRAMMER' ? '写代码 (修BUG)' : 
+                                 gameState.profession?.id === 'DELIVERY' ? '接单跑腿' : '打工 (搬砖)'}
+                            </span>
+                            <span className="text-xs text-zinc-500 font-mono">CLICK TO WORK</span>
                         </button>
                     )}
 
-                    {/* 休息日活动 */}
                     {gameState.phase.includes('REST') && (
                         <>
                             <ActionButton onClick={() => handleRestDayActivity('SLEEP_IN')} icon={<Moon/>} label="睡懒觉" sub="回血神器" color="indigo" />
-                            <ActionButton onClick={() => handleRestDayActivity('GAME_ALL_DAY')} icon={<Gamepad2/>} label="通宵游戏" sub="很爽但伤身" color="purple" />
                             <ActionButton onClick={() => handleRestDayActivity('DATE_BLIND')} icon={<HeartHandshake/>} label="去相亲" sub="赌博行为" color="red" />
-                            <ActionButton onClick={() => handleRestDayActivity('STUDY')} icon={<Coffee/>} label="内卷学习" sub="提升自我" color="zinc" />
                         </>
                     )}
 
-                    {/* 晚间自由活动 */}
                     {gameState.phase === 'FREE_TIME' && (
                         <>
-                            <ActionButton onClick={() => handleFreeTime('SPA')} icon={<Footprints/>} label="洗脚城" sub="-¥298 | 帝王服务" color="pink" />
-                            <ActionButton onClick={() => handleFreeTime('STREAMER')} icon={<MonitorPlay/>} label="打赏主播" sub="-¥500 | 感谢老铁" color="purple" />
+                            <ActionButton onClick={() => handleFreeTime('SPA')} icon={<Footprints/>} label="高端会所" sub="-¥1288 | 帝王服务" color="pink" />
+                            <ActionButton onClick={() => handleFreeTime('STREAMER')} icon={<MonitorPlay/>} label="打赏主播" sub="-¥1000 | 感谢大哥" color="purple" />
                             <ActionButton onClick={() => handleFreeTime('BBQ')} icon={<Beer/>} label="路边撸串" sub="-¥100 | 快乐" color="orange" />
                             <ActionButton onClick={() => handleFreeTime('SQUARE_DANCE')} icon={<Dumbbell/>} label="广场舞" sub="强身健体" color="teal" />
                         </>
                     )}
 
-                     {/* 睡觉 */}
                     {gameState.phase === 'SLEEP' && (
                          <button onClick={handleSleep} className="col-span-full py-10 bg-black hover:bg-zinc-900 border border-zinc-700 hover:border-zinc-500 text-zinc-300 rounded-xl transition-all flex flex-col items-center justify-center group">
                             <Moon className="w-6 h-6 mb-2 group-hover:text-yellow-200 transition-colors" />
-                            <span className="font-bold">结束这一天</span>
+                            <span className="font-bold">结束这一天 (结算疾病)</span>
                         </button>
                     )}
                  </div>
