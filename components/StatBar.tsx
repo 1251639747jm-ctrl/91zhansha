@@ -1,6 +1,6 @@
 import React from 'react';
-import { PlayerStats, Profession } from './types';
-import { formatCurrency, getHealthColor, getMentalColor, formatDateCN } from './utils';
+import { PlayerStats, Profession } from '../types';
+import { formatCurrency, getHealthColor, getMentalColor, formatDateCN } from '../utils';
 import { Heart, Brain, DollarSign, Utensils, Clock, User, Calendar } from 'lucide-react';
 
 interface Props {
