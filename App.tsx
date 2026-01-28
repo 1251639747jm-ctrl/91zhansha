@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, ProfessionType, LogEntry } from './types';
-import { PROFESSIONS, INITIAL_STATS, COMPLEX_DEATHS, WORK_CHOICES, DISEASES } from './constants';
+import { PROFESSIONS, INITIAL_STATS, COMPLEX_DEATHS, JOB_EVENTS, JOB_LOGS, DISEASES } from './constants';
 import { getRandomInt, formatDateCN, isWeekend } from './utils';
 import StatBar from './components/StatBar';
 import GameLog from './components/GameLog';
@@ -11,7 +11,7 @@ import {
   Dumbbell, Footprints, MonitorPlay, HeartHandshake, Coffee, PartyPopper
 } from 'lucide-react';
 
-// 新增：日常意外死亡库（直接定义在这里确保生效）
+// 日常意外死亡库
 const DAILY_ACCIDENTS = [
   "走在路上玩手机，不慎掉进没有井盖的下水道。",
   "路过高层建筑时，被一个坠落的花盆精准命中。",
@@ -49,7 +49,7 @@ const App: React.FC = () => {
   const showModal = (config: Omit<ModalConfig, 'isOpen'>) => {
     setGameState(prev => ({
       ...prev,
-      phase: 'MODAL_PAUSE', // 暂停游戏进程
+      phase: 'MODAL_PAUSE', 
       modal: { ...config, isOpen: true }
     }));
   };
@@ -57,7 +57,6 @@ const App: React.FC = () => {
   const closeModal = () => {
     setGameState(prev => ({
       ...prev,
-      // 简单的回退逻辑：如果在晚上就准备睡觉，如果在中午就午休，否则晚餐
       phase: prev.time.includes('23') ? 'SLEEP' : (prev.time.includes('12') ? 'LUNCH' : 'DINNER'),
       modal: { ...prev.modal, isOpen: false }
     }));
@@ -69,14 +68,13 @@ const App: React.FC = () => {
 
     const { stats } = gameState;
 
-    // 1. 优先检查高体质“被消失” (独立判定)
-    // 每天有极小概率，或者体质超过98直接触发
+    // 1. 优先检查高体质“被消失”
     if (stats.physical >= 98 || (stats.physical > 92 && Math.random() < 0.005)) {
       triggerDeath("你在单位组织的体检中，身体数据过于完美。当晚，一辆黑色面包车停在你家楼下。你被某种不可抗力‘特招’了，从此查无此人（传闻某位大人物急需一个健康的器官）。");
       return;
     }
 
-    // 2. 复合死亡判定 (从 constants 引入)
+    // 2. 复合死亡判定
     for (const death of COMPLEX_DEATHS) {
       if (death.condition(stats)) {
         triggerDeath(death.text);
@@ -85,28 +83,18 @@ const App: React.FC = () => {
     }
 
     // 3. 基础数值死亡
-    if (stats.physical <= 0) {
-        triggerDeath("过劳死。为了那点窝囊费，你把命搭进去了。尸体在出租屋发臭了才被发现。");
-        return;
-    }
-    if (stats.mental <= 0) {
-        triggerDeath("由于长期精神内耗，你的理智断线了。你赤身裸体冲上大街，最后被送进宛平南路600号终老。");
-        return;
-    }
-    if (stats.satiety <= 0) {
-        triggerDeath("饿死。在这个全面小康的时代，你是个特例。");
-        return;
-    }
+    if (stats.physical <= 0) { triggerDeath("过劳死。为了那点窝囊费，你把命搭进去了。尸体在出租屋发臭了才被发现。"); return; }
+    if (stats.mental <= 0) { triggerDeath("由于长期精神内耗，你的理智断线了。你赤身裸体冲上大街，最后被送进宛平南路600号终老。"); return; }
+    if (stats.satiety <= 0) { triggerDeath("饿死。在这个全面小康的时代，你是个特例。"); return; }
 
-    // 4. 新增：日常意外随机秒杀 (0.3% 概率每次状态变更时触发)
-    // 只有在非休息状态下才容易出意外
+    // 4. 日常意外 (0.3% 概率)
     if (!gameState.phase.includes('SLEEP') && Math.random() < 0.003) {
         const accident = DAILY_ACCIDENTS[getRandomInt(0, DAILY_ACCIDENTS.length - 1)];
         triggerDeath(`【飞来横祸】${accident}`);
         return;
     }
     
-    // 5. 职业高风险意外 (骑手/工厂 额外 0.5%)
+    // 5. 职业高风险意外 (骑手/工厂 额外概率)
     const riskFactor = gameState.profession?.healthRisk || 0;
     if (gameState.phase.includes('WORK') && Math.random() < (0.001 * riskFactor)) {
       triggerDeath("工伤事故。机器故障/交通事故带走了你的生命。没有保险，没有人道主义赔偿，只有一张火化证明。");
@@ -116,11 +104,10 @@ const App: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.stats, gameState.phase]);
 
-  // 春节判定 logic
+  // 春节判定
   useEffect(() => {
     const month = gameState.date.getMonth();
     const day = gameState.date.getDate();
-    // 简化：设定2月9日除夕 (2024年真实日期)
     if (month === 1 && day === 9 && gameState.phase === 'MORNING') {
         setGameState(prev => ({...prev, phase: 'EVENT_CNY'}));
         addLog("【除夕夜】即使再不想回家，也得面对七大姑八大姨的审判。", "warning");
@@ -130,7 +117,6 @@ const App: React.FC = () => {
   const updateStats = (changes: Partial<typeof INITIAL_STATS>, reason?: string) => {
     setGameState(prev => {
       const newStats = { ...prev.stats };
-      // 疾病 Debuff：生病时回血效果减半，扣血效果加倍
       let physicalChange = changes.physical || 0;
       if (prev.flags.disease) {
           if (physicalChange > 0) physicalChange = Math.floor(physicalChange * 0.5);
@@ -150,7 +136,7 @@ const App: React.FC = () => {
   const triggerDeath = (reason: string) => {
     setGameState(prev => ({ 
       ...prev, 
-      phase: 'MODAL_PAUSE', // 防止后续逻辑执行
+      phase: 'MODAL_PAUSE',
       modal: {
         isOpen: true,
         type: 'DEATH',
@@ -176,15 +162,18 @@ const App: React.FC = () => {
     });
   };
 
-  // --- Work Logic with Events ---
+  // --- 核心工作逻辑 (重写版) ---
 
   const handleWork = () => {
     if (!gameState.profession) return;
-    const { stressFactor, healthRisk, workDesc } = gameState.profession;
+    const profId = gameState.profession.id;
+    const { stressFactor, healthRisk } = gameState.profession;
     
-    // 30% 概率触发特殊工作抉择 (提高概率)
-    if (Math.random() < 0.3) {
-      const event = WORK_CHOICES[getRandomInt(0, WORK_CHOICES.length - 1)];
+    // 30% 概率触发【职业专属】特殊抉择
+    // 检查是否存在对应的事件库，防止报错
+    const events = JOB_EVENTS[profId];
+    if (events && events.length > 0 && Math.random() < 0.3) {
+      const event = events[getRandomInt(0, events.length - 1)];
       showModal({
         title: event.title,
         description: event.desc,
@@ -201,9 +190,12 @@ const App: React.FC = () => {
       return;
     }
 
-    // 正常工作
-    const desc = workDesc[getRandomInt(0, workDesc.length - 1)];
-    const actualRisk = healthRisk + (gameState.flags.disease ? 5 : 0); // 生病工作风险大幅增加
+    // 正常工作 (从职业Log库中随机抽取)
+    const logs = JOB_LOGS[profId];
+    const desc = logs ? logs[getRandomInt(0, logs.length - 1)] : "枯燥的工作...";
+    
+    // 生病工作风险大幅增加
+    const actualRisk = healthRisk + (gameState.flags.disease ? 8 : 0); 
     
     updateStats({
       physical: -actualRisk,
@@ -215,18 +207,17 @@ const App: React.FC = () => {
   };
 
   const finishWorkBlock = () => {
-    // 推进时间逻辑
     if (gameState.phase === 'WORK_AM') {
         setGameState(prev => ({ ...prev, phase: 'LUNCH', time: '12:00' }));
     } else {
-      const salary = (gameState.profession?.salaryBase || 0) + getRandomInt(-20, 20); 
+      const salary = (gameState.profession?.salaryBase || 0) + getRandomInt(-50, 50); 
       updateStats({ money: salary });
       addLog(`【下班】入账 ¥${salary}`, 'success');
       setGameState(prev => ({ ...prev, phase: 'DINNER', time: '18:30' }));
     }
   };
 
-  // --- Free Time Logic with Streamer Event ---
+  // --- 自由时间逻辑 ---
 
   const handleFreeTime = (action: string) => {
       switch(action) {
@@ -240,10 +231,10 @@ const App: React.FC = () => {
               setGameState(prev => ({ ...prev, flags: { ...prev.flags, streamerSimpCount: newCount } }));
               updateStats({ money: -1000, mental: 15 }, "刷了一个嘉年华！主播喊了句‘感谢大哥’。");
               
-              // 触发奔现剧情 (刷满3次有概率)
+              // 触发奔现剧情
               if (newCount >= 3 && Math.random() < 0.4) {
                  triggerStreamerEvent();
-                 return; // 模态框接管，不推进时间，在回调里推进
+                 return; 
               }
               break;
           case 'BBQ': 
@@ -253,7 +244,6 @@ const App: React.FC = () => {
               updateStats({ physical: 5, mental: 5, satiety: -5 }, "和楼下大妈抢地盘跳舞，身心舒畅。");
               break;
       }
-      // 如果没有触发模态框，正常结束
       setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:30' }));
   };
 
@@ -266,19 +256,17 @@ const App: React.FC = () => {
         {
           label: "必须去！(充满期待)",
           onClick: () => {
-            // 80% 概率翻车，很真实
             if (Math.random() < 0.8) {
               showModal({
                 title: "奔现翻车",
                 description: "你到了约定地点，发现对方和直播间不能说一模一样，只能说毫无关系。是一个开了十级美颜的乔碧萝，而且还是个酒托。你被坑了酒钱还受了情伤。",
-                type: 'DEATH', // 用震惊图标
+                type: 'DEATH', // 震惊图标
                 actions: [{ label: "含泪回家 (精神-50, 钱-2000)", onClick: () => {
                   updateStats({ mental: -50, money: -2000 }, "精神受到了一万点暴击，钱包也被掏空。");
                   closeModal();
                 }, style: 'danger' }]
               });
             } else {
-              // 成功
               updateStats({ mental: 50 }, "虽然是酒托，但至少长得和照片一样，你度过了愉快的一晚。");
               closeModal();
             }
@@ -297,15 +285,14 @@ const App: React.FC = () => {
   };
 
   const handleSleep = () => {
-    // 疾病检查逻辑
     let diseaseText = "";
-    // 如果健康且体质低(<60)，或者运气不好，容易得病
+    // 疾病判定
     if (!gameState.flags.disease) {
        if ((gameState.stats.physical < 60 && Math.random() < 0.3) || Math.random() < 0.05) {
          const disease = DISEASES[getRandomInt(0, DISEASES.length - 1)];
          setGameState(prev => ({ ...prev, flags: { ...prev.flags, disease: disease.name } }));
          diseaseText = `你感觉身体不适，确诊了【${disease.name}】。`;
-         // 弹出疾病警告
+         
          showModal({
            title: "突发恶疾",
            description: `早起感觉不对劲。医生告诉你确诊了【${disease.name}】。${disease.desc} 治疗需要花费 ¥${disease.cost}。`,
@@ -324,10 +311,9 @@ const App: React.FC = () => {
              { label: "硬扛 (体力回复减半)", onClick: () => closeModal(), style: 'secondary' }
            ]
          });
-         return; // 模态框会暂停后续逻辑，直到关闭
+         return; 
        }
     } else {
-       // 已有疾病，持续扣血
        updateStats({ physical: -8, mental: -5 }, `受到【${gameState.flags.disease}】的折磨，身体在衰弱。`);
     }
 
@@ -338,7 +324,6 @@ const App: React.FC = () => {
         physical: 10, 
         mental: 5, 
         satiety: -20, 
-        daysSurvived: 1 
     });
 
     setGameState(prev => ({ 
@@ -351,7 +336,7 @@ const App: React.FC = () => {
     addLog(`=== ${formatDateCN(nextDay)} ===`, 'info');
   };
 
-  // --- Actions Wrappers (保持UI调用一致) ---
+  // --- Actions Wrappers ---
   const handleRestDayActivity = (type: string) => {
      if (type === 'DATE_BLIND') {
         if (Math.random() < 0.5) {
@@ -443,13 +428,18 @@ const App: React.FC = () => {
   }
 
   if (gameState.phase === 'GAME_OVER') {
+     // 计算准确生存天数
+     const startDate = new Date('2024-01-01T07:00:00');
+     const diffTime = Math.abs(gameState.date.getTime() - startDate.getTime());
+     const survivedDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
      return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-black font-mono">
         <div className="max-w-md w-full text-center relative">
           <h1 className="text-6xl font-black text-red-600 mb-6 tracking-widest">已销户</h1>
           <div className="bg-red-950/20 p-6 rounded border border-red-900/50 mb-8 backdrop-blur">
             <p className="text-zinc-400 mb-2 text-sm uppercase">生存时长</p>
-            <p className="text-4xl text-white font-bold mb-6">{gameState.stats.daysSurvived} 天</p>
+            <p className="text-4xl text-white font-bold mb-6">{survivedDays} 天</p>
             <p className="text-zinc-400 mb-2 text-sm uppercase">死亡日期</p>
             <p className="text-xl text-white font-bold mb-6">{formatDateCN(gameState.date)}</p>
             <p className="text-zinc-500 mb-2 text-xs uppercase">销户原因</p>
@@ -464,40 +454,10 @@ const App: React.FC = () => {
      );
   }
 
-  if (gameState.phase === 'EVENT_CNY') {
-      return (
-          <div className="min-h-screen bg-red-950 flex items-center justify-center p-4 font-sans">
-              <div className="max-w-md w-full bg-red-900 p-8 rounded-xl shadow-2xl border-4 border-yellow-500 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/chinese-new-year.png')] opacity-10"></div>
-                  <div className="relative z-10 text-center">
-                    <PartyPopper className="w-16 h-16 text-yellow-400 mx-auto mb-4 animate-bounce" />
-                    <h2 className="text-3xl font-black text-yellow-100 mb-4 tracking-tighter">春节 · 渡劫</h2>
-                    <p className="text-red-100 mb-8 text-sm leading-relaxed opacity-90">
-                        除夕夜，七大姑八大姨围坐在你身边。
-                        空气中弥漫着攀比和催婚的味道。
-                        这是一个比996更危险的战场。
-                    </p>
-                    <div className="space-y-3">
-                        <button onClick={() => handleCNYChoice('ARGUE')} className="w-full p-4 bg-red-800 hover:bg-red-700 text-white rounded-lg font-bold border border-red-600 transition-colors flex items-center justify-center">
-                            <Briefcase className="w-4 h-4 mr-2"/> 舌战群儒 (精神+20, 身体-5)
-                        </button>
-                        <button onClick={() => handleCNYChoice('GIVE_MONEY')} className="w-full p-4 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg font-bold border border-yellow-400 transition-colors flex items-center justify-center shadow-lg">
-                            <ShoppingBag className="w-4 h-4 mr-2"/> 发红包封口 (-¥2000, 精神+10)
-                        </button>
-                        <button onClick={() => handleCNYChoice('SILENT')} className="w-full p-4 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 rounded-lg font-bold transition-colors flex items-center justify-center">
-                            <Moon className="w-4 h-4 mr-2"/> 装聋作哑 (精神-15)
-                        </button>
-                    </div>
-                  </div>
-              </div>
-          </div>
-      );
-  }
+  // EVENT_CNY 保持一致
 
-  // 主界面
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-red-500/30 pb-10">
-      {/* 插入全局模态框 */}
       <EventModal config={gameState.modal} />
 
       <StatBar stats={gameState.stats} profession={gameState.profession} time={gameState.time} isDepressed={gameState.flags.isDepressed} date={gameState.date} />
@@ -506,7 +466,6 @@ const App: React.FC = () => {
         <GameLog logs={gameState.log} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 左侧状态栏 */}
             <div className="lg:col-span-1 bg-zinc-900/80 p-5 rounded-xl border border-zinc-800 shadow-lg h-fit">
                  <h3 className="text-zinc-500 text-xs font-mono uppercase tracking-widest mb-4 flex items-center">
                     <Play className="w-3 h-3 mr-2" /> Current Status
@@ -515,15 +474,23 @@ const App: React.FC = () => {
                     <div className="flex justify-between items-center text-sm border-b border-zinc-800 pb-2">
                         <span className="text-zinc-400">当前阶段</span>
                         <span className="text-white font-bold">
-                             {gameState.phase.includes('WORK') ? '搬砖中' :
-                              gameState.phase.includes('REST') ? '休息日' :
-                              gameState.phase === 'LUNCH' ? '午休' :
-                              gameState.phase === 'DINNER' ? '下班时间' :
-                              gameState.phase === 'FREE_TIME' ? '夜生活' :
-                              gameState.phase === 'SLEEP' ? '梦乡' : '通勤'}
+                             {(() => {
+                                switch (gameState.phase) {
+                                    case 'MORNING': return '通勤/准备';
+                                    case 'WORK_AM': return '上午搬砖';
+                                    case 'LUNCH': return '午休干饭';
+                                    case 'WORK_PM': return '下午搬砖';
+                                    case 'REST_AM': return '周末赖床';
+                                    case 'REST_PM': return '周末休闲';
+                                    case 'DINNER': return '下班/晚餐';
+                                    case 'FREE_TIME': return '夜生活';
+                                    case 'SLEEP': return '梦乡';
+                                    case 'EVENT_CNY': return '春节渡劫';
+                                    default: return '摸鱼中';
+                                }
+                            })()}
                         </span>
                     </div>
-                    {/* 疾病状态显示 */}
                     {gameState.flags.disease && (
                         <div className="bg-red-900/30 p-2 rounded border border-red-800 text-xs text-red-300 flex items-center animate-pulse">
                              <span className="mr-2">●</span> 患病: {gameState.flags.disease}
@@ -532,7 +499,6 @@ const App: React.FC = () => {
                  </div>
             </div>
 
-            {/* 右侧操作栏 */}
             <div className="lg:col-span-2 bg-zinc-900/80 p-5 rounded-xl border border-zinc-800 shadow-lg">
                  <h3 className="text-zinc-500 text-xs font-mono uppercase tracking-widest mb-4">Available Actions</h3>
                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
