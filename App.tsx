@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, ProfessionType, LogEntry } from './types';
 import { PROFESSIONS, INITIAL_STATS, COMPLEX_DEATHS } from './constants';
 import { getRandomInt, formatDateCN, isWeekend } from './utils';
-import StatBar from './StatBar';
-import GameLog from './GameLog';
+import StatBar from './components/StatBar';
+import GameLog from './components/GameLog';
 import { 
   Play, RotateCcw, Utensils, Briefcase, Moon, 
   Gamepad2, ShoppingBag, Beer, 
