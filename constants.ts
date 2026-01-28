@@ -1,7 +1,7 @@
 import { PlayerStats, Profession, ProfessionType } from './types';
 
 export const INITIAL_STATS: PlayerStats = {
-  physical: 75, // 初始调低一点，太高容易死
+  physical: 80,
   mental: 80,
   money: 5000,
   satiety: 80,
@@ -9,135 +9,378 @@ export const INITIAL_STATS: PlayerStats = {
   daysSurvived: 0,
 };
 
+// 职业基础定义
 export const PROFESSIONS: Record<ProfessionType, Profession> = {
   CIVIL_SERVANT: {
     id: 'CIVIL_SERVANT',
     name: '街道办科员',
     salaryBase: 240, 
-    stressFactor: 2,
+    stressFactor: 3,
     healthRisk: 1,
     schedule: '965',
     description: '宇宙尽头编制内。',
-    workDesc: ['整理毫无意义的表格', '给领导写某种材料', '接待愤怒的居民', '在茶水间研究茶叶']
+    workDesc: [] // 下面单独定义
   },
   PROGRAMMER: {
     id: 'PROGRAMMER',
     name: '大厂架构师',
     salaryBase: 1200,
-    stressFactor: 7,
-    healthRisk: 5,
+    stressFactor: 8,
+    healthRisk: 6,
     schedule: '996',
     description: '拿命换钱。',
-    workDesc: ['在屎山上雕花', '因为一个分号排查了3小时', '与产品经理进行亲切友好的格斗', '参加无效的复盘会议']
+    workDesc: []
   },
   FACTORY_WORKER: {
     id: 'FACTORY_WORKER',
     name: '电子厂普工',
     salaryBase: 280,
-    stressFactor: 4,
-    healthRisk: 4,
+    stressFactor: 5,
+    healthRisk: 5,
     schedule: '007',
-    description: '提桶跑路是常态。',
-    workDesc: ['打第1000个螺丝', '在流水线上发呆', '被线长怒吼', '偷偷在厕所抽烟']
+    description: '流水线上的螺丝钉。',
+    workDesc: []
   },
   DELIVERY: {
     id: 'DELIVERY',
     name: '金牌骑手',
-    salaryBase: 500,
-    stressFactor: 5,
-    healthRisk: 8,
+    salaryBase: 600,
+    stressFactor: 6,
+    healthRisk: 9, // 极高风险
     schedule: '007',
     description: '困在算法里的人。',
-    workDesc: ['在暴雨中狂奔', '爬了8楼送一份奶茶', '被保安拦在小区门口', '超时了，向客户道歉']
+    workDesc: []
   },
   SALES: {
     id: 'SALES',
     name: '房产销售',
     salaryBase: 400,
-    stressFactor: 6,
-    healthRisk: 3,
+    stressFactor: 7,
+    healthRisk: 4,
     schedule: '996',
     description: '不开单就吃土。',
-    workDesc: ['打了50个骚扰电话', '被客户拉黑', '陪客户喝到胃出血', '在朋友圈发鸡汤']
+    workDesc: []
   },
   UNEMPLOYED: {
     id: 'UNEMPLOYED',
     name: '全职儿女',
     salaryBase: 50,
-    stressFactor: 1,
+    stressFactor: 2,
     healthRisk: 1,
     schedule: '965',
     description: '家里蹲。',
-    workDesc: ['假装在考研复习', '帮妈妈洗了一次碗', '被亲戚阴阳怪气', '躺在床上刷视频']
+    workDesc: []
   }
+};
+
+// --- 1. 职业专属：普通搬砖日志 (Log) ---
+// 每个职业至少 10 条，用于非弹窗时的随机文本
+export const JOB_LOGS: Record<ProfessionType, string[]> = {
+  CIVIL_SERVANT: [
+    "整理了一上午关于‘社区垃圾分类’的红头文件，感觉人生毫无意义。",
+    "隔壁窗口的王大妈因为少发了一盒鸡蛋，指着你的鼻子骂了半小时。",
+    "领导让你把Excel表格里的字体全部从‘宋体’改成‘仿宋’。",
+    "参加了三个小时的‘精神文明建设’会议，睡着差点流口水。",
+    "帮领导拿快递，顺便帮他家小孩打印了暑假作业。",
+    "接待了一位听力不好的大爷，吼得嗓子都哑了。",
+    "写材料写到崩溃，Ctrl+C 和 Ctrl+V 都按出火星子了。",
+    "在茶水间摸鱼，听到了隔壁科室的劲爆八卦。",
+    "为了应付上级检查，去街上扫了一个小时的落叶。",
+    "因为必须穿正装，大夏天捂出了一身痱子。"
+  ],
+  PROGRAMMER: [
+    "盯着屏幕找了一个小时，发现那个Bug是因为少写了一个分号。",
+    "产品经理又改需求了，你想把键盘拍在他脸上。",
+    "服务器报警，CPU占用率飙升到99%，你的血压也跟着飙升。",
+    "参加每日站会，每个人都在用黑话装模作样。",
+    "重构了一段祖传代码，结果整个项目都跑不起来了。",
+    "隔壁组刚入职的00后，发量比你多，工资比你高。",
+    "长时间久坐，感觉腰椎间盘突出又严重了。",
+    "在屎山上雕花，试图让这段垃圾代码跑得再快0.1秒。",
+    "因为一个低级错误，被CTO在全员群里点名批评。",
+    "为了赶版本发布，今晚又要通宵了，咖啡续命中。"
+  ],
+  FACTORY_WORKER: [
+    "机械地重复同一个动作：拿零件，按压，放零件。脑子已麻木。",
+    "线长站在你身后，掐着秒表计算你的动作时间。",
+    "车间里全是机油味和汗臭味，混合成一种绝望的味道。",
+    "上厕所需要拿‘离岗证’，而且被限制在5分钟以内。",
+    "如果不小心打瞌睡，手指可能就会被机器切掉。",
+    "为了那点全勤奖，生病了也不敢请假。",
+    "隔壁工位的阿姨给你介绍对象，说是村口王二麻子。",
+    "午饭又是清汤寡水的大白菜，一点油水都没有。",
+    "站了一整天，小腿肿得像萝卜一样粗。",
+    "不仅要上白班，下周还要倒夜班，生物钟彻底紊乱。"
+  ],
+  DELIVERY: [
+    "暴雨天，视线模糊，差点撞上一辆逆行的三轮车。",
+    "顾客住在没有电梯的老破小8楼，爬楼爬到腿软。",
+    "因为保安不让进小区，被迫在门口像个傻子一样等顾客。",
+    "餐洒了一点，被顾客当面把饭扔在地上。",
+    "为了不超时，在红灯路口和死神赛跑。",
+    "手机导航把你带进了死胡同，必须原路返回。",
+    "电动车电量告急，离换电站还有3公里，只能推着走。",
+    "接了一个帮买单，结果是买两桶5L的水。",
+    "被顾客恶意差评，这几天的辛苦钱全白干了。",
+    "在写字楼楼下等电梯，急得想从楼梯飞上去。"
+  ],
+  SALES: [
+    "打了一百个电话，有99个骂人，还有一个是空号。",
+    "为了陪客户，一口气喝了一斤白酒，胃里像火烧。",
+    "在客户楼下蹲守了三天，只为了送一份没人看的资料。",
+    "被主管在早会上当众羞辱：‘这点业绩，狗都比你强！’",
+    "朋友圈全是鸡汤和广告，连亲戚都把你屏蔽了。",
+    "客户明明没钱，还要装大款，浪费了你一下午口舌。",
+    "为了开单，不得不答应给客户高额回扣，自己倒贴钱。",
+    "在售楼处站了一天，笑得脸部肌肉都僵硬了。",
+    "被同行抢了单，气得在厕所里锤墙。",
+    "不仅要卖房子，还要陪客户家的狗玩。"
+  ],
+  UNEMPLOYED: [
+    "在家躺了一上午，被妈妈骂：‘养头猪还能吃肉，养你有什么用？’",
+    "假装在投简历，其实在打游戏，内心充满了负罪感。",
+    "看到同学在朋友圈晒工资条，焦虑得睡不着觉。",
+    "为了省钱，连拼好饭都不敢点，只能吃泡面。",
+    "亲戚来串门，问你‘工作找得怎么样了’，你想找个地缝钻进去。",
+    "在网上看招聘信息，发现自己连保安的要求都达不到。",
+    "试图考公上岸，但是连书的一页都看不进去。",
+    "昼夜颠倒，白天睡觉晚上emo，感觉自己像个吸血鬼。",
+    "伸手问爸爸要零花钱，看到了他失望的眼神。",
+    "在家里地位不如狗，连呼吸都是错的。"
+  ]
+};
+
+// --- 2. 职业专属：突发抉择事件 (Modal) ---
+// 每个职业专属事件，包含高风险高回报，或者单纯的恶心人
+export const JOB_EVENTS: Record<ProfessionType, Array<{title: string, desc: string, options: any[]}>> = {
+  CIVIL_SERVANT: [
+    {
+      title: "【紧急任务】领导的茶",
+      desc: "大领导突然来视察，处长让你去泡茶，但他只喝那种‘85度的水泡出来的陈年普洱’。",
+      options: [
+        { text: "小心翼翼地泡 (压力+10)", changes: { mental: -10, money: 0 } },
+        { text: "直接倒开水 (作死)", changes: { mental: 20, money: -500 } }, // 扣绩效
+      ]
+    },
+    {
+      title: "【职场站队】科长的暗示",
+      desc: "科长暗示你，要在下周的评选里给副科长投反对票。这可是职场大忌。",
+      options: [
+        { text: "听科长的 (卷入斗争)", changes: { mental: -20, stressFactor: 1 } }, // 长期压力增加
+        { text: "装傻充愣 (两边得罪)", changes: { mental: -10, money: -200 } }
+      ]
+    },
+    {
+      title: "【突发】群众闹事",
+      desc: "几个情绪激动的居民冲进办公室，指名道姓要找你，因为你的章盖歪了。",
+      options: [
+        { text: "低头认错道歉 (自尊-50)", changes: { mental: -30, physical: -5 } },
+        { text: "和他们对喷 (爽！但是...)", changes: { mental: 30, money: -1000 } } // 严重处分
+      ]
+    },
+    {
+      title: "【加班】毫无意义的PPT",
+      desc: "明天要汇报，领导觉得PPT背景颜色不够‘大气’，让你今晚改出10个版本。",
+      options: [
+        { text: "通宵改 (健康-20)", changes: { physical: -20, mental: -15 } },
+        { text: "随便改改 (敷衍)", changes: { money: -200, mental: 5 } }
+      ]
+    }
+  ],
+  PROGRAMMER: [
+    {
+      title: "【事故】生产环境删库",
+      desc: "你在清理日志时，手一抖敲了 rm -rf /*。虽然权限不够删根目录，但也删了不少业务数据。",
+      options: [
+        { text: "立即上报 (扣工资)", changes: { money: -2000, mental: -20 } },
+        { text: "试图偷偷恢复 (高风险)", changes: { mental: -50, physical: -10 } } // 精神压力极大
+      ]
+    },
+    {
+      title: "【需求】五彩斑斓的黑",
+      desc: "UI设计师和PM打起来了，最后决定让你来实现一个‘能根据心情变色的APP背景’。",
+      options: [
+        { text: "硬着头皮做 (掉头发)", changes: { physical: -15, mental: -20 } },
+        { text: "掀桌子不干了 (离职警告)", changes: { mental: 30, money: -500 } }
+      ]
+    },
+    {
+      title: "【福报】996变007",
+      desc: "项目到了攻坚阶段，老板宣布全员封闭开发一个月，吃住都在公司。",
+      options: [
+        { text: "接受福报 (身体-30)", changes: { physical: -30, money: 500 } }, // 加班费
+        { text: "请病假 (扣钱)", changes: { money: -1000, physical: 5 } }
+      ]
+    },
+    {
+      title: "【Bug】无法复现的幽灵",
+      desc: "有一个Bug只在老板的手机上出现，你查了三天三夜也没找到原因。",
+      options: [
+        { text: "继续死磕 (精神-25)", changes: { mental: -25, physical: -10 } },
+        { text: "告诉老板是手机问题", changes: { money: -200, mental: 10 } }
+      ]
+    }
+  ],
+  FACTORY_WORKER: [
+    {
+      title: "【危险】机器卡住了",
+      desc: "冲压机突然卡住了，如果停机维修会扣全勤奖，如果伸手去掏...",
+      options: [
+        { text: "伸手去掏 (极高风险)", changes: { physical: -50, mental: -20 } }, // 极大断手概率
+        { text: "报修停机 (扣钱)", changes: { money: -300, mental: -5 } }
+      ]
+    },
+    {
+      title: "【压榨】强制夜班",
+      desc: "线长通知，今晚通宵赶货，不干的明天不用来了。",
+      options: [
+        { text: "干！ (寿命-1)", changes: { physical: -25, mental: -15, money: 100 } },
+        { text: "提桶跑路 (失业风险)", changes: { money: -500, mental: 10 } }
+      ]
+    },
+    {
+      title: "【冲突】食堂插队",
+      desc: "吃饭时有人插队，还把汤洒在了你身上。",
+      options: [
+        { text: "忍气吞声 (憋屈)", changes: { mental: -20 } },
+        { text: "打他一顿 (赔医药费)", changes: { money: -800, physical: -10, mental: 20 } }
+      ]
+    },
+    {
+      title: "【诱惑】偷零件",
+      desc: "老乡跟你说，偷偷带点铜线出去卖，没人会发现。",
+      options: [
+        { text: "同流合污 (风险)", changes: { money: 500, mental: -30 } }, // 担心被抓
+        { text: "严词拒绝", changes: { mental: 5 } }
+      ]
+    }
+  ],
+  DELIVERY: [
+    {
+      title: "【意外】餐品被偷",
+      desc: "你上楼送餐，下来发现箱子里的另外两份外卖不见了！",
+      options: [
+        { text: "自掏腰包赔偿 (钱-100)", changes: { money: -100, mental: -20 } },
+        { text: "报给平台 (被封号风险)", changes: { mental: -30, money: -50 } }
+      ]
+    },
+    {
+      title: "【抉择】暴雨将至",
+      desc: "外面下起了特大暴雨，爆单了，每单补贴5块钱，但路面积水严重。",
+      options: [
+        { text: "富贵险中求 (健康-20)", changes: { physical: -20, money: 300 } },
+        { text: "下线保命 (没钱)", changes: { money: 0, physical: 5 } }
+      ]
+    },
+    {
+      title: "【超时】死胡同",
+      desc: "还有2分钟超时，导航把你带进了死胡同，前面是一堵墙。",
+      options: [
+        { text: "翻墙过去 (受伤风险)", changes: { physical: -15, mental: -10 } },
+        { text: "绕路超时 (扣钱)", changes: { money: -50, mental: -15 } }
+      ]
+    },
+    {
+      title: "【侮辱】不准坐电梯",
+      desc: "保安拦住你，让你走28楼的楼梯，还骂你是送饭的。",
+      options: [
+        { text: "爬楼梯 (体力-30)", changes: { physical: -30, mental: -20 } },
+        { text: "跟保安干架 (赔钱)", changes: { money: -500, physical: -10, mental: 30 } }
+      ]
+    }
+  ],
+  SALES: [
+    {
+      title: "【酒局】不喝就是不给面子",
+      desc: "大客户把一杯52度的白酒推到你面前：‘喝了这杯，合同就签。’",
+      options: [
+        { text: "干了！ (胃出血风险)", changes: { physical: -35, money: 1000, mental: -10 } },
+        { text: "婉拒 (丢单)", changes: { money: -200, mental: -10 } }
+      ]
+    },
+    {
+      title: "【潜规则】客户的暗示",
+      desc: "客户在KTV里对你动手动脚，暗示今晚去他家聊合同。",
+      options: [
+        { text: "严词拒绝 (被投诉)", changes: { money: -500, mental: 10 } },
+        { text: "虚与委蛇 (精神折磨)", changes: { mental: -40, money: 200 } }
+      ]
+    },
+    {
+      title: "【欺诈】夸大宣传",
+      desc: "经理让你把这个偏僻的楼盘吹成‘未来CBD核心’，否则就滚蛋。",
+      options: [
+        { text: "昧着良心吹 (良心痛)", changes: { mental: -25, money: 300 } },
+        { text: "拒绝撒谎 (没业绩)", changes: { money: -300, mental: 5 } }
+      ]
+    },
+    {
+      title: "【竞争】同事抢单",
+      desc: "你跟了一个月的客户，被同事用更低的价格截胡了。",
+      options: [
+        { text: "扎小人诅咒他", changes: { mental: -15 } },
+        { text: "去老板那告状", changes: { mental: -20, money: -50 } } // 被穿小鞋
+      ]
+    }
+  ],
+  UNEMPLOYED: [
+    {
+      title: "【羞辱】亲戚聚会",
+      desc: "二姨当着全家人的面问你：‘还没工作呢？我儿子一个月挣两万。’",
+      options: [
+        { text: "当场发飙 (断绝关系)", changes: { mental: 20, money: -200 } }, // 没红包拿了
+        { text: "尴尬陪笑 (内伤)", changes: { mental: -30 } }
+      ]
+    },
+    {
+      title: "【断供】经济危机",
+      desc: "老爸说这个月退休金还没发，让你自己想办法解决伙食费。",
+      options: [
+        { text: "卖二手手办 (心痛)", changes: { mental: -20, money: 300 } },
+        { text: "饿两天 (健康-15)", changes: { physical: -15, satiety: -50 } }
+      ]
+    },
+    {
+      title: "【诱惑】网络兼职",
+      desc: "网上看到‘刷单’兼职，日赚500，只需垫付资金。",
+      options: [
+        { text: "试一试 (被骗)", changes: { money: -1000, mental: -40 } },
+        { text: "肯定是骗子", changes: { mental: 5 } }
+      ]
+    },
+    {
+      title: "【深夜】网抑云时刻",
+      desc: "凌晨三点，看着天花板，觉得自己是个废物。",
+      options: [
+        { text: "痛哭一场 (精神-20)", changes: { mental: -20 } },
+        { text: "打游戏麻痹自己", changes: { mental: 10, physical: -10 } }
+      ]
+    }
+  ]
 };
 
 // 疾病池
 export const DISEASES = [
-  { name: '重感冒', harm: 5, cost: 200, desc: '头昏脑涨，浑身无力。' },
-  { name: '急性肠胃炎', harm: 8, cost: 500, desc: '喷射战士，虚脱了。' },
-  { name: '腰椎间盘突出', harm: 3, cost: 1000, desc: '直不起腰，坐立难安。' },
-  { name: '偏头痛', harm: 4, cost: 300, desc: '脑袋像被容嬷嬷扎针一样疼。' }
+  { name: '重感冒', harm: 5, cost: 300, desc: '头昏脑涨，浑身无力。' },
+  { name: '急性肠胃炎', harm: 10, cost: 800, desc: '喷射战士，虚脱了。' },
+  { name: '腰椎间盘突出', harm: 5, cost: 1500, desc: '直不起腰，坐立难安。' },
+  { name: '偏头痛', harm: 8, cost: 500, desc: '脑袋像被容嬷嬷扎针一样疼。' },
+  { name: '重度痔疮', harm: 5, cost: 2000, desc: '坐立难安，血染马桶。' },
+  { name: '结石发作', harm: 20, cost: 3000, desc: '痛得在地上打滚。' }
 ];
 
-// 工作中触发的随机选择事件
-export const WORK_CHOICES = [
-  {
-    title: "领导的暗示",
-    desc: "领导暗示你今晚留下来‘自愿’加班，完成一个紧急需求。",
-    options: [
-      { text: "立刻答应 (压力+10, 钱+200)", changes: { mental: -10, money: 200, physical: -5 } },
-      { text: "果断拒绝 (压力-5, 钱-100)", changes: { mental: 5, money: -100, physical: 0 } } // 扣钱是因为绩效
-    ]
-  },
-  {
-    title: "同事的求助",
-    desc: "同事想把他的黑锅甩给你，并承诺请你喝奶茶。",
-    options: [
-      { text: "帮他背锅 (人缘好? 压力+15)", changes: { mental: -15, money: 50 } },
-      { text: "当众拆穿 (心情+20, 职场危机)", changes: { mental: 20, money: 0 } }
-    ]
-  }
-];
 // 复合死亡条件
 export const COMPLEX_DEATHS = [
   {
-    // 高体质秒杀：必须体质极高，且有一定随机性
     condition: (s: PlayerStats) => s.physical > 97, 
-    text: "你在单位组织的体检中，身体数据过于完美。当晚，一辆黑色面包车停在你家楼下。你被某种不可抗力‘特招’了，从此查无此人（疑似器官被大人物看中）。"
+    text: "你在单位体检中，身体数据过于完美。当晚，一辆黑色面包车停在你家楼下。你被某种不可抗力‘特招’了，从此查无此人（传闻某位大人物急需一个健康的肾脏）。"
   },
   {
     condition: (s: PlayerStats) => s.money < -50000,
-    text: "你的网贷全面崩盘。你在睡梦中被带到了公海的一艘渔船上，这是你最后一次看日出。"
+    text: "你的网贷全面崩盘，暴力催收逼得你走投无路。你在睡梦中被带到了公海的一艘渔船上，这是你最后一次看日出。"
   },
   {
-    condition: (s: PlayerStats) => s.physical < 20 && s.mental < 20 && s.money > 100000,
-    text: "你在工位上突发脑溢血。遗产变成了亲戚间的纠纷，公司赔偿金还没谈拢。"
-  },
-  {
-    condition: (s: PlayerStats) => s.satiety < 5 && s.physical < 10,
-    text: "你在出租屋里饿昏了，为了省钱买的劣质煤气灶发生泄露，你没力气爬出去。"
-  },
-  {
-    condition: (s: PlayerStats) => s.money < -20000,
-    text: "网贷逾期全面爆发。催收人员在你的家门口泼油漆，你因精神崩溃冲上天台。"
-  },
-  {
-    condition: (s: PlayerStats) => s.physical > 95 && s.mental < 10,
-    text: "你的身体很强壮，但精神已死。你加入了一个邪教组织，去深山老林寻找'升华'，最后死于食物中毒。"
+    condition: (s: PlayerStats) => s.mental < 10 && s.physical < 20,
+    text: "身心俱疲的你，走在路上精神恍惚，把红灯看成了绿灯，结束了这荒诞的一生。"
   }
 ];
-
-export const EVENTS = {
-  WORK_ACCIDENTS: [
-    "连续加班30天，你感到胸闷气短，这可能是猝死的前兆。",
-    "老板画的饼太大，你消化不良（精神-10）。",
-    "被迫参加团建，内容是荒野求生，身体更累了。",
-    "体检报告出来了，除了身高其他指标全都有箭头。"
-  ],
-  CNY_QUESTIONS: [
-    "大姑：'哎呀，今年怎么还没带对象回来？隔壁二狗孩子都打酱油了！'",
-    "二舅：'听说是大厂员工？年终奖发了几十万吧？借舅舅五万周转一下？'",
-    "熊孩子：'把你手办拆了你不介意吧？反正只是塑料小人。'"
-  ]
-};
