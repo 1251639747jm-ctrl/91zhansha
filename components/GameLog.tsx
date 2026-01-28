@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { LogEntry } from './types';
+import { LogEntry } from '../types';
 
 interface Props {
   logs: LogEntry[];
@@ -24,7 +24,8 @@ const GameLog: React.FC<Props> = ({ logs }) => {
 
   return (
     <div className="bg-black/50 border border-zinc-800 rounded-lg p-4 h-48 md:h-60 overflow-y-auto font-mono text-sm leading-relaxed relative scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-      {logs.length === 0 && <div className="text-zinc-600 text-center mt-10">>>> 系统初始化完成...</div>}
+      {/* 修复：使用 &gt; 代替 > 防止解析错误 */}
+      {logs.length === 0 && <div className="text-zinc-600 text-center mt-10">&gt;&gt;&gt; 系统初始化完成...</div>}
       
       <div className="flex flex-col space-y-2">
         {logs.map((log) => (
