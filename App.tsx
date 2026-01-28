@@ -107,6 +107,7 @@ const App: React.FC = () => {
       if (changes.satiety) newStats.satiety = Math.min(100, Math.max(0, newStats.satiety + (changes.satiety || 0)));
       return { ...prev, stats: newStats };
     });
+    // 如果没有传入 reason，就不发日志（用于弹窗场景）
     if (reason) addLog(reason, changes.physical && changes.physical < 0 ? 'warning' : 'info');
   };
 
@@ -136,7 +137,7 @@ const App: React.FC = () => {
     });
   };
 
-  // --- 情感系统 ---
+  // --- 情感系统 (修改了这里) ---
 
   const openRelPanel = () => setGameState(prev => ({ ...prev, showRelationshipPanel: true }));
   const closeRelPanel = () => setGameState(prev => ({ ...prev, showRelationshipPanel: false }));
@@ -152,28 +153,58 @@ const App: React.FC = () => {
        updateStats({ money: -300, mental: 10 }, "看了一场电影，对方心情不错。");
        modifyAffection(5);
     },
+    // --- 修改：送礼物/清空购物车改用 Modal ---
     dateShopping: () => {
        const partner = gameState.flags.partner;
        if (!partner) return;
        const cost = 2000 * partner.materialism;
+       
        if (gameState.stats.money < cost) {
-          addLog("余额不足支付购物车，好感度大幅下降！", "danger");
+          // 钱不够：弹窗羞辱
           modifyAffection(-20);
+          showModal({
+              title: "社死现场",
+              description: `你豪气地冲向收银台说要清空购物车，结果显示【余额不足】。${partner.name}翻了个白眼，直接转身走了。周围的人都在偷笑。`,
+              type: 'LOVE', // 这里用心碎图标比较合适，或者 LOVE
+              actions: [{ label: "找个地缝钻进去 (好感-20)", onClick: closeModal, style: 'secondary' }]
+          });
           return;
        }
-       updateStats({ money: -cost, mental: 5 }, `清空购物车，花费 ¥${cost}。`);
+       
+       // 钱够：弹窗成功
+       updateStats({ money: -cost, mental: 5 }); // 不传reason，不报幕
        modifyAffection(15);
+       showModal({
+           title: "买买买！",
+           description: `你大手一挥，帮${partner.name}清空了购物车。看着长长的账单(¥${cost})，虽然心在滴血，但她笑得很开心。`,
+           type: 'EVENT',
+           actions: [{ label: "值得！(好感+15)", onClick: closeModal }]
+       });
     },
+    // --- 修改：表白改用 Modal ---
     confess: () => {
       const partner = gameState.flags.partner;
       if (!partner) return;
-      // 表白成功率 = 好感度 / 150 (最大66%)
-      if (Math.random() < partner.affection / 150) {
+      const successRate = partner.affection / 150; 
+
+      if (Math.random() < successRate) {
         setGameState(prev => ({ ...prev, flags: { ...prev.flags, isPursuing: false, isSingle: false } }));
-        showModal({ title: "表白成功！", description: "恭喜你，从舔狗升级为正式提款机。", type: 'LOVE', actions: [{ label: "太好了！", onClick: closeModal }] });
+        showModal({ 
+            title: "表白成功！", 
+            description: `你鼓起勇气向${partner.name}表白，她害羞地答应了。恭喜你，从舔狗升级为正式提款机。`, 
+            type: 'LOVE', 
+            actions: [{ label: "太好了！", onClick: closeModal }] 
+        });
       } else {
-        updateStats({ mental: -30 }, "被发好人卡：‘我只把你当哥哥。’");
+        // 失败：扣精神 + 扣健康
+        updateStats({ mental: -30, physical: -10 }); // 不传reason
         modifyAffection(-20);
+        showModal({
+            title: "表白惨案",
+            description: `你单膝跪地表白，${partner.name}却后退了一步：“你是个好人，但我只把你当哥哥/饭票。” 你的心碎了，身体也感到了剧痛。`,
+            type: 'DEATH', // 用DEATH图标表示心碎
+            actions: [{ label: "痛彻心扉 (精神-30, 健康-10)", onClick: closeModal, style: 'danger' }]
+        });
       }
     },
     breakup: () => {
@@ -449,9 +480,9 @@ const App: React.FC = () => {
                              {(() => {
                                 switch (gameState.phase) {
                                     case 'MORNING': return '通勤/准备';
-                                    case 'WORK_AM': return '上午打工';
+                                    case 'WORK_AM': return '上午搬砖';
                                     case 'LUNCH': return '午休干饭';
-                                    case 'WORK_PM': return '下午打工';
+                                    case 'WORK_PM': return '下午搬砖';
                                     case 'REST_AM': return '周末赖床';
                                     case 'REST_PM': return '周末休闲';
                                     case 'DINNER': return '下班/晚餐';
@@ -492,7 +523,7 @@ const App: React.FC = () => {
                             <Briefcase className="w-8 h-8 group-hover:animate-bounce text-zinc-400 group-hover:text-white" />
                             <span className="text-xl font-bold tracking-widest">
                                 {gameState.profession?.id === 'PROGRAMMER' ? '写代码 (修BUG)' : 
-                                 gameState.profession?.id === 'DELIVERY' ? '接单跑腿' : '打工'}
+                                 gameState.profession?.id === 'DELIVERY' ? '接单跑腿' : '打工 (搬砖)'}
                             </span>
                             <span className="text-xs text-zinc-500 font-mono">CLICK TO WORK</span>
                         </button>
