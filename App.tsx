@@ -114,22 +114,28 @@ const App: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.stats, gameState.phase]);
 
-  const updateStats = (changes: Partial<typeof INITIAL_STATS>, reason?: string) => {
+const updateStats = (changes: Partial<typeof INITIAL_STATS>, reason?: string) => {
     setGameState(prev => {
       const newStats = { ...prev.stats };
       let physicalChange = changes.physical || 0;
+      
       // 生病 Debuff
       if (prev.flags.disease) {
           if (physicalChange > 0) physicalChange = Math.floor(physicalChange * 0.5);
           if (physicalChange < 0) physicalChange = Math.floor(physicalChange * 1.5);
       }
+
       if (changes.physical) newStats.physical = Math.min(100, Math.max(0, newStats.physical + physicalChange));
       if (changes.mental) newStats.mental = Math.min(100, Math.max(0, newStats.mental + (changes.mental || 0)));
       if (changes.money) newStats.money = newStats.money + (changes.money || 0);
       if (changes.satiety) newStats.satiety = Math.min(100, Math.max(0, newStats.satiety + (changes.satiety || 0)));
-      // 同步更新年龄 (如果有)
       if (changes.age) newStats.age = changes.age;
       
+      // [新增] 负债处理：确保不小于0
+      if (changes.debt) newStats.debt = Math.max(0, newStats.debt + (changes.debt || 0));
+      // [新增] 厨艺处理
+      if (changes.cookingSkill) newStats.cookingSkill = newStats.cookingSkill + (changes.cookingSkill || 0);
+
       return { ...prev, stats: newStats };
     });
     if (reason) addLog(reason, changes.physical && changes.physical < 0 ? 'warning' : 'info');
@@ -145,19 +151,25 @@ const App: React.FC = () => {
     }));
   };
 
-  const startGame = (profType: ProfessionType) => {
+const startGame = (profType: ProfessionType) => {
     const prof = PROFESSIONS[profType];
     setGameState({
       profession: prof,
-      // 使用 tempAge 初始化 stats
-      stats: { ...INITIAL_STATS, age: tempAge, money: prof.id === 'UNEMPLOYED' ? 2000 : 5000 },
+      // 初始化状态：设置年龄、初始资金、重置负债
+      stats: { 
+        ...INITIAL_STATS, 
+        age: tempAge, 
+        money: prof.id === 'UNEMPLOYED' ? 2000 : 5000,
+        debt: 0 
+      },
       phase: 'MORNING',
       date: new Date('2024-01-01T07:30:00'),
       time: '07:30',
-      log: [{ id: 1, text: `>>> 档案载入。年龄：${tempAge}岁。身份：${prof.name}。排班：${prof.schedule}。`, type: 'info' }],
+      log: [{ id: 1, text: `>>> 档案载入。年龄：${tempAge}岁。身份：${prof.name}。${prof.hasInsurance ? '【已缴纳五险一金】' : '【无社保】'}`, type: 'info' }],
       flags: { 
           isDepressed: false, disease: null, hasLoan: false, isSingle: true, streamerSimpCount: 0, 
           partner: null, isPursuing: false, hasHouse: false, hasCar: false, parentPressure: 0,
+          hasInsurance: prof.hasInsurance, // 初始化医保状态
           hospitalDays: 0, hospitalDailyCost: 0 
       },
       modal: { isOpen: false, title: '', description: '', type: 'EVENT', actions: [] },
@@ -171,7 +183,7 @@ const App: React.FC = () => {
   const openRelPanel = () => setGameState(prev => ({ ...prev, showRelationshipPanel: true }));
   const closeRelPanel = () => setGameState(prev => ({ ...prev, showRelationshipPanel: false }));
 
-  const relActions = {
+const relActions = {
     findPartner: () => {
       const target = POTENTIAL_PARTNERS[getRandomInt(0, POTENTIAL_PARTNERS.length - 1)];
       setGameState(prev => ({ ...prev, flags: { ...prev.flags, partner: { ...target, affection: 15 }, isPursuing: true } }));
@@ -223,15 +235,34 @@ const App: React.FC = () => {
     },
     buyHouse: () => {
        if (gameState.flags.hasHouse) return;
-       const cost = ASSET_COSTS.HOUSE_DOWN_PAYMENT;
-       updateStats({ money: -cost }, "你签下了购房合同，背上了巨额房贷。父母终于闭嘴了。");
+       const downPayment = ASSET_COSTS.HOUSE_DOWN_PAYMENT;
+       const total = ASSET_COSTS.HOUSE_TOTAL_PRICE;
+       
+       if (gameState.stats.money < downPayment) {
+           addLog("首付不够，售楼小姐给了你一个白眼。", "danger");
+           return;
+       }
+
+       // 扣首付，加负债
+       updateStats({ money: -downPayment, debt: (total - downPayment) }, "支付首付，背上了200万房贷，成为了光荣的房奴。");
        setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasHouse: true, parentPressure: 0, hasLoan: true } }));
     },
     buyCar: () => {
        if (gameState.flags.hasCar) return;
        const cost = ASSET_COSTS.CAR_COST;
-       updateStats({ money: -cost }, "你提了一辆新车，虽然存款空了，但至少相亲有底气了。");
-       setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasCar: true, hasLoan: true } }));
+       if (gameState.stats.money < cost) {
+           addLog("钱不够，买个车模吧。", "danger");
+           return;
+       }
+       updateStats({ money: -cost }, "全款提了一辆新车，虽然存款空了，但至少相亲有底气了。");
+       setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasCar: true } }));
+    },
+    // [新增] 提前还贷逻辑
+    repayDebt: (amount: number) => {
+        if (gameState.stats.money < amount) return;
+        // 扣钱，扣债
+        updateStats({ money: -amount, debt: -amount });
+        addLog(`提前还贷 ¥${amount}，感觉肩膀轻了一点点。`, "success");
     }
   };
 
@@ -381,32 +412,56 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSleep = () => {
-    // 优先检查是否在住院 (防止逻辑穿透)
+const handleSleep = () => {
+    // 优先检查是否在住院
     if (gameState.flags.hospitalDays > 0) {
         handleHospitalDay();
         return;
     }
 
-    // 1. 疾病判定 (修改版)
+    // [新增] 计算每日利息 (万分之五)
+    let interest = 0;
+    if (gameState.stats.debt > 0) {
+        interest = Math.floor(gameState.stats.debt * 0.0005);
+        // 如果钱不够扣利息，增加负债 (利滚利)
+        if (gameState.stats.money < interest) {
+            updateStats({ debt: interest });
+            addLog(`无力支付利息，债务增加了 ¥${interest}`, "danger");
+        } else {
+            updateStats({ money: -interest });
+            addLog(`支付了今日房贷/车贷利息: ¥${interest}`, "warning");
+        }
+    }
+
+    // 1. 疾病判定 (修改版：增加医保逻辑)
     if (!gameState.flags.disease) {
        if ((gameState.stats.physical < 60 && Math.random() < 0.3) || Math.random() < 0.05) {
          const disease = DISEASES[getRandomInt(0, DISEASES.length - 1)];
          
+         // [新增] 医保计算
+         const hasInsurance = gameState.flags.hasInsurance;
+         // 医保报销 70%，自费 30%
+         const actualAdmission = hasInsurance ? Math.floor(disease.admission * 0.3) : disease.admission;
+         const actualDaily = hasInsurance ? Math.floor(disease.daily * 0.3) : disease.daily;
+         
+         const insuranceText = hasInsurance ? `(医保已报销 70%)` : `(无医保，全额自费)`;
+         
          showModal({
            title: "突发恶疾", 
-           // @ts-ignore (assume disease object has daily/days props)
+           // @ts-ignore
            description: `确诊【${disease.name}】。${disease.desc}\n` + 
-                        (disease.days > 0 ? `需住院 ${disease.days} 天，押金 ¥${disease.admission}，日费用 ¥${disease.daily}。` : `需治疗费 ¥${disease.admission}。`), 
+                        (disease.days > 0 
+                            ? `需住院 ${disease.days} 天。\n押金: ¥${actualAdmission} ${insuranceText}\n日费: ¥${actualDaily}` 
+                            : `需治疗费 ¥${actualAdmission} ${insuranceText}。`), 
            type: 'DISEASE',
            actions: [
              { 
-                label: disease.days > 0 ? "办理住院 (停工扣费)" : `治疗 (-¥${disease.admission})`, 
+                label: disease.days > 0 ? "办理住院 (停工扣费)" : `治疗 (-¥${actualAdmission})`, 
                 onClick: () => {
                     // @ts-ignore
-                    if (gameState.stats.money >= disease.admission || gameState.flags.hasHouse) {
+                    if (gameState.stats.money >= actualAdmission || gameState.flags.hasHouse) {
                         // @ts-ignore
-                        updateStats({ money: -disease.admission });
+                        updateStats({ money: -actualAdmission });
                         // @ts-ignore
                         if (disease.days > 0) {
                             setGameState(prev => ({ 
@@ -417,12 +472,12 @@ const App: React.FC = () => {
                                     // @ts-ignore
                                     hospitalDays: disease.days,
                                     // @ts-ignore
-                                    hospitalDailyCost: disease.daily
+                                    hospitalDailyCost: actualDaily // 记录打折后的日费
                                 },
-                                phase: 'SLEEP' // 保持状态让 UI 切换到住院按钮
+                                phase: 'SLEEP'
                             }));
                             // @ts-ignore
-                            addLog(`办理了【${disease.name}】住院手续，预缴押金 ¥${disease.admission}。`, 'warning');
+                            addLog(`办理了【${disease.name}】住院手续，预缴押金 ¥${actualAdmission}。`, 'warning');
                             closeModal();
                         } else {
                              setGameState(prev => ({ ...prev, flags: { ...prev.flags, disease: null } }));
@@ -456,7 +511,7 @@ const App: React.FC = () => {
        updateStats({ physical: -8, mental: -5 }, `受到【${gameState.flags.disease}】的折磨。`);
     }
 
-    // 2. 情感：出轨
+    // 2. 情感：出轨逻辑 (保持不变)
     const partner = gameState.flags.partner;
     if (partner && !gameState.flags.isPursuing) {
         const cheatChance = 0.05 + ((100 - partner.fidelity) / 500); 
@@ -470,7 +525,7 @@ const App: React.FC = () => {
         }
     }
 
-    // 3. 催婚
+    // 3. 催婚逻辑 (保持不变)
     if (gameState.flags.isSingle || !gameState.flags.hasHouse) {
         setGameState(prev => ({ ...prev, flags: { ...prev.flags, parentPressure: Math.min(100, prev.flags.parentPressure + 5) } }));
         if (gameState.flags.parentPressure > 80 && Math.random() < 0.25) {
@@ -479,22 +534,16 @@ const App: React.FC = () => {
         }
     }
 
-    // 4. 房贷/车贷利息计算
-    let interest = 0;
-    if (gameState.stats.money < 0) {
-        interest = Math.floor(Math.abs(gameState.stats.money) * 0.0005);
-    }
-
     const nextDay = new Date(gameState.date);
     nextDay.setDate(nextDay.getDate() + 1);
     
-    // --- 新增：生日逻辑 ---
+    // 生日逻辑
     if (gameState.stats.daysSurvived > 0 && gameState.stats.daysSurvived % 365 === 0) {
         updateStats({ age: gameState.stats.age + 1 }, `🎂 今天是你的生日，你 ${gameState.stats.age + 1} 岁了。`);
     }
     
-    // 结算
-    updateStats({ physical: 10, mental: 5, satiety: -20, money: -interest });
+    // 结算 (移除这里的 money: -interest，因为上面已经扣过了)
+    updateStats({ physical: 10, mental: 5, satiety: -20 });
     
     setGameState(prev => ({ 
         ...prev, 
@@ -504,7 +553,6 @@ const App: React.FC = () => {
         stats: {...prev.stats, daysSurvived: prev.stats.daysSurvived + 1}
     }));
 
-    if (interest > 0) addLog(`支付了今日贷款利息: ¥${interest}`, 'warning');
     addLog(`=== ${formatDateCN(nextDay)} ===`, 'info');
   };
 
@@ -518,17 +566,28 @@ const App: React.FC = () => {
      else setGameState(prev => ({ ...prev, phase: 'DINNER', time: '18:00' }));
   };
   
-  const handleEat = (type: string) => {
+const handleEat = (type: string) => {
       if (type === 'TAKEOUT') {
           updateStats({ money: -30, satiety: 40, physical: -2 }, "吃了份外卖。");
       } 
       else if (type === 'COOK') {
-          // --- 新增：煤油车混装油事件 (5%概率) ---
+          // [新增] 厨艺等级影响
+          const skill = gameState.stats.cookingSkill;
+          const isMaster = skill >= 50; // 厨艺高手
+          
+          // 煤油车判定 (5%概率)
           if (Math.random() < 0.05) {
-             updateStats({ money: -50, satiety: 20, physical: -15, mental: -20 }, "【食品安全】糟糕！买的散装食用油有股奇怪的煤油味。你吃完后上吐下泻，严重损害了健康。");
-             addLog("新闻报道：某罐车未清洗直接装运食用油...你看着空油瓶陷入沉思。", "danger");
+             if (isMaster) {
+                 updateStats({ money: -20, satiety: 20, cookingSkill: 1 }, "【厨神】你敏锐地闻出了油里的煤油味，果断倒掉换了猪油。避免了一次食物中毒。");
+             } else {
+                 updateStats({ money: -50, satiety: 20, physical: -15, mental: -20 }, "【食品安全】糟糕！买的散装食用油有股奇怪的煤油味。你吃完后上吐下泻，严重损害了健康。");
+                 addLog("新闻报道：某罐车未清洗直接装运食用油...你看着空油瓶陷入沉思。", "danger");
+             }
           } else {
-             updateStats({ money: -20, satiety: 35, cookingSkill: 1 }, "买菜做饭 (买菜 ¥20)。");
+             // 正常做饭，厨艺越高回复越多
+             const bonus = Math.floor(skill / 10);
+             updateStats({ money: -20, satiety: 35 + bonus, mental: 2 + bonus, cookingSkill: 1 }, 
+                skill > 30 ? "你的厨艺越来越好了，这顿饭真香。" : "买菜做饭 (买菜 ¥20)。");
           }
       }
 
