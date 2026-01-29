@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, ProfessionType, LogEntry } from './types';
-import { PROFESSIONS, INITIAL_STATS, COMPLEX_DEATHS, JOB_EVENTS, JOB_LOGS, DISEASES, POTENTIAL_PARTNERS, ASSET_COSTS } from './constants';
+import { 
+  PROFESSIONS, INITIAL_STATS, COMPLEX_DEATHS, 
+  JOB_EVENTS, JOB_LOGS, DISEASES, POTENTIAL_PARTNERS, 
+  ASSET_COSTS, INGREDIENTS_SHOP, RECIPES // <--- 新增这两个
+} from './constants';
 import { getRandomInt, formatDateCN, isWeekend } from './utils';
 import StatBar from './components/StatBar';
 import GameLog from './components/GameLog';
@@ -9,8 +13,10 @@ import RelationshipModal from './components/RelationshipModal';
 import { 
   Play, RotateCcw, Utensils, Briefcase, Moon, 
   ShoppingBag, Beer, Dumbbell, Footprints, 
-  MonitorPlay, Heart, Skull, AlertOctagon
+  MonitorPlay, Heart, Skull, AlertOctagon,
+  XCircle, Users // <--- 新增这两个
 } from 'lucide-react';
+
 
 const DAILY_ACCIDENTS = [
   "走在路上玩手机，不慎掉进没有井盖的下水道。",
