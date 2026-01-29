@@ -50,6 +50,8 @@ export interface GameState {
   stats: PlayerStats;
   phase: GamePhase;
   date: Date;
+  debt: number;          // 新增
+  cookingSkill: number;  // 新增
   time: string;
   log: LogEntry[];
   flags: {
