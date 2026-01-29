@@ -1,6 +1,7 @@
 import { PlayerStats, Profession, ProfessionType, Partner } from './types';
 
 export const INITIAL_STATS: PlayerStats = {
+  age: 22, // 默认值，实际会被随机覆盖
   physical: 80,
   mental: 80,
   money: 5000,
@@ -34,7 +35,8 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     healthRisk: 1,
     schedule: '965',
     description: '宇宙尽头编制内。',
-    workDesc: [] 
+    workDesc: [],
+    minAge: 24, maxAge: 35
   },
   PROGRAMMER: {
     id: 'PROGRAMMER',
@@ -44,7 +46,8 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     healthRisk: 6,
     schedule: '996',
     description: '拿命换钱。',
-    workDesc: []
+    workDesc: [],
+    minAge: 20, maxAge: 35
   },
   FACTORY_WORKER: {
     id: 'FACTORY_WORKER',
@@ -54,6 +57,44 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     healthRisk: 5,
     schedule: '007',
     description: '流水线上的螺丝钉。',
+    workDesc: []
+  },
+  SECURITY: {
+    id: 'SECURITY',
+    name: '小区保安',
+    salaryBase: 120,
+    stressFactor: 1,
+    healthRisk: 2,
+    schedule: '007',
+    description: '少走四十年弯路。',
+    minAge: 45,
+    maxAge: 90,
+    workDesc: []
+  },
+  // [新增] 网约车 (中年首选)
+  TAXI_DRIVER: {
+    id: 'TAXI_DRIVER',
+    name: '网约车司机',
+    salaryBase: 350,
+    stressFactor: 5,
+    healthRisk: 6,
+    schedule: '007',
+    description: '腰和前列腺都在抗议。',
+    minAge: 25,
+    maxAge: 60,
+    workDesc: []
+  },
+  // [新增] 主播 (吃青春饭)
+  STREAMER: {
+    id: 'STREAMER',
+    name: '颜值主播',
+    salaryBase: 800, // 波动极大
+    stressFactor: 6,
+    healthRisk: 3,
+    schedule: '996',
+    description: '榜一大哥没钱了。',
+    minAge: 18,
+    maxAge: 30,
     workDesc: []
   },
   DELIVERY: {
@@ -374,12 +415,13 @@ export const JOB_EVENTS: Record<ProfessionType, Array<{title: string, desc: stri
 
 // 疾病池
 export const DISEASES = [
-  { name: '重感冒', harm: 5, cost: 300, desc: '头昏脑涨，浑身无力。' },
-  { name: '急性肠胃炎', harm: 10, cost: 800, desc: '喷射战士，虚脱了。' },
-  { name: '腰椎间盘突出', harm: 5, cost: 1500, desc: '直不起腰，坐立难安。' },
-  { name: '偏头痛', harm: 8, cost: 500, desc: '脑袋像被容嬷嬷扎针一样疼。' },
-  { name: '重度痔疮', harm: 5, cost: 2000, desc: '坐立难安，血染马桶。' },
-  { name: '结石发作', harm: 20, cost: 3000, desc: '痛得在地上打滚。' }
+  { name: '重感冒', harm: 5, admission: 200, daily: 0, days: 0, desc: '头昏脑涨，吃药就行。' },
+  { name: '急性肠胃炎', harm: 15, admission: 500, daily: 200, days: 2, desc: '喷射战士，需要挂水观察。' },
+  { name: '腰椎间盘突出', harm: 10, admission: 1000, daily: 0, days: 0, desc: '老毛病，回家躺着吧。' },
+  { name: '煤油中毒', harm: 40, admission: 5000, daily: 2000, days: 5, desc: '食用了罐车混装油，多器官受损，正在ICU抢救。' }, // [新增]
+  { name: '重度痔疮', harm: 5, admission: 1500, daily: 300, days: 3, desc: '做了个微创手术，趴在床上动弹不得。' },
+  { name: '肾结石碎石', harm: 20, admission: 2000, daily: 500, days: 2, desc: '痛不欲生，住院观察排石情况。' },
+  { name: '脑溢血', harm: 50, admission: 10000, daily: 5000, days: 10, desc: 'ICU抢救中，家属正在考虑是否拔管。' }
 ];
 
 // 复合死亡条件
