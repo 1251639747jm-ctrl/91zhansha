@@ -5,6 +5,7 @@ export const INITIAL_STATS: PlayerStats = {
   physical: 80,
   mental: 80,
   money: 5000,
+  debt: 0, // [新增] 初始无负债
   satiety: 80,
   cookingSkill: 0,
   daysSurvived: 0,
@@ -12,8 +13,10 @@ export const INITIAL_STATS: PlayerStats = {
 
 // 资产成本
 export const ASSET_COSTS = {
-  HOUSE_DOWN_PAYMENT: 1000000, // 首付100万
-  CAR_COST: 200000, // 车20万
+  HOUSE_DOWN_PAYMENT: 1000000, // 首付
+  HOUSE_TOTAL_PRICE: 3000000,  // [新增] 房屋总价 (贷款 = 总价 - 首付)
+  CAR_COST: 200000,            // 全款/首付
+  CAR_TOTAL_PRICE: 200000,     // 车通常全款，或者你可以定义 CAR_DOWN_PAYMENT
 };
 
 // 潜在攻略对象库
@@ -36,6 +39,7 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     schedule: '965',
     description: '宇宙尽头编制内。',
     workDesc: [],
+    hasInsurance: true, // 公务员有医保
     minAge: 24, maxAge: 35
   },
   PROGRAMMER: {
@@ -47,6 +51,7 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     schedule: '996',
     description: '拿命换钱。',
     workDesc: [],
+    hasInsurance: true, // 大厂有医保
     minAge: 20, maxAge: 35
   },
   FACTORY_WORKER: {
@@ -57,6 +62,7 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     healthRisk: 5,
     schedule: '007',
     description: '流水线上的螺丝钉。',
+    hasInsurance: true, // 工厂通常有社保
     workDesc: []
   },
   SECURITY: {
@@ -69,7 +75,8 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     description: '少走四十年弯路。',
     minAge: 45,
     maxAge: 90,
-    workDesc: []
+    workDesc: [],
+    hasInsurance: false // 外包保安通常没有
   },
   // [新增] 网约车 (中年首选)
   TAXI_DRIVER: {
@@ -82,7 +89,8 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     description: '腰和前列腺都在抗议。',
     minAge: 25,
     maxAge: 60,
-    workDesc: []
+    workDesc: [],
+    hasInsurance: false // 网约车司机自己交
   },
   // [新增] 主播 (吃青春饭)
   STREAMER: {
@@ -95,7 +103,8 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     description: '榜一大哥没钱了。',
     minAge: 18,
     maxAge: 30,
-    workDesc: []
+    workDesc: [],
+    hasInsurance: false // 灵活就业
   },
   DELIVERY: {
     id: 'DELIVERY',
@@ -105,7 +114,8 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     healthRisk: 9, 
     schedule: '007',
     description: '困在算法里的人。',
-    workDesc: []
+    workDesc: [],
+    hasInsurance: false // 众包骑手无医保
   },
   SALES: {
     id: 'SALES',
@@ -115,7 +125,8 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     healthRisk: 4,
     schedule: '996',
     description: '不开单就吃土。',
-    workDesc: []
+    workDesc: [],
+    hasInsurance: true
   },
   UNEMPLOYED: {
     id: 'UNEMPLOYED',
@@ -125,7 +136,8 @@ export const PROFESSIONS: Record<ProfessionType, Profession> = {
     healthRisk: 1,
     schedule: '965',
     description: '家里蹲。',
-    workDesc: []
+    workDesc: [],
+    hasInsurance: false // 无业
   }
 };
 
