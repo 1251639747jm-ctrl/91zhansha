@@ -21,13 +21,47 @@ export const ASSET_COSTS = {
 
 // 潜在攻略对象库
 export const POTENTIAL_PARTNERS: Partner[] = [
-  { name: "茶艺大师·小美", type: "绿茶", affection: 10, materialism: 3.0, fidelity: 20 },
-  { name: "吞金兽·娜娜", type: "拜金", affection: 5, materialism: 5.0, fidelity: 40 },
-  { name: "老实人·阿芳", type: "普通", affection: 30, materialism: 1.0, fidelity: 80 },
-  { name: "扶弟魔·招娣", type: "深坑", affection: 20, materialism: 2.5, fidelity: 60 },
-  { name: "白月光·校花", type: "女神", affection: 0, materialism: 1.5, fidelity: 50 }
+   { name: "茶艺大师·小美", type: "绿茶", affection: 10, realAffection: 0, materialism: 3.0, fidelity: 20 }, // 初始真心为0
+  { name: "吞金兽·娜娜", type: "拜金", affection: 5, realAffection: 5, materialism: 5.0, fidelity: 40 },
+  { name: "老实人·阿芳", type: "普通", affection: 30, realAffection: 30, materialism: 1.0, fidelity: 80 }, // 表里如一
+  { name: "扶弟魔·招娣", type: "深坑", affection: 20, realAffection: 10, materialism: 2.5, fidelity: 60 },
+  { name: "白月光·校花", type: "女神", affection: 0, realAffection: -20, materialism: 1.5, fidelity: 50 } // 很难追
+];
+export const INGREDIENTS_SHOP = [
+  { id: 'oil', name: '食用油', cost: 60, desc: '散装油，便宜大碗。' },
+  { id: 'rice', name: '大米/面条', cost: 10, desc: '碳水来源。' },
+  { id: 'veggies', name: '时令蔬菜', cost: 15, desc: '补充维生素。' },
+  { id: 'meat', name: '打折猪肉', cost: 35, desc: '补充蛋白质。' },
+  { id: 'seasoning', name: '油盐酱醋', cost: 20, desc: '没味道怎么吃？' }
 ];
 
+// 食谱定义
+export const RECIPES = [
+  { 
+    id: 'fried_rice', name: '蛋炒饭', 
+    needs: { rice: 1, oil: 1, seasoning: 1 }, 
+    stats: { satiety: 30, mental: 5, health: 0 },
+    desc: "简单快捷，填饱肚子。"
+  },
+  { 
+    id: 'stir_fry_veg', name: '清炒时蔬', 
+    needs: { veggies: 2, oil: 1, seasoning: 1 }, 
+    stats: { satiety: 25, mental: 5, health: 5 },
+    desc: "健康饮食，清肠胃。"
+  },
+  { 
+    id: 'pork_stew', name: '红烧肉', 
+    needs: { meat: 2, oil: 1, seasoning: 1, rice: 1 }, 
+    stats: { satiety: 60, mental: 20, health: 2 },
+    desc: "狠狠犒劳自己一顿！"
+  },
+  { 
+    id: 'luxury_combo', name: '四菜一汤', 
+    needs: { meat: 2, veggies: 2, rice: 1, oil: 1, seasoning: 1 }, 
+    stats: { satiety: 80, mental: 30, health: 5 },
+    desc: "仿佛回到了过年。"
+  }
+];
 // 职业基础定义
 export const PROFESSIONS: Record<ProfessionType, Profession> = {
   CIVIL_SERVANT: {
