@@ -155,7 +155,6 @@ const startGame = (profType: ProfessionType) => {
     const prof = PROFESSIONS[profType];
     setGameState({
       profession: prof,
-      // 初始化状态：设置年龄、初始资金、重置负债
       stats: { 
         ...INITIAL_STATS, 
         age: tempAge, 
@@ -169,8 +168,10 @@ const startGame = (profType: ProfessionType) => {
       flags: { 
           isDepressed: false, disease: null, hasLoan: false, isSingle: true, streamerSimpCount: 0, 
           partner: null, isPursuing: false, hasHouse: false, hasCar: false, parentPressure: 0,
-          hasInsurance: prof.hasInsurance, // 初始化医保状态
-          hospitalDays: 0, hospitalDailyCost: 0 
+          hasInsurance: prof.hasInsurance,
+          hospitalDays: 0, hospitalDailyCost: 0,
+          // [新增] 初始空库存
+          inventory: { oil: 0, badOil: false, rice: 0, veggies: 0, meat: 0, seasoning: 0 }
       },
       modal: { isOpen: false, title: '', description: '', type: 'EVENT', actions: [] },
       showRelationshipPanel: false,
@@ -213,18 +214,31 @@ const relActions = {
            actions: [{ label: "值得！(好感+15)", onClick: closeModal }]
        });
     },
-    confess: () => {
+confess: () => {
       const partner = gameState.flags.partner;
       if (!partner) return;
-      if (Math.random() < partner.affection / 150) {
+      
+      // [修改] 核心判定使用 realAffection
+      // @ts-ignore (因为 Partner 类型在 types 里改了，这里TS可能还没推断出来)
+      const successChance = (partner.realAffection || 0) / 100; // 真实好感度 / 100
+      
+      // 增加一些随机性
+      if (Math.random() < successChance) {
         setGameState(prev => ({ ...prev, flags: { ...prev.flags, isPursuing: false, isSingle: false } }));
-        showModal({ title: "表白成功！", description: "恭喜你，从舔狗升级为正式提款机。", type: 'LOVE', actions: [{ label: "太好了！", onClick: closeModal }] });
+        showModal({ title: "表白成功！", description: "恭喜你，她被你的真诚（或者其他东西）打动了。", type: 'LOVE', actions: [{ label: "太好了！", onClick: closeModal }] });
       } else {
         updateStats({ mental: -30, physical: -10 });
-        modifyAffection(-20);
+        // 失败扣大量真实好感
+        modifyAffection(-20, -50); 
+        
+        let failReason = "你是个好人。";
+        // @ts-ignore
+        if (partner.realAffection < 0) failReason = "她心里其实挺讨厌你的，只把你当提款机。";
+        else if (partner.affection > 80) failReason = "虽然表面上和你很亲密，但她内心还没完全接纳你。";
+
         showModal({
-            title: "表白惨案", description: `你单膝跪地表白，${partner.name}却后退了一步：“你是个好人，但我只把你当哥哥。”`, type: 'DEATH',
-            actions: [{ label: "痛彻心扉 (精神-30, 健康-10)", onClick: closeModal, style: 'danger' }]
+            title: "表白惨案", description: `你单膝跪地表白，${partner.name}却后退了一步：“${failReason}”`, type: 'DEATH',
+            actions: [{ label: "痛彻心扉", onClick: closeModal, style: 'danger' }]
         });
       }
     },
@@ -266,14 +280,39 @@ const relActions = {
     }
   };
 
-  const modifyAffection = (amount: number) => {
+// 修改好感度：displayedAmount 是显示的（假的），realAmount 是真实的
+  // 如果不传 realAmount，默认真实好感度增加量只有显示的 20% (甚至可能倒扣)
+  const modifyAffection = (displayedAmount: number, realAmount?: number) => {
      setGameState(prev => {
        if (!prev.flags.partner) return prev;
-       const newAff = Math.min(100, Math.max(0, prev.flags.partner.affection + amount));
-       return { ...prev, flags: { ...prev.flags, partner: { ...prev.flags.partner, affection: newAff } } };
+       
+       const currentPartner = prev.flags.partner;
+       // 真实好感度计算逻辑
+       let calculatedReal = realAmount !== undefined ? realAmount : displayedAmount * 0.2;
+       
+       // 特殊逻辑：如果是拜金女，给钱加显示好感很快，但真实好感加得很慢
+       if (currentPartner.materialism > 2 && displayedAmount > 0) {
+           calculatedReal = displayedAmount * 0.1; 
+       }
+
+       const newDisplay = Math.min(100, Math.max(0, currentPartner.affection + displayedAmount));
+       // @ts-ignore
+       const newReal = Math.min(100, Math.max(-50, (currentPartner.realAffection || 0) + calculatedReal));
+
+       return { 
+           ...prev, 
+           flags: { 
+               ...prev.flags, 
+               partner: { 
+                   ...currentPartner, 
+                   affection: newDisplay,
+                   // @ts-ignore
+                   realAffection: newReal
+               } 
+           } 
+       };
      });
   };
-
   // --- 主播剧情 ---
   const triggerStreamerEvent = () => {
     showModal({
@@ -342,7 +381,7 @@ const relActions = {
   };
 
   // --- 自由时间逻辑 ---
-  const handleFreeTime = (action: string) => {
+const handleFreeTime = (action: string) => {
       switch(action) {
           case 'SPA': 
               if (gameState.stats.money < 1288) { addLog("1288的套餐点不起。", "danger"); return; }
@@ -357,6 +396,19 @@ const relActions = {
               break;
           case 'BBQ': updateStats({ money: -100, physical: -5, mental: 10, satiety: 30 }, "路边摊撸串真香。"); break;
           case 'SQUARE_DANCE': updateStats({ physical: 5, mental: 5, satiety: -5 }, "跳广场舞身心舒畅。"); break;
+          
+          // [新增]
+          case 'MOVIE':
+              if (gameState.stats.money < 50) { addLog("电影票都买不起了。", "warning"); return; }
+              updateStats({ money: -50, mental: 15 }, "看了一场爆米花电影，暂时忘记了烦恼。");
+              break;
+          case 'INTERNET_CAFE':
+              if (gameState.stats.money < 20) { addLog("网费不足。", "warning"); return; }
+              updateStats({ money: -20, mental: 20, physical: -5 }, "在网吧五连坐，大杀四方。");
+              break;
+          case 'WALK':
+              updateStats({ mental: 5, physical: 2, satiety: -5 }, "在江边散步，看着对岸的豪宅发呆。");
+              break;
       }
       if (gameState.phase !== 'MODAL_PAUSE') setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:30' }));
   };
@@ -566,31 +618,143 @@ const handleSleep = () => {
      else setGameState(prev => ({ ...prev, phase: 'DINNER', time: '18:00' }));
   };
   
-const handleEat = (type: string) => {
-      if (type === 'TAKEOUT') {
-          updateStats({ money: -30, satiety: 40, physical: -2 }, "吃了份外卖。");
-      } 
-      else if (type === 'COOK') {
-          // [新增] 厨艺等级影响
-          const skill = gameState.stats.cookingSkill;
-          const isMaster = skill >= 50; // 厨艺高手
-          
-          // 煤油车判定 (5%概率)
-          if (Math.random() < 0.05) {
-             if (isMaster) {
-                 updateStats({ money: -20, satiety: 20, cookingSkill: 1 }, "【厨神】你敏锐地闻出了油里的煤油味，果断倒掉换了猪油。避免了一次食物中毒。");
-             } else {
-                 updateStats({ money: -50, satiety: 20, physical: -15, mental: -20 }, "【食品安全】糟糕！买的散装食用油有股奇怪的煤油味。你吃完后上吐下泻，严重损害了健康。");
-                 addLog("新闻报道：某罐车未清洗直接装运食用油...你看着空油瓶陷入沉思。", "danger");
-             }
-          } else {
-             // 正常做饭，厨艺越高回复越多
-             const bonus = Math.floor(skill / 10);
-             updateStats({ money: -20, satiety: 35 + bonus, mental: 2 + bonus, cookingSkill: 1 }, 
-                skill > 30 ? "你的厨艺越来越好了，这顿饭真香。" : "买菜做饭 (买菜 ¥20)。");
-          }
+// 辅助函数：购买食材
+  const buyIngredient = (ing: typeof INGREDIENTS_SHOP[0]) => {
+      const { money } = gameState.stats;
+      if (money < ing.cost) {
+          addLog(`钱不够买${ing.name}。`, 'danger');
+          return;
+      }
+      
+      let isBadOil = false;
+      // [新增] 煤油车判定：买油时 30% 概率买到问题油 (用户要求上调概率)
+      if (ing.id === 'oil' && Math.random() < 0.3) {
+          isBadOil = true;
       }
 
+      setGameState(prev => ({
+          ...prev,
+          stats: { ...prev.stats, money: prev.stats.money - ing.cost },
+          flags: { 
+              ...prev.flags, 
+              inventory: {
+                  ...prev.flags.inventory,
+                  // @ts-ignore
+                  [ing.id]: (prev.flags.inventory[ing.id] || 0) + 1,
+                  // 如果买到坏油，标记为 true (一桶坏油毁掉所有库存)
+                  badOil: prev.flags.inventory.badOil || isBadOil
+              }
+          }
+      }));
+      
+      if (isBadOil) {
+          // 这里不提示玩家，只有吃的时候才发现
+          addLog(`购买了【${ing.name}】，看起来颜色有点深...`, 'info'); 
+      } else {
+          addLog(`购买了【${ing.name}】，花费 ¥${ing.cost}`, 'info');
+      }
+  };
+
+  // 辅助函数：执行烹饪
+  const doCook = (recipe: typeof RECIPES[0]) => {
+      const { inventory } = gameState.flags;
+      const { needs } = recipe;
+      
+      // 检查库存
+      // @ts-ignore
+      const hasEnough = Object.keys(needs).every(k => (inventory[k] || 0) >= needs[k]);
+      
+      if (!hasEnough) {
+          addLog(`食材不足！需要: ${Object.keys(needs).map(k => `${k}x${needs[k]}`).join(', ')}`, 'warning');
+          return;
+      }
+
+      // 扣除库存
+      const newInv = { ...inventory };
+      // @ts-ignore
+      Object.keys(needs).forEach(k => newInv[k] -= needs[k]);
+
+      // 判定煤油油
+      let healthHit = 0;
+      let logText = `烹饪了【${recipe.name}】，色香味俱全！`;
+      
+      // 如果用了油，且库里有坏油
+      if (needs.oil && inventory.badOil) {
+          healthHit = 25; // 重击
+          logText = `【食品安全】做好的${recipe.name}散发着一股刺鼻的煤油味！你含泪吃下，感觉五脏六腑都在燃烧。`;
+          // 吃完后，坏油假设被消耗了或者你需要手动清空，这里假设一瓶油能用很久，所以 badOil 标记还在
+          // 为了简化，假设只要用了油，就有概率中招。
+      }
+
+      setGameState(prev => {
+        // 时间推移逻辑
+        let nextP = prev.phase; let nextT = prev.time;
+        if (prev.phase === 'MORNING') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; nextT = '09:00'; }
+        else if (prev.phase === 'LUNCH') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; nextT = '13:00'; }
+        else if (prev.phase === 'DINNER') { nextP = 'FREE_TIME'; nextT = '20:00'; }
+
+        return {
+            ...prev,
+            stats: { 
+                ...prev.stats, 
+                satiety: Math.min(100, prev.stats.satiety + recipe.stats.satiety),
+                mental: Math.min(100, prev.stats.mental + recipe.stats.mental),
+                physical: Math.min(100, prev.stats.physical + (recipe.stats.health || 0) - healthHit),
+                cookingSkill: prev.stats.cookingSkill + 1
+            },
+            flags: { ...prev.flags, inventory: newInv },
+            phase: nextP,
+            time: nextT,
+            modal: { ...prev.modal, isOpen: false } // 关闭菜单
+        };
+      });
+      addLog(logText, healthHit > 0 ? 'danger' : 'success');
+  };
+
+  // --- 主入口：点击“吃饭” ---
+  const handleEat = (actionType: string) => {
+      // 1. 拼好饭 (保持原样，直接吃)
+      if (actionType === 'TAKEOUT') {
+          updateStats({ money: -30, satiety: 40, physical: -2 }, "吃了份外卖，希望能活过今晚。");
+          advanceTime();
+          return;
+      }
+
+      // 2. 不吃 (绝食)
+      if (actionType === 'SKIP') {
+          updateStats({ satiety: -15, mental: -10, physical: -5 }, "为了省钱/减肥，你决定这顿不吃了。肚子在抗议。");
+          advanceTime();
+          return;
+      }
+
+      // 3. 做饭/买菜 (打开菜单)
+      if (actionType === 'COOK_MENU') {
+          showModal({
+              title: "自家厨房 & 菜市场",
+              description: `当前库存：油x${gameState.flags.inventory.oil}, 米/面x${gameState.flags.inventory.rice}, 蔬x${gameState.flags.inventory.veggies}, 肉x${gameState.flags.inventory.meat}, 调料x${gameState.flags.inventory.seasoning}`,
+              type: 'EVENT', // 使用通用类型
+              actions: [
+                  // --- 购买区 ---
+                  ...INGREDIENTS_SHOP.map(ing => ({
+                      label: `买${ing.name} (¥${ing.cost})`,
+                      onClick: () => buyIngredient(ing),
+                      style: 'secondary'
+                  })),
+                  // --- 烹饪区 ---
+                  ...RECIPES.map(recipe => ({
+                      label: `做【${recipe.name}】`,
+                      onClick: () => doCook(recipe),
+                      style: 'primary'
+                  })),
+                  { label: "算了，不吃了", onClick: closeModal, style: 'secondary' }
+              ]
+          });
+          // 注意：Modal 打开后不会自动推进时间，必须在 doCook 里推进
+      }
+  };
+
+  // 辅助：推进时间 (抽取出来复用)
+  const advanceTime = () => {
       setGameState(prev => {
         let nextP = prev.phase; let nextT = prev.time;
         if (prev.phase === 'MORNING') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; nextT = '09:00'; }
@@ -763,11 +927,14 @@ const handleEat = (type: string) => {
                         // 正常操作按钮
                         <>
                             {(gameState.phase === 'MORNING' || gameState.phase === 'LUNCH' || gameState.phase === 'DINNER') && (
-                                <>
-                                   <ActionButton onClick={() => handleEat('TAKEOUT')} icon={<ShoppingBag/>} label="拼好饭" sub="-¥30" color="orange" />
-                                   <ActionButton onClick={() => handleEat('COOK')} icon={<Utensils/>} label="自己做饭" sub="健康卫生?" color="teal" />
-                                </>
-                            )}
+    <>
+       <ActionButton onClick={() => handleEat('TAKEOUT')} icon={<ShoppingBag/>} label="拼好饭" sub="-¥30 | 续命" color="orange" />
+       {/* 修改这个按钮，改为打开菜单 */}
+       <ActionButton onClick={() => handleEat('COOK_MENU')} icon={<Utensils/>} label="做饭/买菜" sub="需自购食材" color="teal" />
+       {/* 新增不吃按钮 */}
+       <ActionButton onClick={() => handleEat('SKIP')} icon={<XCircle/>} label="不吃了" sub="省钱 | 伤胃" color="zinc" />
+    </>
+)}
 
                             {gameState.phase.includes('WORK') && (
                                 <button onClick={handleWork} className="col-span-full py-12 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white rounded-xl transition-all group flex flex-col items-center justify-center gap-2 hover:shadow-lg hover:shadow-zinc-900/50">
@@ -794,17 +961,22 @@ const handleEat = (type: string) => {
                             )}
 
                             {gameState.phase === 'FREE_TIME' && (
-                                <>
-                                    <ActionButton onClick={() => handleFreeTime('SPA')} icon={<Footprints/>} label="高端会所" sub="-¥1288 | 帝王服务" color="pink" />
-                                    <ActionButton onClick={() => handleFreeTime('STREAMER')} icon={<MonitorPlay/>} label="打赏主播" sub="-¥1000 | 感谢大哥" color="purple" />
-                                    <ActionButton onClick={() => handleFreeTime('BBQ')} icon={<Beer/>} label="路边撸串" sub="-¥100 | 快乐" color="orange" />
-                                    <ActionButton onClick={() => handleFreeTime('SQUARE_DANCE')} icon={<Dumbbell/>} label="广场舞" sub="强身健体" color="teal" />
-                                    <button onClick={openRelPanel} className="bg-pink-900/20 border-pink-800 hover:border-pink-500 text-pink-200 p-3 rounded-lg border transition-all flex flex-col items-center justify-center text-center h-24 group hover:bg-pink-900/40">
-                                        <Heart className="w-6 h-6 mb-1 opacity-80 group-hover:scale-110 transition-transform" />
-                                        <span className="font-bold text-sm">联系对象</span>
-                                    </button>
-                                </>
-                            )}
+    <>
+        <ActionButton onClick={() => handleFreeTime('SPA')} icon={<Footprints/>} label="高端会所" sub="-¥1288" color="pink" />
+        <ActionButton onClick={() => handleFreeTime('STREAMER')} icon={<MonitorPlay/>} label="打赏主播" sub="-¥1000" color="purple" />
+        <ActionButton onClick={() => handleFreeTime('BBQ')} icon={<Beer/>} label="路边撸串" sub="-¥100" color="orange" />
+        
+        {/* 新增按钮 */}
+        <ActionButton onClick={() => handleFreeTime('MOVIE')} icon={<Users/>} label="看电影" sub="-¥50" color="indigo" />
+        <ActionButton onClick={() => handleFreeTime('INTERNET_CAFE')} icon={<MonitorPlay/>} label="去网吧" sub="-¥20" color="teal" />
+        <ActionButton onClick={() => handleFreeTime('WALK')} icon={<Footprints/>} label="江边散步" sub="免费" color="zinc" />
+        
+        <button onClick={openRelPanel} className="bg-pink-900/20 border-pink-800 hover:border-pink-500 text-pink-200 p-3 rounded-lg border transition-all flex flex-col items-center justify-center text-center h-24 group hover:bg-pink-900/40">
+            <Heart className="w-6 h-6 mb-1 opacity-80 group-hover:scale-110 transition-transform" />
+            <span className="font-bold text-sm">联系对象</span>
+        </button>
+    </>
+)}
 
                             {gameState.phase === 'SLEEP' && (
                                  <button onClick={handleSleep} className="col-span-full py-10 bg-black hover:bg-zinc-900 border border-zinc-700 hover:border-zinc-500 text-zinc-300 rounded-xl transition-all flex flex-col items-center justify-center group">
