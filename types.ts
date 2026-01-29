@@ -33,8 +33,9 @@ export interface PlayerStats {
 export interface Partner {
   name: string;
   type: string; // "绿茶", "扶弟魔", "白富美" 等
-  affection: number; // 隐藏好感度 0-100
   materialism: number; // 拜金程度 (消耗倍率)
+  affection: number; // 【表象好感度】(玩家看得到的，可能全是虚情假意)
+  realAffection: number; // [新增] 【真实好感度】(决定成败，对玩家隐藏)
   fidelity: number; // 忠诚度 (出轨概率)
 }
 
@@ -58,6 +59,14 @@ export interface GameState {
     hospitalDays: number; // 剩余住院天数，0表示未住院
     hospitalDailyCost: number; // 住院日花费
     hasLoan: boolean;
+    inventory: {
+      oil: number;     // 食用油 (单位: 瓶)
+      badOil: boolean; // [新增] 是否买到了煤油混装油
+      rice: number;    // 米面 (单位: 份)
+      veggies: number; // 蔬菜 (单位: 份)
+      meat: number;    // 肉类 (单位: 份)
+      seasoning: number; // 调料 (单位: 份)
+    };
     streamerSimpCount: number;
     partner: Partner | null;
     isPursuing: boolean;
