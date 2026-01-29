@@ -1,5 +1,3 @@
---- START OF FILE App.tsx ---
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, ProfessionType, LogEntry } from './types';
 import { PROFESSIONS, INITIAL_STATS, COMPLEX_DEATHS, JOB_EVENTS, JOB_LOGS, DISEASES, POTENTIAL_PARTNERS, ASSET_COSTS } from './constants';
