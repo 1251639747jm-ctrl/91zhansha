@@ -1,6 +1,8 @@
 import { ModalConfig } from './components/EventModal';
 
-export type ProfessionType = 'PROGRAMMER' | 'SALES' | 'CIVIL_SERVANT' | 'DELIVERY' | 'FACTORY_WORKER' | 'UNEMPLOYED';
+export type ProfessionType = 
+  | 'PROGRAMMER' | 'SALES' | 'CIVIL_SERVANT' | 'DELIVERY' | 'FACTORY_WORKER' | 'UNEMPLOYED'
+  | 'SECURITY' | 'TAXI_DRIVER' | 'STREAMER'; // [新增] 保安、出租车、主播
 export type WorkSchedule = '965' | '996' | '007'; 
 
 export interface Profession {
@@ -12,9 +14,12 @@ export interface Profession {
   description: string;
   schedule: WorkSchedule;
   workDesc: string[];
+  minAge?: number;
+  maxAge?: number;
 }
 
 export interface PlayerStats {
+  age: number; // [新增] 当前年龄
   physical: number;
   mental: number;
   money: number;
@@ -47,14 +52,15 @@ export interface GameState {
   flags: {
     isDepressed: boolean;
     disease: string | null;
+    hospitalDays: number; // 剩余住院天数，0表示未住院
+    hospitalDailyCost: number; // 住院日花费
     hasLoan: boolean;
     streamerSimpCount: number;
-    // --- 新增情感/资产标记 ---
-    partner: Partner | null; // 当前对象
-    isPursuing: boolean; // 是否正在追求中
+    partner: Partner | null;
+    isPursuing: boolean;
     hasHouse: boolean;
     hasCar: boolean;
-    parentPressure: number; // 父母施压值 0-100
+    parentPressure: number;
   };
   modal: ModalConfig;
   showRelationshipPanel: boolean; // 控制新UI显示
