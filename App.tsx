@@ -685,100 +685,93 @@ const handleSleep = () => {
           };
       });
   };
-// 辅助函数：执行烹饪 (修复版：中文弹窗提示缺食材)
 // --- 修复版：执行烹饪 ---
-  const doCook = (recipe: typeof RECIPES[0]) => {
-      // 这里必须使用 setGameState 的回调来获取“最新”状态，防止闭包导致读取旧库存
-      setGameState(prev => {
-          const { inventory } = prev.flags;
-          const { needs } = recipe;
-          
-          // 1. 检查缺少的食材 (使用最新的 inventory)
-          const missingItems: string[] = [];
+const doCook = (recipe: typeof RECIPES[0]) => {
+  setGameState(prev => {
+      const { inventory } = prev.flags;
+      const { needs } = recipe;
+      
+      // 1. 检查缺少的食材
+      const missingItems: string[] = [];
+      // @ts-ignore
+      Object.keys(needs).forEach(k => {
           // @ts-ignore
-          Object.keys(needs).forEach(k => {
+          if ((inventory[k] || 0) < needs[k]) {
+              const cnName = ING_NAMES[k] || k;
               // @ts-ignore
-              if ((inventory[k] || 0) < needs[k]) {
-                  const cnName = ING_NAMES[k] || k; // 翻译成中文
-                  // @ts-ignore
-                  missingItems.push(`${cnName} x${needs[k]}`);
-              }
-          });
-
-          // 2. 如果缺食材，直接弹窗提示，不扣款，不消耗时间
-          if (missingItems.length > 0) {
-              return {
-                  ...prev,
-                  modal: {
-                      ...prev.modal, // 保持当前 Modal 打开
-                      title: "食材不足",
-                      description: `想做【${recipe.name}】还缺：${missingItems.join('，')}\n\n当前库存：油x${inventory.oil}, 米/面x${inventory.rice}, 蔬x${inventory.veggies}, 肉x${inventory.meat}, 调料x${inventory.seasoning}`,
-                      // 按钮保持不变，用户可以继续点买菜
-                  }
-              };
+              missingItems.push(`${cnName} x${needs[k]}`);
           }
+      });
 
-          // --- 食材充足，开始烹饪 ---
-
-          // 3. 扣除库存
-          const newInv = { ...inventory };
-          // @ts-ignore
-          Object.keys(needs).forEach(k => newInv[k] -= needs[k]);
-
-          // 4. 煤油判定
-          let healthHit = 0;
-          let logText = `烹饪了【${recipe.name}】，色香味俱全！`;
-          let logType: LogEntry['type'] = 'success';
-
-          // 如果用了油，且库里有坏油 (逻辑：只要有坏油，做饭就有概率中招)
-          if (needs.oil && inventory.badOil) {
-               healthHit = 30; 
-               logText = `【食品安全】做好的${recipe.name}有一股浓烈的煤油味！你含泪吃下，感觉胃在燃烧。`;
-               logType = 'danger';
-          }
-
-          // 5. 关键修复：时间推移逻辑 (解决“摸鱼中”/黑屏问题)
-          let nextP = prev.phase; 
-          let nextT = prev.time;
-          
-          // 根据当前阶段推算下一阶段
-          if (prev.phase === 'MORNING') { 
-              // 周末上午做饭 -> 周末下午；工作日上午做饭 -> 上班
-              nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; 
-              nextT = '09:00'; 
-          }
-          else if (prev.phase === 'LUNCH') { 
-              nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; 
-              nextT = '13:00'; 
-          }
-          else if (prev.phase === 'DINNER') { 
-              nextP = 'FREE_TIME'; 
-              nextT = '20:00'; 
-          }
-          else {
-              // 防止意外情况 (比如在不该做饭的时间做饭了)，强制进入下一合理阶段
-              nextP = 'FREE_TIME';
-              nextT = '20:00';
-          }
-
-          // 6. 返回新状态
+      // 2. 如果缺食材，弹窗提示 (保持当前 Modal 打开)
+      if (missingItems.length > 0) {
           return {
               ...prev,
-              stats: { 
-                  ...prev.stats, 
-                  satiety: Math.min(100, prev.stats.satiety + recipe.stats.satiety),
-                  mental: Math.min(100, prev.stats.mental + recipe.stats.mental),
-                  physical: Math.min(100, prev.stats.physical + (recipe.stats.health || 0) - healthHit),
-                  cookingSkill: prev.stats.cookingSkill + 1
-              },
-              flags: { ...prev.flags, inventory: newInv },
-              phase: nextP,
-              time: nextT,
-              modal: { ...prev.modal, isOpen: false }, // 关闭菜单，回到主界面
-              log: [...prev.log, { id: Date.now(), text: logText, type: logType }]
+              modal: {
+                  ...prev.modal,
+                  title: "食材不足",
+                  description: `想做【${recipe.name}】还缺：${missingItems.join('，')}\n\n当前库存：油x${inventory.oil}, 米/面x${inventory.rice}, 蔬x${inventory.veggies}, 肉x${inventory.meat}, 调料x${inventory.seasoning}`,
+              }
           };
-      });
-  };
+      }
+
+      // --- 3. 扣除库存 ---
+      const newInv = { ...inventory };
+      // @ts-ignore
+      Object.keys(needs).forEach(k => newInv[k] -= needs[k]);
+
+      // 4. 煤油判定 & 烹饪结果
+      let healthHit = 0;
+      let logText = `烹饪了【${recipe.name}】，色香味俱全！`;
+      let logType: LogEntry['type'] = 'success';
+
+      if (needs.oil && inventory.badOil) {
+           healthHit = 30; 
+           logText = `【食品安全】做好的${recipe.name}有一股浓烈的煤油味！你含泪吃下，感觉胃在燃烧。`;
+           logType = 'danger';
+      }
+
+      // 5. 【关键修复】时间推移逻辑
+      // 此时 phase 是 'MODAL_PAUSE'，所以必须根据 time 来判断
+      let nextP = 'FREE_TIME'; 
+      let nextT = '20:00';
+      
+      const currentHour = parseInt(prev.time.split(':')[0]); // 获取当前小时 (7, 12, 18)
+
+      if (currentHour < 10) { 
+          // 早餐时段 (07:xx) -> 接下来去上班/休息，时间到 09:00
+          nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; 
+          nextT = '09:00'; 
+      }
+      else if (currentHour >= 10 && currentHour <= 14) { 
+          // 午餐时段 (12:xx) -> 接下来下午搬砖/休息，时间到 13:00
+          nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; 
+          nextT = '13:00'; 
+      }
+      else {
+          // 晚餐时段 (18:xx) -> 接下来进入夜生活，时间到 20:00
+          nextP = 'FREE_TIME'; 
+          nextT = '20:00'; 
+      }
+
+      // 6. 返回新状态
+      return {
+          ...prev,
+          stats: { 
+              ...prev.stats, 
+              satiety: Math.min(100, prev.stats.satiety + recipe.stats.satiety),
+              mental: Math.min(100, prev.stats.mental + recipe.stats.mental),
+              physical: Math.min(100, prev.stats.physical + (recipe.stats.health || 0) - healthHit),
+              cookingSkill: (prev.stats.cookingSkill || 0) + 1 // 确保 cookingSkill 存在
+          },
+          flags: { ...prev.flags, inventory: newInv },
+          phase: nextP,
+          time: nextT,
+          modal: { ...prev.modal, isOpen: false }, // 关闭菜单
+          log: [...prev.log, { id: Date.now(), text: logText, type: logType }]
+      };
+  });
+};
   // --- 辅助函数：生成厨房模态框配置 (关键修复：解决刷新问题) ---
   const getKitchenModalConfig = (currentInventory: any, currentMoney: number): Omit<ModalConfig, 'isOpen'> => {
       return {
