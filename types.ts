@@ -16,6 +16,7 @@ export interface Profession {
   workDesc: string[];
   minAge?: number;
   maxAge?: number;
+  hasInsurance: boolean; // [新增] 是否有医保
 }
 
 export interface PlayerStats {
@@ -24,6 +25,7 @@ export interface PlayerStats {
   mental: number;
   money: number;
   satiety: number;
+  debt: number; // [新增] 负债总额 (房贷车贷)
   cookingSkill: number;
   daysSurvived: number;
 }
@@ -52,6 +54,7 @@ export interface GameState {
   flags: {
     isDepressed: boolean;
     disease: string | null;
+    hasInsurance: boolean; // [新增] 
     hospitalDays: number; // 剩余住院天数，0表示未住院
     hospitalDailyCost: number; // 住院日花费
     hasLoan: boolean;
