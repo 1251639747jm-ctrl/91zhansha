@@ -631,28 +631,31 @@ const handleSleep = () => {
      else setGameState(prev => ({ ...prev, phase: 'DINNER', time: '18:00' }));
   };
   
-// 辅助函数：购买食材
-// 辅助函数：购买食材 (修复版：购买后立即刷新UI)
+// --- 修复版：购买食材 ---
   const buyIngredient = (ing: typeof INGREDIENTS_SHOP[0]) => {
-      const { money } = gameState.stats;
-      if (money < ing.cost) {
-          // 没钱的时候弹窗提示，而不是只发日志，体验更好
-          showModal({
-              title: "余额不足",
-              description: `你囊中羞涩，买不起¥${ing.cost}的${ing.name}。`,
-              type: 'EVENT',
-              actions: [{ label: "知道了", onClick: closeModal, style: 'secondary' }]
-          });
-          return;
-      }
+      // 注意：这里我们不能直接读取 gameState.stats.money，因为在连续点击时可能拿到旧值
+      // 我们需要在 setGameState 内部进行判断，但为了弹窗提示，这里先做一次预判
+      // (为了体验完美，这里的逻辑稍微复杂一点点，确保数据实时性)
       
-      let isBadOil = false;
-      // 煤油车判定：买油时 30% 概率
-      if (ing.id === 'oil' && Math.random() < 0.3) {
-          isBadOil = true;
-      }
-
       setGameState(prev => {
+          if (prev.stats.money < ing.cost) {
+              // 没钱了，保持原样，但可以用弹窗提示（这里为了防止死循环，简单处理为不扣款并更新描述提示没钱）
+              return {
+                  ...prev,
+                  modal: {
+                      ...prev.modal,
+                      title: "余额不足",
+                      description: `你买不起 ¥${ing.cost} 的 ${ing.name}。\n` + prev.modal.description.split('\n').pop() // 保留库存显示
+                  }
+              };
+          }
+
+          let isBadOil = false;
+          // 煤油车判定：买油时 40% 概率 (概率上调)
+          if (ing.id === 'oil' && Math.random() < 0.4) {
+              isBadOil = true;
+          }
+
           // 1. 计算新库存
           const nextInventory = {
               ...prev.flags.inventory,
@@ -661,154 +664,180 @@ const handleSleep = () => {
               badOil: prev.flags.inventory.badOil || isBadOil
           };
 
-          // 2. 生成新的描述文本 (关键：这样UI才会变)
-          const newDesc = `当前库存：油x${nextInventory.oil}, 米/面x${nextInventory.rice}, 蔬x${nextInventory.veggies}, 肉x${nextInventory.meat}, 调料x${nextInventory.seasoning}`;
+          // 2. 计算新余额
+          const nextMoney = prev.stats.money - ing.cost;
 
-          // 3. 同时更新状态和模态框内容
+          // 3. 关键：使用新数据重新生成 Modal 配置，实现“无缝刷新”
+          const newModalConfig = getKitchenModalConfig(nextInventory, nextMoney);
+
+          // 4. 添加日志
+          const logText = isBadOil 
+              ? `购买了【${ing.name}】，闻起来有点刺鼻...` 
+              : `购买了【${ing.name}】，花费 ¥${ing.cost}`;
+          
           return {
               ...prev,
-              stats: { ...prev.stats, money: prev.stats.money - ing.cost },
-              flags: { 
-                  ...prev.flags, 
-                  inventory: nextInventory
-              },
-              // 这里强制更新 Modal 的 description，实现“即时刷新”
-              modal: {
-                  ...prev.modal,
-                  description: newDesc
-              }
+              stats: { ...prev.stats, money: nextMoney },
+              flags: { ...prev.flags, inventory: nextInventory },
+              modal: { ...newModalConfig, isOpen: true }, // 强制更新 Modal
+              log: [...prev.log, { id: Date.now(), text: logText, type: 'info' }]
           };
       });
-      
-      // 日志依然保留，作为记录
-      if (isBadOil) {
-          addLog(`购买了【${ing.name}】，看起来颜色有点深...`, 'info'); 
-      } else {
-          addLog(`购买了【${ing.name}】，花费 ¥${ing.cost}`, 'info');
-      }
   };
-
 // 辅助函数：执行烹饪 (修复版：中文弹窗提示缺食材)
+// --- 修复版：执行烹饪 ---
   const doCook = (recipe: typeof RECIPES[0]) => {
-      const { inventory } = gameState.flags;
-      const { needs } = recipe;
-      
-      // 检查缺少哪些食材
-      const missingItems: string[] = [];
-      // @ts-ignore
-      Object.keys(needs).forEach(k => {
-          // @ts-ignore
-          if ((inventory[k] || 0) < needs[k]) {
-              // 使用 ING_NAMES 进行翻译，如果没有翻译则显示原名
-              const cnName = ING_NAMES[k] || k;
-              // @ts-ignore
-              missingItems.push(`${cnName} x${needs[k]}`);
-          }
-      });
-      
-      // 如果有缺少的，弹窗提示
-      if (missingItems.length > 0) {
-          // 这里不再关闭原来的菜单，而是弹出一个新的提示层
-          // 但由于我们现在的 Modal 机制只能显示一个，所以必须先覆盖当前的
-          // 更好的体验是点击“知道了”后回到厨房菜单，这里简化为直接弹窗警告
-          showModal({
-             title: "食材不足",
-             description: `想做【${recipe.name}】还需要购买：\n\n${missingItems.join('，')}`,
-             type: 'EVENT', // 或者用 warning 图标
-             actions: [
-                 { 
-                     label: "去买菜", 
-                     // 点击后重新打开厨房菜单
-                     onClick: () => handleEat('COOK_MENU'), 
-                     style: 'primary' 
-                 },
-                 { label: "算了", onClick: closeModal, style: 'secondary' }
-             ]
-          });
-          return;
-      }
-
-      // --- 以下逻辑保持不变 ---
-      
-      // 扣除库存
-      const newInv = { ...inventory };
-      // @ts-ignore
-      Object.keys(needs).forEach(k => newInv[k] -= needs[k]);
-
-      // 判定煤油油
-      let healthHit = 0;
-      let logText = `烹饪了【${recipe.name}】，色香味俱全！`;
-      
-      if (needs.oil && inventory.badOil) {
-          healthHit = 25; 
-          logText = `【食品安全】做好的${recipe.name}散发着一股刺鼻的煤油味！你含泪吃下，感觉五脏六腑都在燃烧。`;
-      }
-
+      // 这里必须使用 setGameState 的回调来获取“最新”状态，防止闭包导致读取旧库存
       setGameState(prev => {
-        let nextP = prev.phase; let nextT = prev.time;
-        if (prev.phase === 'MORNING') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; nextT = '09:00'; }
-        else if (prev.phase === 'LUNCH') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; nextT = '13:00'; }
-        else if (prev.phase === 'DINNER') { nextP = 'FREE_TIME'; nextT = '20:00'; }
+          const { inventory } = prev.flags;
+          const { needs } = recipe;
+          
+          // 1. 检查缺少的食材 (使用最新的 inventory)
+          const missingItems: string[] = [];
+          // @ts-ignore
+          Object.keys(needs).forEach(k => {
+              // @ts-ignore
+              if ((inventory[k] || 0) < needs[k]) {
+                  const cnName = ING_NAMES[k] || k; // 翻译成中文
+                  // @ts-ignore
+                  missingItems.push(`${cnName} x${needs[k]}`);
+              }
+          });
 
-        return {
-            ...prev,
-            stats: { 
-                ...prev.stats, 
-                satiety: Math.min(100, prev.stats.satiety + recipe.stats.satiety),
-                mental: Math.min(100, prev.stats.mental + recipe.stats.mental),
-                physical: Math.min(100, prev.stats.physical + (recipe.stats.health || 0) - healthHit),
-                cookingSkill: prev.stats.cookingSkill + 1
-            },
-            flags: { ...prev.flags, inventory: newInv },
-            phase: nextP,
-            time: nextT,
-            modal: { ...prev.modal, isOpen: false } // 做完饭关闭菜单
-        };
+          // 2. 如果缺食材，直接弹窗提示，不扣款，不消耗时间
+          if (missingItems.length > 0) {
+              return {
+                  ...prev,
+                  modal: {
+                      ...prev.modal, // 保持当前 Modal 打开
+                      title: "食材不足",
+                      description: `想做【${recipe.name}】还缺：${missingItems.join('，')}\n\n当前库存：油x${inventory.oil}, 米/面x${inventory.rice}, 蔬x${inventory.veggies}, 肉x${inventory.meat}, 调料x${inventory.seasoning}`,
+                      // 按钮保持不变，用户可以继续点买菜
+                  }
+              };
+          }
+
+          // --- 食材充足，开始烹饪 ---
+
+          // 3. 扣除库存
+          const newInv = { ...inventory };
+          // @ts-ignore
+          Object.keys(needs).forEach(k => newInv[k] -= needs[k]);
+
+          // 4. 煤油判定
+          let healthHit = 0;
+          let logText = `烹饪了【${recipe.name}】，色香味俱全！`;
+          let logType: LogEntry['type'] = 'success';
+
+          // 如果用了油，且库里有坏油 (逻辑：只要有坏油，做饭就有概率中招)
+          if (needs.oil && inventory.badOil) {
+               healthHit = 30; 
+               logText = `【食品安全】做好的${recipe.name}有一股浓烈的煤油味！你含泪吃下，感觉胃在燃烧。`;
+               logType = 'danger';
+          }
+
+          // 5. 关键修复：时间推移逻辑 (解决“摸鱼中”/黑屏问题)
+          let nextP = prev.phase; 
+          let nextT = prev.time;
+          
+          // 根据当前阶段推算下一阶段
+          if (prev.phase === 'MORNING') { 
+              // 周末上午做饭 -> 周末下午；工作日上午做饭 -> 上班
+              nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; 
+              nextT = '09:00'; 
+          }
+          else if (prev.phase === 'LUNCH') { 
+              nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; 
+              nextT = '13:00'; 
+          }
+          else if (prev.phase === 'DINNER') { 
+              nextP = 'FREE_TIME'; 
+              nextT = '20:00'; 
+          }
+          else {
+              // 防止意外情况 (比如在不该做饭的时间做饭了)，强制进入下一合理阶段
+              nextP = 'FREE_TIME';
+              nextT = '20:00';
+          }
+
+          // 6. 返回新状态
+          return {
+              ...prev,
+              stats: { 
+                  ...prev.stats, 
+                  satiety: Math.min(100, prev.stats.satiety + recipe.stats.satiety),
+                  mental: Math.min(100, prev.stats.mental + recipe.stats.mental),
+                  physical: Math.min(100, prev.stats.physical + (recipe.stats.health || 0) - healthHit),
+                  cookingSkill: prev.stats.cookingSkill + 1
+              },
+              flags: { ...prev.flags, inventory: newInv },
+              phase: nextP,
+              time: nextT,
+              modal: { ...prev.modal, isOpen: false }, // 关闭菜单，回到主界面
+              log: [...prev.log, { id: Date.now(), text: logText, type: logType }]
+          };
       });
-      addLog(logText, healthHit > 0 ? 'danger' : 'success');
+  };
+  // --- 辅助函数：生成厨房模态框配置 (关键修复：解决刷新问题) ---
+  const getKitchenModalConfig = (currentInventory: any, currentMoney: number): Omit<ModalConfig, 'isOpen'> => {
+      return {
+          title: "自家厨房 & 菜市场",
+          description: `当前库存：油x${currentInventory.oil}, 米/面x${currentInventory.rice}, 蔬x${currentInventory.veggies}, 肉x${currentInventory.meat}, 调料x${currentInventory.seasoning}`,
+          type: 'EVENT',
+          actions: [
+              // --- 购买区 ---
+              ...INGREDIENTS_SHOP.map(ing => ({
+                  label: `买${ing.name} (¥${ing.cost})`,
+                  onClick: () => buyIngredient(ing), // 绑定购买函数
+                  style: 'secondary' as const
+              })),
+              // --- 烹饪区 ---
+              ...RECIPES.map(recipe => ({
+                  label: `做【${recipe.name}】`,
+                  onClick: () => doCook(recipe), // 绑定烹饪函数
+                  style: 'primary' as const
+              })),
+              { label: "退出厨房", onClick: closeModal, style: 'secondary' as const }
+          ]
+      };
   };
   // --- 主入口：点击“吃饭” ---
+// --- 主入口 ---
   const handleEat = (actionType: string) => {
-      // 1. 拼好饭 (保持原样，直接吃)
+      // 1. 拼好饭
       if (actionType === 'TAKEOUT') {
           updateStats({ money: -30, satiety: 40, physical: -2 }, "吃了份外卖，希望能活过今晚。");
-          advanceTime();
-          return;
-      }
-
-      // 2. 不吃 (绝食)
-      if (actionType === 'SKIP') {
-          updateStats({ satiety: -15, mental: -10, physical: -5 }, "为了省钱/减肥，你决定这顿不吃了。肚子在抗议。");
-          advanceTime();
-          return;
-      }
-
-      // 3. 做饭/买菜 (打开菜单)
-      if (actionType === 'COOK_MENU') {
-          showModal({
-              title: "自家厨房 & 菜市场",
-              description: `当前库存：油x${gameState.flags.inventory.oil}, 米/面x${gameState.flags.inventory.rice}, 蔬x${gameState.flags.inventory.veggies}, 肉x${gameState.flags.inventory.meat}, 调料x${gameState.flags.inventory.seasoning}`,
-              type: 'EVENT', // 使用通用类型
-              actions: [
-                  // --- 购买区 ---
-                  ...INGREDIENTS_SHOP.map(ing => ({
-                      label: `买${ing.name} (¥${ing.cost})`,
-                      onClick: () => buyIngredient(ing),
-                      style: 'secondary'
-                  })),
-                  // --- 烹饪区 ---
-                  ...RECIPES.map(recipe => ({
-                      label: `做【${recipe.name}】`,
-                      onClick: () => doCook(recipe),
-                      style: 'primary'
-                  })),
-                  { label: "算了，不吃了", onClick: closeModal, style: 'secondary' }
-              ]
+          // 这里需要手动推进时间，把上面 doCook 里的时间逻辑抽出来或者复制一遍
+          setGameState(prev => {
+            let nextP = prev.phase; let nextT = prev.time;
+            if (prev.phase === 'MORNING') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; nextT = '09:00'; }
+            else if (prev.phase === 'LUNCH') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; nextT = '13:00'; }
+            else if (prev.phase === 'DINNER') { nextP = 'FREE_TIME'; nextT = '20:00'; }
+            return { ...prev, phase: nextP, time: nextT };
           });
-          // 注意：Modal 打开后不会自动推进时间，必须在 doCook 里推进
+          return;
+      }
+
+      // 2. 不吃
+      if (actionType === 'SKIP') {
+          updateStats({ satiety: -15, mental: -10, physical: -5 }, "为了省钱，你决定这顿不吃了。");
+          setGameState(prev => {
+            let nextP = prev.phase; let nextT = prev.time;
+            if (prev.phase === 'MORNING') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; nextT = '09:00'; }
+            else if (prev.phase === 'LUNCH') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; nextT = '13:00'; }
+            else if (prev.phase === 'DINNER') { nextP = 'FREE_TIME'; nextT = '20:00'; }
+            return { ...prev, phase: nextP, time: nextT };
+          });
+          return;
+      }
+
+      // 3. 打开做饭菜单 (使用新函数)
+      if (actionType === 'COOK_MENU') {
+          // 获取当前最新状态生成配置
+          const config = getKitchenModalConfig(gameState.flags.inventory, gameState.stats.money);
+          showModal(config);
       }
   };
-
   // 辅助：推进时间 (抽取出来复用)
   const advanceTime = () => {
       setGameState(prev => {
