@@ -45,7 +45,8 @@ const App: React.FC = () => {
       partner: null, isPursuing: false, hasHouse: false, hasCar: false, parentPressure: 0,
       // --- 新增：住院相关标记 ---
       hospitalDays: 0, 
-      hospitalDailyCost: 0
+      hospitalDailyCost: 0,
+      inventory: { oil: 0, badOil: false, rice: 0, veggies: 0, meat: 0, seasoning: 0 } 
     },
     modal: { isOpen: false, title: '', description: '', type: 'EVENT', actions: [] },
     showRelationshipPanel: false, 
