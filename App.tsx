@@ -388,47 +388,73 @@ if (currentHour < 10) {
       };
   };
 
-  // --- App 18: 子女逻辑 ---
-  const handleChildLogic = () => {
-     setGameState(prev => {
-        if (prev.flags.children.length === 0) return prev;
-        
-        let milkUsed = 0;
-        const newChildren = prev.flags.children.map(child => {
-            let newHunger = child.hunger - 10;
-            let newHealth = child.health;
+ const handleChildLogic = () => {
+    setGameState(prev => {
+      if (prev.flags.children.length === 0) return prev;
 
-            // 自动喂食
-            if (newHunger < 30 && prev.flags.inventory.milkPowder > milkUsed) {
-                 milkUsed++;
-                 newHunger = 100;
-            } else if (newHunger <= 0) {
-                 newHealth -= 10;
-            }
-            if (newHealth <= 0) return null; // 夭折
-            return { ...child, hunger: newHunger, health: newHealth };
-        }).filter(Boolean) as Child[];
-        
-        if (newChildren.length < prev.flags.children.length) {
-            addLog("【悲报】你的孩子因为照顾不周不幸离世了...", "danger");
-            return { ...prev, flags: { ...prev.flags, children: newChildren }, stats: { ...prev.stats, mental: prev.stats.mental - 50 } };
+      let milkUsed = 0;
+      let totalFoodCost = 0;
+      let mentalStress = 0;
+
+      const newChildren = prev.flags.children.map(child => {
+        let newHunger = child.hunger - 15; // 每天自然饿
+        let newHealth = child.health;
+
+        // 婴儿期 (0-3岁)：强力消耗奶粉和尿布
+        if (child.age < 3) {
+          if (prev.flags.inventory.milkPowder > milkUsed) {
+            milkUsed++;
+            newHunger = 100;
+          } else {
+            newHealth -= 20; // 没奶粉掉血极快
+          }
+          mentalStress += 5; // 婴儿半夜哭闹，精神压力大
+        } 
+        // 学龄期 (3岁以上)：直接消耗金钱（伙食费/零花钱）
+        else {
+          const dailyCost = child.educationStage === 'UNI' ? 100 : 50; // 大学生开销大
+          totalFoodCost += dailyCost;
+          newHunger = 100; // 默认给钱就能吃饱
+          mentalStress += 3;
         }
 
-        if (milkUsed > 0) {
-             addLog(`消耗了 ${milkUsed} 罐奶粉喂孩子。`, "info");
-        } else if (prev.flags.children.some(c => c.hunger < 20)) {
-             addLog("家里没有奶粉了！孩子饿得哇哇大哭！", "danger");
+        // 没交学费的后果：孩子产生自卑感，健康/精神双降
+        if (child.educationStage !== 'NONE' && !child.schoolFeePaid) {
+          newHealth -= 5;
+          mentalStress += 10;
         }
 
+        if (newHealth <= 0) return null; // 夭折逻辑
+        return { ...child, hunger: newHunger, health: newHealth };
+      }).filter(Boolean) as Child[];
+
+      // 孩子去世的惩罚
+      if (newChildren.length < prev.flags.children.length) {
+        addLog("【碎钞机报废】你的孩子因为照顾不周不幸离世了...你陷入了巨大的自我怀疑。", "danger");
         return { 
-            ...prev, 
-            flags: { 
-                ...prev.flags, 
-                children: newChildren,
-                inventory: { ...prev.flags.inventory, milkPowder: prev.flags.inventory.milkPowder - milkUsed }
-            } 
+          ...prev, 
+          flags: { ...prev.flags, children: newChildren }, 
+          stats: { ...prev.stats, mental: Math.max(0, prev.stats.mental - 60) } 
         };
-     });
+      }
+
+      if (totalFoodCost > 0) addLog(`今日养娃伙食费支出: ¥${totalFoodCost}`, "warning");
+      if (milkUsed > 0) addLog(`消耗了 ${milkUsed} 罐进口奶粉，娃吃得很开心。`, "info");
+
+      return {
+        ...prev,
+        stats: { 
+          ...prev.stats, 
+          money: prev.stats.money - totalFoodCost,
+          mental: Math.max(0, prev.stats.mental - mentalStress) 
+        },
+        flags: {
+          ...prev.flags,
+          children: newChildren,
+          inventory: { ...prev.flags.inventory, milkPowder: prev.flags.inventory.milkPowder - milkUsed }
+        }
+      };
+    });
   };
 
 // --- 核心动作：情感、资产与家庭 (魔改热梗版) ---
@@ -639,9 +665,21 @@ if (currentHour < 10) {
       }
       if (gameState.phase !== 'MODAL_PAUSE') setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:30' }));
   };
-  // --- 睡眠与结算逻辑 (整合所有死亡判定) ---
-// --- 睡眠与结算逻辑 (完整版：含住院、疾病、死亡) ---
   const handleSleep = () => {
+    // 建议放在 handleSleep 的开头
+  if (gameState.flags.children.length > 0 && Math.random() < 0.05) {
+      const child = gameState.flags.children[getRandomInt(0, gameState.flags.children.length - 1)];
+      showModal({
+          title: "娃又整活了",
+          description: `${child.name} 在学校把同学的鼻梁骨打歪了/把老师的保时捷划了。对方家长要求赔偿医药费/维修费 ¥5000。`,
+          type: 'LOVE', // 借用 LOVE 图标，其实是家庭事件
+          actions: [
+              { label: "含泪赔钱 (-¥5000)", onClick: () => { updateStats({ money: -5000, mental: -20 }); closeModal(); } },
+              { label: "拒不赔钱 (精神大崩)", onClick: () => { updateStats({ mental: -50 }); addLog("你成了校门口著名的赖账家长，每天接孩子都被指指点点。", "danger"); closeModal(); } }
+          ]
+      });
+      return; // 暂停后续结算
+  }
     // 1. 优先处理住院逻辑 (如果 hospitalDays > 0，则进入强制住院流程)
     if (gameState.flags.hospitalDays > 0) {
         const { hospitalDays, hospitalDailyCost } = gameState.flags;
@@ -784,26 +822,41 @@ if (currentHour < 10) {
     nextDate.setDate(nextDate.getDate() + 1);
     
     // 生日与升学逻辑
+// 在 handleSleep 最后的日期推进逻辑中
     if (gameState.stats.daysSurvived > 0 && gameState.stats.daysSurvived % 365 === 0) {
         updateStats({ age: gameState.stats.age + 1 });
-        // 孩子升学
+        
         setGameState(prev => ({
             ...prev,
             flags: {
                 ...prev.flags,
                 children: prev.flags.children.map(c => {
                     const newAge = c.age + 1;
-                    let newStage = c.educationStage;
-                    // 简单的年龄对应学段逻辑
-                    if (newAge >= 3 && newAge < 7) newStage = 'KINDER';
-                    else if (newAge >= 7 && newAge < 13) newStage = 'PRIMARY';
-                    else if (newAge >= 13 && newAge < 16) newStage = 'MIDDLE';
-                    else if (newAge >= 16 && newAge < 19) newStage = 'HIGH';
-                    else if (newAge >= 19 && newAge < 23) newStage = 'UNI';
-                    return { ...c, age: newAge, educationStage: newStage as any, schoolFeePaid: false };
+                    let nextStage = c.educationStage;
+                    
+                    // 阶段判定
+                    if (newAge === 3) nextStage = 'KINDER';
+                    if (newAge === 7) nextStage = 'PRIMARY';
+                    if (newAge === 13) nextStage = 'MIDDLE';
+                    if (newAge === 16) nextStage = 'HIGH';
+                    if (newAge === 19) nextStage = 'UNI';
+                    
+                    // 每年学费重置为未缴纳
+                    return { ...c, age: newAge, educationStage: nextStage, schoolFeePaid: false };
                 })
             }
         }));
+        
+        // 弹窗提示：学费压力
+        const schoolCount = gameState.flags.children.filter(c => c.age >= 3).length;
+        if (schoolCount > 0) {
+            showModal({
+                title: "开学季的噩梦",
+                description: `又到了一年一度的开学季。你看着家里的 ${schoolCount} 个吞金兽，再看看存折，感觉到一阵窒息。请尽快前往家庭中心缴纳学费，否则孩子将被劝退。`,
+                type: 'EVENT',
+                actions: [{ label: "知道了 (含泪搬砖)", onClick: closeModal }]
+            });
+        }
     }
 
     setGameState(prev => ({ 
