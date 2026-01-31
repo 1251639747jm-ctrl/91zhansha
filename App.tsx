@@ -225,7 +225,7 @@ const App: React.FC = () => {
 
           // 煤油车判定逻辑
           let isNewBadOil = false;
-          if (ing.id === 'oil' && Math.random() < 0.2) { // 20% 概率买到坏油
+          if (ing.id === 'oil' && Math.random() < 0.1) {
               isNewBadOil = true;
           }
 
@@ -294,9 +294,19 @@ const App: React.FC = () => {
         // 时间推进逻辑
         let nextP = prev.phase; let nextT = prev.time;
         const currentHour = parseInt(prev.time.split(':')[0]);
-        if (currentHour < 10) { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; nextT = '09:00'; }
-        else if (currentHour < 14) { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; nextT = '13:00'; }
-        else { nextP = 'FREE_TIME'; nextT = '20:00'; }
+if (currentHour < 10) { 
+    // 早餐做完 -> 准备去搬砖
+    nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; 
+    nextT = '08:30'; 
+} else if (currentHour >= 11 && currentHour <= 14) { 
+    // 午餐做完 -> 准备下午搬砖
+    nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; 
+    nextT = '13:00'; 
+} else { 
+    // 晚餐做完 -> 进入夜生活阶段
+    nextP = 'FREE_TIME'; 
+    nextT = '19:30'; 
+}
 
         return {
             ...prev,
