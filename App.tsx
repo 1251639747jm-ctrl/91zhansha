@@ -349,7 +349,6 @@ const App: React.FC = () => {
     
     // 打开医院菜单
     setGameState(prev => ({ ...prev, phase: 'MODAL_PAUSE', modal: config }));
-  };al(config);
   };
   // --- App 17: 主播剧情系统 (完整保留) ---
   const triggerStreamerEvent = () => {
@@ -1367,7 +1366,7 @@ const App: React.FC = () => {
       </main>
     </div>
   );
-
+};
 // --- UI 组件：操作按钮 ---
 const ActionBtn = ({ label, icon, onClick, color, sub }: any) => {
     const colors: any = {
