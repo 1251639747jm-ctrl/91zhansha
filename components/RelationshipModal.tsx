@@ -168,10 +168,18 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                                             <span className={child.hunger < 30 ? "text-red-400 font-bold" : ""}>{child.hunger}%</span>
                                         </div>
                                         
-                                        <div className="text-xs text-zinc-300 mt-2 pt-2 border-t border-zinc-800">
-                                            当前阶段: <span className="text-indigo-300">{stageInfo ? stageInfo.name : '学龄前(家中)'}</span>
-                                        </div>
-                                    </div>
+                                        // 找到渲染孩子卡片的地方，修改文案
+<div className="text-xs text-zinc-300 mt-2 pt-2 border-t border-zinc-800">
+    当前阶级: <span className="text-indigo-300">{stageInfo ? stageInfo.name : '纯烧钱阶段(待产/待学)'}</span>
+</div>
+
+{stageInfo && !child.schoolFeePaid && (
+    <button onClick={() => actions.payTuition(child.id, stageInfo.cost)} 
+        className="w-full text-xs bg-red-900/40 text-red-200 border border-red-600 py-2 rounded hover:bg-red-800 transition-all flex flex-col items-center justify-center animate-pulse">
+        <span className="font-bold">缴纳赎身费(学费) ¥{stageInfo.cost}</span>
+        <span className="text-[9px] opacity-70">不交钱孩子就变废柴了</span>
+    </button>
+)}
                                     
                                     {stageInfo && !child.schoolFeePaid && (
                                         <button onClick={() => actions.payTuition(child.id, stageInfo.cost)} 
