@@ -264,100 +264,121 @@ const App: React.FC = () => {
   };
 
   // --- App 18: 厨房逻辑 (修复版) ---
-  const buyIngredient = (ing: typeof INGREDIENTS_SHOP[0]) => {
+ const buyIngredient = (ing: typeof INGREDIENTS_SHOP[0]) => {
       setGameState(prev => {
           if (prev.stats.money < ing.cost) {
               return { 
                   ...prev, 
-                  modal: { ...prev.modal, title: "余额不足", description: `你买不起 ¥${ing.cost} 的 ${ing.name}。\n` + prev.modal.description.split('\n').pop() } 
+                  modal: { ...prev.modal, title: "余额不足", description: `你买不起 ¥${ing.cost} 的 ${ing.name}。` } 
               };
           }
 
-          // 煤油车判定逻辑
           let isNewBadOil = false;
-          if (ing.id === 'oil' && Math.random() < 0.1) {
+          // 仅在买油时判定概率（建议调低到 0.05 即 5%，0.2 太高了）
+          if (ing.id === 'oil' && Math.random() < 0.05) { 
               isNewBadOil = true;
           }
+
+          const currentOil = prev.flags.inventory.oil || 0;
 
           const nextInventory = {
               ...prev.flags.inventory,
               // @ts-ignore
               [ing.id]: (prev.flags.inventory[ing.id] || 0) + 1,
-              badOil: prev.flags.inventory.badOil || isNewBadOil
+              // 【修复核心】：如果当前油量 > 0，则混合污染；如果当前没油了，只看这桶新买的坏不坏
+              badOil: currentOil > 0 ? (prev.flags.inventory.badOil || isNewBadOil) : isNewBadOil
           };
 
           const nextMoney = prev.stats.money - ing.cost;
           const newModalConfig = getKitchenModalConfig(nextInventory, nextMoney);
 
-          const logText = isNewBadOil 
-              ? `购买了【${ing.name}】，虽然是大品牌，但你总觉得颜色有点怪...` 
-              : `购买了【${ing.name}】，花费 ¥${ing.cost}`;
-          
           return {
               ...prev,
               stats: { ...prev.stats, money: nextMoney },
               flags: { ...prev.flags, inventory: nextInventory },
               modal: { ...newModalConfig, isOpen: true },
-              log: [...prev.log, { id: Date.now(), text: logText, type: isNewBadOil ? 'warning' : 'info' }]
+              log: [...prev.log, { 
+                  id: Date.now(), 
+                  text: isNewBadOil ? `买了桶【${ing.name}】，闻起来有股怪味...` : `购买了【${ing.name}】。`, 
+                  type: isNewBadOil ? 'warning' : 'info' 
+              }]
           };
       });
   };
 
+// --- 核心烹饪逻辑：含坏油物理清除与时间精准跳转 ---
   const doCook = (recipe: typeof RECIPES[0]) => {
     setGameState(prev => {
         const { inventory } = prev.flags;
         const { needs } = recipe;
         
+        // 1. 检查食材是否足够
         const missingItems: string[] = [];
-        // @ts-ignore
         Object.keys(needs).forEach(k => {
             // @ts-ignore
-            if ((inventory[k] || 0) < needs[k]) missingItems.push(k);
+            if ((inventory[k] || 0) < (needs[k] || 0)) {
+                missingItems.push(k);
+            }
         });
 
         if (missingItems.length > 0) {
             return {
                 ...prev,
-                modal: { ...prev.modal, title: "食材不足", description: `缺：${missingItems.join(', ')}\n当前库存: 油${inventory.oil} 米${inventory.rice} 蔬${inventory.veggies} 肉${inventory.meat}` }
+                modal: { 
+                    ...prev.modal, 
+                    title: "食材不足", 
+                    description: `做【${recipe.name}】还缺：${missingItems.join(', ')}\n当前库存: 油${inventory.oil} 米${inventory.rice} 蔬${inventory.veggies} 肉${inventory.meat}` 
+                }
             };
         }
 
+        // 2. 扣除食材库存
         const newInv = { ...inventory };
-        // @ts-ignore
-        Object.keys(needs).forEach(k => newInv[k] -= needs[k]);
+        Object.keys(needs).forEach(k => {
+            // @ts-ignore
+            newInv[k] -= needs[k];
+        });
         
-        // 如果油用光了，重置坏油标记
+        // 【核心修复点】：如果油用光了，必须强制重置坏油状态，防止污染下一桶好油
         if (newInv.oil <= 0) {
             newInv.badOil = false;
         }
 
+        // 3. 煤油中毒判定逻辑
         let healthHit = 0;
         let logText = `烹饪了【${recipe.name}】，色香味俱全！`;
         let logType: LogEntry['type'] = 'success';
 
+        // 只有当食谱需要油，且当前库存的油是坏的时候才触发
         if (needs.oil && inventory.badOil) {
              healthHit = 40; 
-             logText = `【食品安全】做好的${recipe.name}有一股浓烈的煤油味！你含泪吃下，感觉胃在燃烧。`;
+             logText = `【海克斯科技】做好的${recipe.name}有一股刺鼻的煤油味！为了不浪费钱你含泪吃下，感觉胃里像有刀在割。`;
              logType = 'danger';
         }
 
-// --- doCook 内部的时间推进逻辑 ---
+        // 4. 精准时间跳转逻辑 (修复跳过时段问题)
         let nextP = prev.phase; 
         let nextT = prev.time;
         const isWknd = isWeekend(prev.date, prev.profession?.schedule || '965');
         
-        // 基于当前 phase 判定，而非 hour，防止逻辑漂移
-        if (prev.phase === 'MORNING' || prev.phase === 'MODAL_PAUSE' && prev.time.includes('07')) {
-             nextP = isWknd ? 'REST_AM' : 'WORK_AM';
-             nextT = '08:30'; 
-        } else if (prev.phase === 'LUNCH' || prev.time.includes('12')) {
-             nextP = isWknd ? 'REST_PM' : 'WORK_PM';
-             nextT = '13:00';
+        // 基于小时数判定当前属于哪个餐次
+        const currentHour = parseInt(prev.time.split(':')[0]);
+
+        if (currentHour < 10) { 
+            // 早餐结束 (07:xx -> 08:30)
+            nextP = isWknd ? 'REST_AM' : 'WORK_AM';
+            nextT = '08:30'; 
+        } else if (currentHour >= 10 && currentHour <= 14) {
+            // 午餐结束 (12:xx -> 13:00)
+            nextP = isWknd ? 'REST_PM' : 'WORK_PM';
+            nextT = '13:00';
         } else {
-             nextP = 'FREE_TIME';
-             nextT = '19:30';
+            // 晚餐结束 (18:xx -> 19:30)
+            nextP = 'FREE_TIME';
+            nextT = '19:30';
         }
 
+        // 5. 返回新状态
         return {
             ...prev,
             stats: { 
@@ -368,8 +389,9 @@ const App: React.FC = () => {
                 cookingSkill: (prev.stats.cookingSkill || 0) + 1
             },
             flags: { ...prev.flags, inventory: newInv },
-            phase: nextP, time: nextT,
-            modal: { ...prev.modal, isOpen: false },
+            phase: nextP,
+            time: nextT,
+            modal: { ...prev.modal, isOpen: false }, // 关闭做饭菜单
             log: [...prev.log, { id: Date.now(), text: logText, type: logType }]
         };
     });
@@ -383,6 +405,18 @@ const App: React.FC = () => {
           actions: [
               ...INGREDIENTS_SHOP.map(ing => ({ label: `买${ing.name} (¥${ing.cost})`, onClick: () => buyIngredient(ing), style: 'secondary' as const })),
               ...RECIPES.map(recipe => ({ label: `做【${recipe.name}】`, onClick: () => doCook(recipe), style: 'primary' as const })),
+            { 
+        label: "倒掉剩下的油", 
+        onClick: () => {
+            setGameState(prev => ({
+                ...prev,
+                flags: { ...prev.flags, inventory: { ...prev.flags.inventory, oil: 0, badOil: false } }
+            }));
+            addLog("你把怀疑有问题的油全部倒进了下水道，虽然心疼钱，但保命要紧。", "warning");
+            closeModal();
+        }, 
+        style: 'danger' as const 
+    },
               { label: "离开", onClick: closeModal, style: 'secondary' as const }
           ]
       };
@@ -589,46 +623,69 @@ const App: React.FC = () => {
   };
 
   // --- 工作与时间逻辑 ---
+// --- 工作处理逻辑 ---
   const handleWork = () => {
     if (!gameState.profession) return;
     const { stressFactor, healthRisk } = gameState.profession;
     const profEvent = (JOB_EVENTS as any)[gameState.profession.id];
     
-    // 30% 触发职业专属事件
+    // 30% 几率触发社畜专属破事
     if (profEvent && Math.random() < 0.3) {
         const event = profEvent[getRandomInt(0, profEvent.length - 1)];
         showModal({
-            title: event.title, description: event.desc, type: 'WORK',
+            title: event.title, 
+            description: event.desc, 
+            type: 'WORK',
             actions: event.options.map((opt: any) => ({
                 label: opt.text,
                 onClick: () => { 
-                    updateStats(opt.changes, "你做出了选择。"); 
+                    // 1. 更新数值
+                    updateStats(opt.changes, "面对职场PUA，你做出了选择。"); 
+                    // 2. 关闭弹窗
                     closeModal(); 
+                    // 3. 执行时间推进
                     finishWorkBlock();
                 }
             }))
         });
     } else {
-        // 普通搬砖
+        // 普通搬砖逻辑
         const profLog = (JOB_LOGS as any)[gameState.profession.id] || ["枯燥的工作..."];
         const desc = profLog[getRandomInt(0, profLog.length - 1)];
         const actualRisk = healthRisk + (gameState.flags.disease ? 8 : 0); 
+        
+        // 更新属性
         updateStats({ physical: -actualRisk, mental: -stressFactor, satiety: -15 }, desc);
+        // 执行时间推进
         finishWorkBlock();
     }
   };
 
+// --- 搬砖结算逻辑 (修复跳转Bug，加入时间感知) ---
   const finishWorkBlock = () => {
     setGameState(prev => {
-        if (prev.phase === 'WORK_AM') return { ...prev, phase: 'LUNCH', time: '12:00' };
-        else {
+        // 【核心修复点】：判定是“上午搬砖”还是“下午搬砖”
+        // 逻辑：如果当前 phase 是 WORK_AM，或者当前时间是早上 09:00（即便在弹窗暂停状态）
+        const isMorningShift = prev.phase === 'WORK_AM' || prev.time.includes('09');
+
+        if (isMorningShift) {
+            // 上午搬砖结束 -> 去吃午饭
+            return { 
+                ...prev, 
+                phase: 'LUNCH', 
+                time: '12:00',
+                log: [...prev.log, { id: Date.now(), text: ">>> 上午的砖搬完了，腰酸背痛，该去吃午饭续命了。", type: 'info' }]
+            };
+        } else {
+            // 下午搬砖结束 -> 结算工资 -> 进入晚餐阶段
             const salary = (prev.profession?.salaryBase || 0) + getRandomInt(-50, 50); 
             const newMoney = prev.stats.money + salary;
             return { 
                 ...prev, 
                 stats: { ...prev.stats, money: newMoney },
-                phase: 'DINNER', time: '18:30',
-                log: [...prev.log, { id: Date.now(), text: `【下班】入账 ¥${salary}`, type: 'success' }]
+                phase: 'DINNER', 
+                time: '18:30',
+                log: [...prev.log, { id: Date.now(), text: `【下班】今天的窝囊费 ¥${salary} 已到账，又是为资本家法拉利添砖加瓦的一天。`, type: 'success' }]
             };
         }
     });
