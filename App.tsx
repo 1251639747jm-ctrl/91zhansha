@@ -141,7 +141,46 @@ const App: React.FC = () => {
       }
     }));
   };
+// --- 开局子女生成逻辑 ---
+  const generateInitialChildren = (parentAge: number): Child[] => {
+    const children: Child[] = [];
+    // 基础概率：25岁以下几乎没孩子，30岁以上概率激增
+    let chance = 0;
+    if (parentAge >= 25 && parentAge < 30) chance = 0.2;
+    if (parentAge >= 30 && parentAge < 40) chance = 0.6;
+    if (parentAge >= 40) chance = 0.9;
 
+    if (Math.random() < chance) {
+      // 随机 1-3 个孩子
+      const count = parentAge > 40 ? getRandomInt(1, 3) : getRandomInt(1, 2);
+      for (let i = 0; i < count; i++) {
+        // 孩子年龄随机：通常比父母小 20-35 岁，但最小为 0
+        const childAge = Math.max(0, parentAge - getRandomInt(22, 35));
+        
+        // 如果孩子太老（超过23岁），视为已成年独立，不计入负担列表
+        if (childAge > 23) continue;
+
+        let stage: Child['educationStage'] = 'NONE';
+        if (childAge >= 3 && childAge < 7) stage = 'KINDER';
+        else if (childAge >= 7 && childAge < 13) stage = 'PRIMARY';
+        else if (childAge >= 13 && childAge < 16) stage = 'MIDDLE';
+        else if (childAge >= 16 && childAge < 19) stage = 'HIGH';
+        else if (childAge >= 19 && childAge <= 23) stage = 'UNI';
+
+        children.push({
+          id: `initial-${i}-${Date.now()}`,
+          name: Math.random() > 0.5 ? `大宝${i+1}(男)` : `小宝${i+1}(女)`,
+          gender: Math.random() > 0.5 ? 'boy' : 'girl',
+          age: childAge,
+          educationStage: stage,
+          health: 100,
+          hunger: 100,
+          schoolFeePaid: true // 开局默认本学期已缴费，否则开局直接负债暴毙
+        });
+      }
+    }
+    return children;
+  };
   const startGame = (profType: ProfessionType) => {
     const prof = PROFESSIONS[profType];
     const bg = tempBg;
@@ -162,7 +201,7 @@ const App: React.FC = () => {
         debt: startDebt, 
         age: tempAge 
     };
-
+    const initialChildren = generateInitialChildren(tempAge);
     setGameState({
       profession: prof,
       background: bg,
@@ -170,7 +209,14 @@ const App: React.FC = () => {
       phase: 'MORNING',
       date: new Date('2024-01-01T07:30:00'),
       time: '07:30',
-      log: [{ id: 1, text: `>>> 档案载入完毕。年龄：${tempAge}岁。身份：${prof.name}。背景：${bg.name}。`, type: 'info' }],
+      log: [
+        { id: 1, text: `>>> 档案载入完毕。年龄：${tempAge}岁。身份：${prof.name}。背景：${bg.name}。`, type: 'info' },
+            ...(initialChildren.length > 0 ? [{ 
+              id: 2, 
+              text: `>>> 发现家庭档案：你已有 ${initialChildren.length} 个孩子需要抚养，碎钞机已启动。`, 
+              type: 'warning' as const 
+          }] : [])
+           ],
       flags: { 
           isDepressed: false, disease: null, hasLoan: startDebt > 0, isSingle: true, 
           streamerSimpCount: 0,
@@ -179,7 +225,9 @@ const App: React.FC = () => {
           hospitalDays: 0, hospitalDailyCost: 0,
           blackVanRisk: 0, lastCheckupDate: null, knownHealth: null,
           inventory: { oil: 0, badOil: false, rice: 0, veggies: 0, meat: 0, seasoning: 0, milkPowder: 0, diapers: 0 },
-          children: []
+          children: initialChildren, // <--- 替换这里
+          isSingle: initialChildren.length > 0 ? false : true, // 有孩子默认不是单身状态（或者设定为离异/丧偶）
+          parentPressure: initialChildren.length > 0 ? 0 : 30, // 有了孩子，父母催婚压力消失
       },
       modal: { isOpen: false, title: '', description: '', type: 'EVENT', actions: [] },
       showRelationshipPanel: false,
