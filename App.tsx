@@ -396,7 +396,54 @@ const App: React.FC = () => {
         };
     });
   };
+// --- 休息日专属活动 (完善版) ---
+  const handleRestDayActivity = (type: string) => {
+      switch(type) {
+          case 'SLEEP_IN': 
+              updateStats({ physical: 25, mental: 15, satiety: -15 }, "你睡到了下午一点，醒来时阳光刺眼，分不清自己是在哪一年。"); 
+              break;
+          case 'LIBRARY': 
+              updateStats({ mental: -15, cookingSkill: 1, physical: -5 }, "在图书馆卷了一整天考公资料，虽然一个字也没看进去，但发了朋友圈显得很努力。"); 
+              break;
+          case 'PART_TIME': 
+              const earned = getRandomInt(150, 300);
+              updateStats({ money: earned, physical: -20, mental: -10, satiety: -20 }, `周末去发传单/当人肉背景墙，赚了 ¥${earned} 的辛苦钱。`); 
+              break;
+          case 'MARKET': 
+              updateStats({ physical: 5, satiety: -10 }, "早起去菜市场捡漏，和卖菜大妈为了两毛钱吵了十分钟，感觉战斗力爆表。"); 
+              break;
+          case 'BLIND_DATE': 
+              if (gameState.stats.money < 500) {
+                  addLog("兜里就几百块钱还想去相亲？大妈直接把你简历扔垃圾桶了。", "danger");
+                  return;
+              }
+              if (Math.random() < 0.4) {
+                  updateStats({ money: -500, mental: -30 }, "遇到了著名的“饭托”，吃了一顿 ¥500 的天价拉面后，你被拉黑了。");
+              } else {
+                  updateStats({ money: -200, mental: 5 }, "相亲对象很正常，甚至还有点同情你的发际线。");
+                  // 几率直接认识新伴侣
+                  if (gameState.flags.isSingle && Math.random() < 0.3) relActions.findPartner();
+              }
+              break;
+          case 'HOSPITAL':
+              handleHospitalVisit(); // 调用之前的医院逻辑
+              return; // 医院逻辑自带时间推进，这里直接返回
+      }
 
+      // 时间推进逻辑
+      setGameState(prev => {
+          let nextP = prev.phase; 
+          let nextT = prev.time;
+          if (prev.phase === 'REST_AM') { 
+              nextP = 'LUNCH'; 
+              nextT = '12:00'; 
+          } else { 
+              nextP = 'DINNER'; 
+              nextT = '18:00'; 
+          }
+          return { ...prev, phase: nextP, time: nextT };
+      });
+  };
   const getKitchenModalConfig = (inv: any, money: number): Omit<ModalConfig, 'isOpen'> => {
       return {
           title: "自家厨房 & 菜市场",
@@ -1151,7 +1198,32 @@ const App: React.FC = () => {
                                     config.actions.push({ label: "润了，治不起", onClick: closeModal, style: 'secondary' });
                                     showModal(config);
                                 }} color="teal" sub="甚至想挂个急诊" />
+                               {/* 4. 周末/休息日专属操作面板 */}
+                        {gameState.phase.includes('REST') && (
+                            <>
+                                {/* 上午特有选项 */}
+                                {gameState.phase === 'REST_AM' && (
+                                    <>
+                                        <ActionBtn label="睡死过去" icon={<Moon/>} onClick={() => handleRestDayActivity('SLEEP_IN')} color="indigo" sub="回血/回神" />
+                                        <ActionBtn label="早市捡漏" icon={<ShoppingBag/>} onClick={() => handleRestDayActivity('MARKET')} color="green" sub="省钱/健康" />
+                                    </>
+                                )}
 
+                                {/* 下午特有选项 */}
+                                {gameState.phase === 'REST_PM' && (
+                                    <>
+                                        <ActionBtn label="去图书馆卷" icon={<Users/>} onClick={() => handleRestDayActivity('LIBRARY')} color="teal" sub="考公/考证" />
+                                        <ActionBtn label="周末兼职" icon={<Briefcase/>} onClick={() => handleRestDayActivity('PART_TIME')} color="orange" sub="赚外快" />
+                                    </>
+                                )}
+
+                                {/* 通用周末选项 */}
+                                <ActionBtn label="相亲角受辱" icon={<Heart/>} onClick={() => handleRestDayActivity('BLIND_DATE')} color="pink" sub="-¥200/500" />
+                                <ActionBtn label="去医院修仙" icon={<Activity/>} onClick={handleHospitalVisit} color="teal" sub="健康管理" />
+                                <ActionBtn label="打开家庭中心" icon={<Home/>} onClick={() => setGameState(p => ({...p, showRelationshipPanel: true}))} color="zinc" sub="看娃/理财" />
+                                <ActionBtn label="做顿好的" icon={<Utensils/>} onClick={() => handleEat('COOK_MENU')} color="green" sub="大厨模式" />
+                            </>
+                        )}
                                 {/* App 17: 魔改娱乐项目 */}
                                 <ActionBtn label="金帝皇洗脚城" icon={<Footprints/>} onClick={() => handleFreeTime('SPA')} color="pink" sub="-¥1288 | 帝王套" />
                                 <ActionBtn label="守护最好的Gigi" icon={<Heart/>} onClick={() => handleFreeTime('STREAMER')} color="purple" sub="-¥1000 | 沸羊羊" />
