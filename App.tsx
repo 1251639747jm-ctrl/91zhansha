@@ -93,13 +93,7 @@ const App: React.FC = () => {
   const closeModal = () => {
     setGameState(prev => ({
       ...prev,
-      // 核心修复：如果 phase 仍然是弹窗暂停状态，才根据时间进行恢复
-      // 如果我们在点击按钮时已经通过 finishHospitalBlock 推进了 phase，就保持原样
-      phase: prev.flags.hospitalDays > 0 ? 'SLEEP' : prev.phase === 'MODAL_PAUSE' ? 
-           (prev.time.includes('23') ? 'SLEEP' : 
-            prev.time.includes('12') ? 'LUNCH' : 
-            prev.time.includes('07') ? 'MORNING' : prev.phase) // 增加 07 点的判断，或者干脆去掉强制跳转
-           : prev.phase,
+     phase: prev.phase === 'MODAL_PAUSE' ? 'FREE_TIME' : prev.phase,
       modal: { ...prev.modal, isOpen: false }
     }));
   };
@@ -240,30 +234,26 @@ const App: React.FC = () => {
     });
   };
 // --- 医院结算辅助逻辑：确保看病后时间正常推进 ---
-  const finishHospitalBlock = () => {
-    setGameState(prev => {
-        let nextP = prev.phase;
-        let nextT = prev.time;
-        
-        // 基于当前小时数判定看病耗时
-        const currentHour = parseInt(prev.time.split(':')[0]);
+const finishHospitalBlock = () => {
+  setGameState(prev => {
+    let nextP = prev.phase;
+    let nextT = prev.time;
+    const currentHour = parseInt(prev.time.split(':')[0]);
 
-        if (currentHour < 11) { 
-            // 早上看病 -> 推进到中午吃饭
-            nextP = 'LUNCH'; 
-            nextT = '12:00';
-        } else if (currentHour >= 11 && currentHour <= 16) {
-            // 下午看病 -> 推进到傍晚下班/晚餐
-            nextP = 'DINNER'; 
-            nextT = '18:00';
-        } else {
-            // 晚上看病 -> 结束后该睡觉了
-            nextP = 'SLEEP'; 
-            nextT = '23:00';
-        }
-        return { ...prev, phase: nextP, time: nextT };
-    });
-  };
+    if (currentHour < 11) { 
+        nextP = 'LUNCH'; // 早上看完病，该吃午饭了
+        nextT = '12:00';
+    } else if (currentHour >= 11 && currentHour <= 17) {
+        nextP = 'DINNER'; // 下午看完病，该吃晚饭了
+        nextT = '18:30';
+    } else {
+        nextP = 'SLEEP'; // 晚上看完病，该睡觉了
+        nextT = '23:30';
+    }
+    // 重点：手动关闭 Modal 并更新 Phase
+    return { ...prev, phase: nextP, time: nextT, modal: { ...prev.modal, isOpen: false } };
+  });
+};
 
   // --- 完整版：医院访问逻辑 (含体检剧情与时间推进) ---
   const handleHospitalVisit = () => {
