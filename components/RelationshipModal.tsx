@@ -263,10 +263,10 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                         </div>
                     </div>
                     <button 
-                        onClick={actions.buyHouse} 
-                        className="w-full py-2 bg-zinc-700 hover:bg-green-800 text-white rounded text-sm transition-colors border border-zinc-600 hover:border-green-600">
-                      {money < ASSET_COSTS.HOUSE_DOWN_PAYMENT ? '首付不足' : '支付首付 (背贷)'}
-                    </button>
+    onClick={actions.buyHouse} 
+    className="w-full py-2 bg-red-900/40 hover:bg-red-800 text-white rounded text-sm transition-colors border border-red-700 hover:border-red-500">
+  零首付强行贷款买房 (背贷)
+</button>
                   </>
                 ) : (
                     <div className="text-xs text-green-400 mt-2">
@@ -290,10 +290,10 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                         </div>
                     </div>
                     <button 
-                        onClick={actions.buyCar} 
-                        className="w-full py-2 bg-zinc-700 hover:bg-green-800 text-white rounded text-sm transition-colors border border-zinc-600 hover:border-green-600">
-                      {money < ASSET_COSTS.CAR_COST ? '余额不足' : '全款拿下'}
-                    </button>
+    onClick={actions.buyCar} 
+    className="w-full py-2 bg-red-900/40 hover:bg-red-800 text-white rounded text-sm transition-colors border border-red-700 hover:border-red-500">
+  零首付强行贷款买车 (背贷)
+</button>
                   </>
                 ) : (
                     <div className="text-xs text-green-400 mt-2">
