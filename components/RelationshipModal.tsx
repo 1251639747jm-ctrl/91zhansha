@@ -124,7 +124,7 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
             </div>
           </section>
 
-          {/* Section 2: 子女与育儿 */}
+{/* Section 2: 子女与育儿 */}
           <section>
              <div className="flex justify-between items-center mb-4">
                 <h3 className="text-zinc-400 text-sm font-mono uppercase tracking-widest">Children & Family</h3>
@@ -141,7 +141,7 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                     </div>
                 ) : (
                     <div className="flex gap-3 overflow-x-auto pb-4 mb-4 scrollbar-thin scrollbar-thumb-zinc-600">
-                        {childrenList.map(child => {
+                        {childrenList.map((child) => {
                              const stageInfo = (EDUCATION_COSTS as any)[child.educationStage];
                              return (
                                 <div key={child.id} className="min-w-[220px] bg-zinc-900 p-4 rounded-lg border border-zinc-700 flex-shrink-0 relative group">
@@ -156,7 +156,7 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                                             <div className="bg-green-500 h-full" style={{width: `${child.health}%`}} />
                                         </div>
                                         <div className="flex justify-between text-[10px] text-zinc-500">
-                                            <span>健康</span>
+                                            <span>健康度</span>
                                             <span>{child.health}%</span>
                                         </div>
 
@@ -164,27 +164,20 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                                             <div className={`h-full ${child.hunger < 30 ? 'bg-red-500' : 'bg-orange-400'}`} style={{width: `${child.hunger}%`}} />
                                         </div>
                                         <div className="flex justify-between text-[10px] text-zinc-500">
-                                            <span>饱食</span>
+                                            <span>饱食度</span>
                                             <span className={child.hunger < 30 ? "text-red-400 font-bold" : ""}>{child.hunger}%</span>
                                         </div>
                                         
-                                        // 找到渲染孩子卡片的地方，修改文案
-<div className="text-xs text-zinc-300 mt-2 pt-2 border-t border-zinc-800">
-    当前阶级: <span className="text-indigo-300">{stageInfo ? stageInfo.name : '纯烧钱阶段(待产/待学)'}</span>
-</div>
-
-{stageInfo && !child.schoolFeePaid && (
-    <button onClick={() => actions.payTuition(child.id, stageInfo.cost)} 
-        className="w-full text-xs bg-red-900/40 text-red-200 border border-red-600 py-2 rounded hover:bg-red-800 transition-all flex flex-col items-center justify-center animate-pulse">
-        <span className="font-bold">缴纳赎身费(学费) ¥{stageInfo.cost}</span>
-        <span className="text-[9px] opacity-70">不交钱孩子就变废柴了</span>
-    </button>
-)}
+                                        <div className="text-xs text-zinc-300 mt-2 pt-2 border-t border-zinc-800">
+                                            当前阶段: <span className="text-indigo-300">{stageInfo ? stageInfo.name : '纯烧钱阶段(待产/待学)'}</span>
+                                        </div>
+                                    </div>
                                     
                                     {stageInfo && !child.schoolFeePaid && (
                                         <button onClick={() => actions.payTuition(child.id, stageInfo.cost)} 
-                                            className="w-full text-xs bg-red-900/20 text-red-200 border border-red-800 py-2 rounded hover:bg-red-900/40 transition-colors flex items-center justify-center animate-pulse">
-                                            <School className="w-3 h-3 mr-1"/> 交学费 ¥{stageInfo.cost}
+                                            className="w-full text-xs bg-red-900/40 text-red-200 border border-red-600 py-2 rounded hover:bg-red-800 transition-all flex flex-col items-center justify-center animate-pulse">
+                                            <span className="font-bold">缴纳赎身费(学费) ¥{stageInfo.cost}</span>
+                                            <span className="text-[9px] opacity-70">不交钱孩子就变废柴了</span>
                                         </button>
                                     )}
                                     {stageInfo && child.schoolFeePaid && (
@@ -193,7 +186,7 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                                          </div>
                                     )}
                                 </div>
-                             )
+                             );
                         })}
                     </div>
                 )}
@@ -202,7 +195,6 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                      <button onClick={actions.adoptChild} className="btn-rel h-12 text-xs bg-green-900/20 text-green-200 border-green-800 hover:bg-green-900/30">
                         <Baby className="w-4 h-4 mr-2"/> 领养/生育 (¥5000)
                      </button>
-                     {/* 母婴商店 */}
                      {PHARMACY_SHOP.map(item => (
                          <button key={item.id} onClick={() => actions.buyBabyItem(item)} className="btn-rel h-12 text-xs bg-zinc-800 text-zinc-300 border-zinc-600 hover:bg-zinc-700">
                              <ShoppingCart className="w-3 h-3 mr-2 text-zinc-500"/> 
@@ -215,7 +207,6 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                 </div>
              </div>
           </section>
-
           {/* Section 3: 资产与债务 */}
           <section>
             <div className="flex justify-between items-center mb-4">
