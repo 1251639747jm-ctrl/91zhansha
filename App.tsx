@@ -341,22 +341,22 @@ const App: React.FC = () => {
              logType = 'danger';
         }
 
-        // 时间推进逻辑
-        let nextP = prev.phase; let nextT = prev.time;
-        const currentHour = parseInt(prev.time.split(':')[0]);
-if (currentHour < 10) { 
-    // 早餐做完 -> 准备去搬砖
-    nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; 
-    nextT = '08:30'; 
-} else if (currentHour >= 11 && currentHour <= 14) { 
-    // 午餐做完 -> 准备下午搬砖
-    nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; 
-    nextT = '13:00'; 
-} else { 
-    // 晚餐做完 -> 进入夜生活阶段
-    nextP = 'FREE_TIME'; 
-    nextT = '19:30'; 
-}
+// --- doCook 内部的时间推进逻辑 ---
+        let nextP = prev.phase; 
+        let nextT = prev.time;
+        const isWknd = isWeekend(prev.date, prev.profession?.schedule || '965');
+        
+        // 基于当前 phase 判定，而非 hour，防止逻辑漂移
+        if (prev.phase === 'MORNING' || prev.phase === 'MODAL_PAUSE' && prev.time.includes('07')) {
+             nextP = isWknd ? 'REST_AM' : 'WORK_AM';
+             nextT = '08:30'; 
+        } else if (prev.phase === 'LUNCH' || prev.time.includes('12')) {
+             nextP = isWknd ? 'REST_PM' : 'WORK_PM';
+             nextT = '13:00';
+        } else {
+             nextP = 'FREE_TIME';
+             nextT = '19:30';
+        }
 
         return {
             ...prev,
@@ -867,46 +867,54 @@ if (currentHour < 10) {
   };
   
   // --- 饮食主入口 ---
+// --- 饮食处理逻辑 (彻底修复跳时间Bug版) ---
   const handleEat = (type: string) => {
-       if (type === 'SKIP') {
-           updateStats({ satiety: -10, mental: -5 }, "饿了一顿，感觉头晕眼花。");
-       }
-       else if (type === 'TAKEOUT') {
-           updateStats({ money: -30, satiety: 40, physical: -2 }, "吃了份外卖，希望能活过今晚。");
-       }
-       else if (type === 'COOK_MENU') {
-           const config = getKitchenModalConfig(gameState.flags.inventory, gameState.stats.money);
-           showModal(config);
-           return; // 不直接推进时间
-       }
-       
-       // 推进时间
-       // 推进时间 (修复版：基于小时数判断，防止跳过阶段)
-       setGameState(prev => {
-            let nextP = prev.phase; 
-            let nextT = prev.time;
-            
-            // 获取当前小时数 (例如 07:30 就是 7)
-            const currentHour = parseInt(prev.time.split(':')[0]);
+      // 1. 数值更新 (热梗文案)
+      if (type === 'SKIP') {
+          updateStats({ satiety: -15, mental: -10, physical: -5 }, "光合作用失败。你决定修仙不吃饭，省下的30块钱离法拉利又近了一步。");
+      }
+      else if (type === 'TAKEOUT') {
+          updateStats({ money: -30, satiety: 40, physical: -2 }, "吃了份拼好饭。虽然是海克斯科技预制菜，但僵尸肉的口感让你感到了活着的尊严。");
+      }
+      else if (type === 'COOK_MENU') {
+          // 仅打开菜单，不做时间跳转，跳转在 doCook 中处理
+          const config = getKitchenModalConfig(gameState.flags.inventory, gameState.stats.money);
+          showModal(config);
+          return; 
+      }
 
-            if (currentHour < 10) { 
-                // 早餐阶段 (07:xx) -> 接下来去上班/休息 (09:00)
-                nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; 
-                nextT = '09:00'; 
-            }
-            else if (currentHour >= 10 && currentHour <= 14) { 
-                // 午餐阶段 (12:xx) -> 接下来下午搬砖 (13:00)
-                nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; 
-                nextT = '13:00'; 
-            }
-            else { 
-                // 晚餐阶段 (18:xx) -> 接下来进入夜生活 (20:00)
-                nextP = 'FREE_TIME'; 
-                nextT = '20:00'; 
-            }
-            
-            return { ...prev, phase: nextP, time: nextT };
-       });
+      // 2. 核心时间推进：根据【当前阶段】精准跳转到【下一阶段】
+      setGameState(prev => {
+          let nextP = prev.phase; 
+          let nextT = prev.time;
+          
+          // 判断是否是周末
+          const isWknd = isWeekend(prev.date, prev.profession?.schedule || '965');
+
+          // 使用严格的阶段判断
+          switch (prev.phase) {
+              case 'MORNING':
+                  // 早餐吃完 -> 去上午搬砖/休息
+                  nextP = isWknd ? 'REST_AM' : 'WORK_AM';
+                  nextT = '09:00';
+                  break;
+              case 'LUNCH':
+                  // 午餐吃完 -> 去下午搬砖/休息
+                  nextP = isWknd ? 'REST_PM' : 'WORK_PM';
+                  nextT = '13:00';
+                  break;
+              case 'DINNER':
+                  // 晚餐吃完 -> 进入夜生活
+                  nextP = 'FREE_TIME';
+                  nextT = '20:00';
+                  break;
+              default:
+                  // 如果在非用餐阶段误触，保持原样或保守推进
+                  break;
+          }
+
+          return { ...prev, phase: nextP, time: nextT };
+      });
   };
 
   // --- UI: 开始界面 ---
