@@ -2,7 +2,7 @@ import { ModalConfig } from './components/EventModal';
 
 export type ProfessionType = 
   | 'PROGRAMMER' | 'SALES' | 'CIVIL_SERVANT' | 'DELIVERY' | 'FACTORY_WORKER' | 'UNEMPLOYED'
-  | 'SECURITY' | 'TAXI_DRIVER' | 'STREAMER'; // [新增] 保安、出租车、主播
+  | 'SECURITY' | 'TAXI_DRIVER' | 'STREAMER';
 export type WorkSchedule = '965' | '996' | '007'; 
 
 export interface Profession {
@@ -16,27 +16,49 @@ export interface Profession {
   workDesc: string[];
   minAge?: number;
   maxAge?: number;
-  hasInsurance: boolean; // [新增] 是否有医保
+  hasInsurance: boolean;
+}
+
+// [新增] 家庭背景
+export interface FamilyBackground {
+  id: string;
+  name: string;
+  desc: string;
+  moneyModifier: number; // 初始金钱修正
+  debtModifier: number;  // 初始负债修正
+  statModifier: Partial<PlayerStats>; // 初始属性修正
+}
+
+// [新增] 子女系统
+export interface Child {
+  id: string;
+  name: string;
+  gender: 'boy' | 'girl';
+  age: number;
+  educationStage: 'NONE' | 'KINDER' | 'PRIMARY' | 'MIDDLE' | 'HIGH' | 'UNI';
+  health: number; // 孩子健康度，过低会生病/夭折
+  hunger: number; // 孩子饥饿度，需要奶粉/吃饭
+  schoolFeePaid: boolean; // 当前学期学费是否已交
 }
 
 export interface PlayerStats {
-  age: number; // [新增] 当前年龄
-  physical: number;
+  age: number;
+  physical: number; // 上限 200
   mental: number;
   money: number;
   satiety: number;
-  debt: number; // [新增] 负债总额 (房贷车贷)
+  debt: number;
   cookingSkill: number;
   daysSurvived: number;
 }
 
 export interface Partner {
   name: string;
-  type: string; // "绿茶", "扶弟魔", "白富美" 等
-  materialism: number; // 拜金程度 (消耗倍率)
-  affection: number; // 【表象好感度】(玩家看得到的，可能全是虚情假意)
-  realAffection: number; // [新增] 【真实好感度】(决定成败，对玩家隐藏)
-  fidelity: number; // 忠诚度 (出轨概率)
+  type: string;
+  materialism: number;
+  affection: number;
+  realAffection: number;
+  fidelity: number;
 }
 
 export type GamePhase = 
@@ -47,37 +69,48 @@ export type GamePhase =
 
 export interface GameState {
   profession: Profession | null;
+  background: FamilyBackground | null; // [新增]
   stats: PlayerStats;
   phase: GamePhase;
   date: Date;
-  debt: number;          // 新增
-  cookingSkill: number;  // 新增
+  debt: number;
+  cookingSkill: number;
   time: string;
   log: LogEntry[];
   flags: {
     isDepressed: boolean;
     disease: string | null;
-    hasInsurance: boolean; // [新增] 
-    hospitalDays: number; // 剩余住院天数，0表示未住院
-    hospitalDailyCost: number; // 住院日花费
+    hasInsurance: boolean;
+    hospitalDays: number;
+    hospitalDailyCost: number;
     hasLoan: boolean;
+    
+    // [新增] 医院与黑色面包车相关
+    blackVanRisk: number; // 被抓走的风险值 0-100
+    lastCheckupDate: string | null; // 上次体检日期
+    knownHealth: number | null; // 体检时得知的健康值（只有体检了才知道自己很健康）
+
     inventory: {
-      oil: number;     // 食用油 (单位: 瓶)
-      badOil: boolean; // [新增] 是否买到了煤油混装油
-      rice: number;    // 米面 (单位: 份)
-      veggies: number; // 蔬菜 (单位: 份)
-      meat: number;    // 肉类 (单位: 份)
-      seasoning: number; // 调料 (单位: 份)
+      oil: number;
+      badOil: boolean;
+      rice: number;
+      veggies: number;
+      meat: number;
+      seasoning: number;
+      // [新增] 育儿用品
+      milkPowder: number; // 奶粉
+      diapers: number;    // 尿布
     };
     streamerSimpCount: number;
     partner: Partner | null;
+    children: Child[]; // [新增] 子女列表
     isPursuing: boolean;
     hasHouse: boolean;
     hasCar: boolean;
     parentPressure: number;
   };
   modal: ModalConfig;
-  showRelationshipPanel: boolean; // 控制新UI显示
+  showRelationshipPanel: boolean;
   gameOverReason: string;
 }
 
