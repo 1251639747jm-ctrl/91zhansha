@@ -705,19 +705,39 @@ const finishHospitalBlock = () => {
        setGameState(prev => ({ ...prev, showRelationshipPanel: false }));
     },
     buyHouse: () => {
-       if (gameState.flags.hasHouse) return;
-       const down = ASSET_COSTS.HOUSE_DOWN_PAYMENT;
-       if (gameState.stats.money < down) { addLog("首付不够，售楼小姐用看“臭要饭的”眼神送走了你。", "danger"); return; }
-       updateStats({ money: -down, debt: (ASSET_COSTS.HOUSE_TOTAL_PRICE - down) }, "掏空六个钱包付了首付，背上30年房贷，成功入住远郊钢筋水泥鸽子笼，成为光荣的房奴。");
-       setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasHouse: true, parentPressure: 0, hasLoan: true } }));
-    },
-    buyCar: () => {
-       if (gameState.flags.hasCar) return;
-       const cost = ASSET_COSTS.CAR_COST;
-       if (gameState.stats.money < cost) { addLog("钱不够，去买辆雅迪电动车吧，那个不堵车。", "danger"); return; }
-       updateStats({ money: -cost }, "全款提了一辆“尊贵的”代步车，虽然存款归零，但在村口停车时腰杆硬了，相亲也有底气了。");
-       setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasCar: true } }));
-    },
+   if (gameState.flags.hasHouse) return;
+   const totalPrice = 3000000; // 总价300万
+   const currentMoney = gameState.stats.money;
+   
+   // 逻辑：有多少钱扣多少钱作为首付，剩下的全部变债务
+   const downPayment = Math.max(0, currentMoney); 
+   const loanAmount = totalPrice - downPayment;
+
+   updateStats({ 
+       money: -downPayment, 
+       debt: loanAmount, 
+       mental: -30 
+   }, "你签下了那份长达30年的卖身契。即便兜里没钱，银行也贴心地为你办理了‘零首付’非法贷，你正式成为了尊贵的房奴。");
+   
+   setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasHouse: true, hasLoan: true, parentPressure: 0 } }));
+},
+
+buyCar: () => {
+   if (gameState.flags.hasCar) return;
+   const carPrice = 200000; // 20万
+   const currentMoney = gameState.stats.money;
+
+   // 逻辑：同上，不够的钱全算贷款
+   const payByCash = Math.max(0, Math.min(currentMoney, carPrice));
+   const payByLoan = carPrice - payByCash;
+
+   updateStats({ 
+       money: -payByCash, 
+       debt: payByLoan 
+   }, "销售小姐笑靥如花，为你办理了‘零首付’提车。即便卡里是0，你也能开上这辆让你腰杆变硬（但口袋空空）的铁壳子。");
+   
+   setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasCar: true, hasLoan: true } }));
+},
     repayDebt: (amount: number) => {
         if (gameState.stats.money < amount) return;
         updateStats({ money: -amount, debt: -amount });
@@ -894,18 +914,40 @@ const finishHospitalBlock = () => {
   }
     // 1. 优先处理住院逻辑 (如果 hospitalDays > 0，则进入强制住院流程)
     if (gameState.flags.hospitalDays > 0) {
-        const { hospitalDays, hospitalDailyCost } = gameState.flags;
-        // 扣除今日住院费
-        const newMoney = gameState.stats.money - hospitalDailyCost;
-        
-        // 没钱治病的死亡判定
-        if (newMoney < -20000 && !gameState.flags.hasHouse) {
-             triggerDeath("欠费停药。因长期拖欠医疗费，你被保安扔出了医院，在寒风中咽下了最后一口气。"); 
-             return;
+      if (Math.random() < 0.01) {
+    const accidents = [
+        "实习护士在玩手机，不小心把你的营养液和洁厕灵搞混了。",
+        "主治医生昨晚打麻将输了钱，做手术时手抖得像在蹦迪，顺手切了你点别的。",
+        "医院电路老化，你所在的楼层因为欠费停电，呼吸机停止转动的那一刻，你甚至觉得很安静。"
+    ];
+    triggerDeath(`【医疗事故】${accidents[getRandomInt(0, accidents.length - 1)]}`);
+    return;
+}
+    const { hospitalDailyCost, partner, children } = gameState.flags;
+    const currentMoney = gameState.stats.money;
+
+    // --- 新增：拔氧气罐判定 ---
+    // 逻辑：如果余额为负且没有房产作为抵押，或者存款低于每日开销
+    if (currentMoney < hospitalDailyCost) {
+        // 如果有伴侣且亲密度极低，伴侣可能会主动拔管
+        if (partner && (partner.realAffection || 0) < 0) {
+            triggerDeath(
+                `【医患纠纷（物理）】你躺在ICU意识模糊时，听见${partner.name}在和医生争吵：‘这每天几千块的烧钱，我下半辈子怎么过？’ 随后你感觉到氧气罩被一只熟悉的手猛地扯掉，监护仪发出了刺耳的长鸣。（死因：亲密度过低导致的‘大义灭亲’）`
+            );
+            return;
         }
 
-        // 更新状态：扣钱、回血
-        updateStats({ money: -hospitalDailyCost, physical: 25 });
+        // 如果是孤家寡人且没钱
+        if (!partner && children.length === 0) {
+            triggerDeath(
+                `【欠费停机】医院财务处在系统里点击了‘终止治疗’。由于你没有直系亲属担保，护士面无表情地拔掉了你的呼吸机电源，把你推到了走廊尽头的阴影里。（死因：账户余额不足导致的物理性断气）`
+            );
+            return;
+        }
+    }
+
+    // 正常扣费逻辑
+    updateStats({ money: -hospitalDailyCost, physical: 25 }, `正在住院，呼吸机每响一下，¥${hospitalDailyCost}就没了。`);
         const nextDays = hospitalDays - 1;
         
         // 判断是否出院
@@ -934,11 +976,11 @@ const finishHospitalBlock = () => {
     const { knownHealth, blackVanRisk } = gameState.flags;
     if (blackVanRisk > 0 && gameState.stats.physical > 97) {
         if (Math.random() < (blackVanRisk / 100)) {
-            triggerDeath("你在睡梦中听到撬锁声，随后眼前一黑。醒来时发现自己躺在冰冷的手术台上。（死因：身体太好被特招了）");
+            triggerDeath("【匹夫无罪，怀肉其罪】由于你在体检中心留下了‘满分体质’的记录，你的数据在暗网被拍出了800万高价。深夜，一辆挂着假牌照的黑色面包车停在楼下。你醒来时只感觉到腰部一阵剧痛，身旁的医生正在缝合。他冷冷地看了你一眼：‘别喊了，你已经不是‘人’了，你现在是某位大佬延寿30年的‘电池组’。’（死因：作为全城唯一的健康社畜，你被强制执行了‘生物资产再分配’）");
             return;
         }
         // 没被抓走，风险增加
-        setGameState(prev => ({ ...prev, flags: { ...prev.flags, blackVanRisk: Math.min(100, prev.flags.blackVanRisk + 5) } }));
+        setGameState(prev => ({ ...prev, flags: { ...prev.flags, blackVanRisk: Math.min(100, prev.flags.blackVanRisk + 20) } }));
     }
 
     // 3. 基础生存判定 (热梗文案版)
