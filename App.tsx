@@ -95,9 +95,11 @@ const App: React.FC = () => {
       ...prev,
       // 核心修复：如果 phase 仍然是弹窗暂停状态，才根据时间进行恢复
       // 如果我们在点击按钮时已经通过 finishHospitalBlock 推进了 phase，就保持原样
-      phase: prev.phase === 'MODAL_PAUSE' 
-        ? (prev.flags.hospitalDays > 0 ? 'SLEEP' : (prev.time.includes('23') ? 'SLEEP' : (prev.time.includes('12') ? 'LUNCH' : 'DINNER')))
-        : prev.phase,
+      phase: prev.flags.hospitalDays > 0 ? 'SLEEP' : prev.phase === 'MODAL_PAUSE' ? 
+           (prev.time.includes('23') ? 'SLEEP' : 
+            prev.time.includes('12') ? 'LUNCH' : 
+            prev.time.includes('07') ? 'MORNING' : prev.phase) // 增加 07 点的判断，或者干脆去掉强制跳转
+           : prev.phase,
       modal: { ...prev.modal, isOpen: false }
     }));
   };
@@ -1335,7 +1337,13 @@ const App: React.FC = () => {
 
                                 {/* 通用周末选项 */}
                                 <ActionBtn label="相亲角受辱" icon={<Heart/>} onClick={() => handleRestDayActivity('BLIND_DATE')} color="pink" sub="-¥200/500" />
-                                <ActionBtn label="去医院修仙" icon={<Activity/>} onClick={handleHospitalVisit} color="teal" sub="健康管理" />
+                                <ActionBtn 
+  label="去医院修仙" 
+  icon={<Activity/>} 
+  onClick={handleHospitalVisit}
+  color="teal" 
+  sub="甚至想挂个急诊" 
+/>
                                 <ActionBtn label="打开家庭中心" icon={<Home/>} onClick={() => setGameState(p => ({...p, showRelationshipPanel: true}))} color="zinc" sub="看娃/理财" />
                                 <ActionBtn label="做顿好的" icon={<Utensils/>} onClick={() => handleEat('COOK_MENU')} color="green" sub="大厨模式" />
                             </>
