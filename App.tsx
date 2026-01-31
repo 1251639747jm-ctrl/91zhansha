@@ -14,7 +14,17 @@ import {
   ShoppingBag, XCircle, Users, Activity, Heart, Skull
 } from 'lucide-react';
 
+const DAILY_ACCIDENTS = [
+  "走在路上玩手机，不慎掉进没有井盖的下水道。",
+  "路过高层建筑时，被一个坠落的花盆精准命中。",
+  "吃夜宵时被鱼刺卡住喉咙，引发剧烈咳血窒息。",
+  "手机充电时玩大型游戏，电池爆炸引发火灾。",
+  "过马路时被一辆闯红灯的渣土车卷入车底。",
+  "洗澡时燃气热水器泄漏，在不知不觉中一氧化碳中毒。"
+];
+
 const App: React.FC = () => {
+  // 开局临时状态
   const [tempAge, setTempAge] = useState(22);
   const [tempBg, setTempBg] = useState<FamilyBackground>(FAMILY_BACKGROUNDS[1]); 
 
@@ -32,6 +42,7 @@ const App: React.FC = () => {
       hasInsurance: false,
       hospitalDays: 0, 
       hospitalDailyCost: 0,
+      // 新增风险标记
       blackVanRisk: 0, lastCheckupDate: null, knownHealth: null,
       inventory: { oil: 0, badOil: false, rice: 0, veggies: 0, meat: 0, seasoning: 0, milkPowder: 0, diapers: 0 },
       children: []
@@ -41,7 +52,7 @@ const App: React.FC = () => {
     gameOverReason: ''
   });
 
-  // 随机初始化
+  // 初始化随机
   useEffect(() => {
     setTempAge(getRandomInt(18, 55));
     setTempBg(FAMILY_BACKGROUNDS[getRandomInt(0, FAMILY_BACKGROUNDS.length - 1)]);
@@ -61,6 +72,7 @@ const App: React.FC = () => {
   const closeModal = () => {
     setGameState(prev => ({
       ...prev,
+      // 如果还在住院，保持 SLEEP/住院状态，否则恢复正常时间流
       phase: prev.flags.hospitalDays > 0 ? 'SLEEP' : (prev.time.includes('23') ? 'SLEEP' : (prev.time.includes('12') ? 'LUNCH' : 'DINNER')),
       modal: { ...prev.modal, isOpen: false }
     }));
@@ -83,7 +95,10 @@ const App: React.FC = () => {
       if (changes.money) newStats.money = newStats.money + (changes.money || 0);
       if (changes.satiety) newStats.satiety = Math.min(100, Math.max(0, newStats.satiety + (changes.satiety || 0)));
       if (changes.age) newStats.age = changes.age;
+      
+      // 负债处理
       if (changes.debt) newStats.debt = Math.max(0, newStats.debt + (changes.debt || 0));
+      // 厨艺处理
       if (changes.cookingSkill) newStats.cookingSkill = newStats.cookingSkill + (changes.cookingSkill || 0);
 
       return { ...prev, stats: newStats };
@@ -111,6 +126,7 @@ const App: React.FC = () => {
     const startDebt = bg.debtModifier;
     const startStats = { ...INITIAL_STATS, ...bg.statModifier };
     
+    // 确保数值合理
     startStats.physical = Math.min(200, Math.max(20, startStats.physical));
     startStats.money = startMoney;
     startStats.debt = startDebt;
@@ -147,13 +163,14 @@ const App: React.FC = () => {
           }
 
           let isNewBadOil = false;
-          // 【修复点】：概率下调至15%，且只在购买油的时候判定
+          // 【修复】：概率下调至15%，且只在购买油的时候判定
           if (ing.id === 'oil' && Math.random() < 0.15) {
               isNewBadOil = true;
           }
 
           const nextInventory = {
               ...prev.flags.inventory,
+              // @ts-ignore
               [ing.id]: (prev.flags.inventory[ing.id] || 0) + 1,
               // 如果新买的是坏油，或者原来就有坏油，那现在的库存就是坏的 (混合污染)
               badOil: prev.flags.inventory.badOil || isNewBadOil
@@ -283,7 +300,7 @@ const App: React.FC = () => {
                             ...prev.flags, 
                             lastCheckupDate: formatDateCN(prev.date), 
                             knownHealth: realHealth,
-                            // 开启死亡倒计时风险
+                            // 开启死亡倒计时风险：只有健康>97才开启，如果本来就有风险则保持或增加
                             blackVanRisk: realHealth > 97 ? (prev.flags.blackVanRisk > 0 ? prev.flags.blackVanRisk : 10) : 0
                         }
                     }));
@@ -345,6 +362,7 @@ const App: React.FC = () => {
      });
   };
 
+  // 情感与家庭动作
   const relActions = {
     findPartner: () => {
       const target = POTENTIAL_PARTNERS[getRandomInt(0, POTENTIAL_PARTNERS.length - 1)];
@@ -496,7 +514,6 @@ const App: React.FC = () => {
         else {
             const salary = (prev.profession?.salaryBase || 0) + getRandomInt(-50, 50); 
             // 这里不能直接调用 updateStats，因为是在 setState 内部
-            // 我们手动计算 money
             const newMoney = prev.stats.money + salary;
             return { 
                 ...prev, 
@@ -553,6 +570,11 @@ const App: React.FC = () => {
     if (gameState.stats.physical <= 0) { triggerDeath("过劳死。"); return; }
     if (gameState.stats.mental <= 0) { triggerDeath("精神崩溃，自我了断。"); return; }
     if (gameState.stats.satiety <= 0) { triggerDeath("饿死。"); return; }
+    
+    // 随机意外
+    if (Math.random() < 0.003) {
+         triggerDeath(`【飞来横祸】${DAILY_ACCIDENTS[getRandomInt(0, DAILY_ACCIDENTS.length - 1)]}`); return;
+    }
 
     // 4. 疾病判定
     if (!gameState.flags.disease && Math.random() < 0.05) {
@@ -644,7 +666,7 @@ const App: React.FC = () => {
       setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:00' }));
   };
 
-  // --- START UI ---
+  // --- UI: START SCREEN ---
   if (gameState.phase === 'START') {
      return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-950 font-sans">
@@ -685,6 +707,7 @@ const App: React.FC = () => {
      );
   }
 
+  // --- UI: GAME OVER ---
   if (gameState.phase === 'GAME_OVER') {
       return (
         <div className="min-h-screen flex items-center justify-center bg-black text-white p-4">
@@ -700,7 +723,7 @@ const App: React.FC = () => {
       )
   }
 
-  // --- MAIN GAME UI ---
+  // --- UI: MAIN GAME SCREEN ---
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans pb-10">
       <EventModal config={gameState.modal} />
@@ -796,6 +819,7 @@ const App: React.FC = () => {
   );
 };
 
+// 样式组件
 const ActionBtn = ({ label, icon, onClick, color, large }: any) => {
     const colors: any = {
         zinc: 'text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border-zinc-700',
