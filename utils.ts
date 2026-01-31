@@ -17,21 +17,23 @@ export const formatDateCN = (date: Date): string => {
 
 export const isWeekend = (date: Date, schedule: string): boolean => {
   const day = date.getDay(); // 0 is Sunday, 6 is Saturday
-  if (schedule === '007') return false; // 007无休
-  if (schedule === '996') return day === 0; // 只有周日休
-  if (schedule === '965') return day === 0 || day === 6; // 双休
-  return true; // 失业全休
+  if (schedule === '007') return false; 
+  if (schedule === '996') return day === 0; 
+  if (schedule === '965') return day === 0 || day === 6; 
+  return true; 
 };
 
+// [修改] 适配 200 健康值上限
 export const getHealthColor = (value: number): string => {
-  if (value > 90) return 'text-purple-400';
-  if (value > 70) return 'text-green-400';
+  if (value > 150) return 'text-purple-400 animate-pulse'; // 超神
+  if (value > 90) return 'text-green-400';
+  if (value > 60) return 'text-emerald-300';
   if (value > 40) return 'text-yellow-400';
-  return 'text-red-500';
+  return 'text-red-500 animate-pulse';
 };
 
 export const getMentalColor = (value: number): string => {
-  if (value > 70) return 'text-blue-400';
+  if (value > 80) return 'text-blue-400';
   if (value > 40) return 'text-yellow-400';
   return 'text-red-500';
 };
