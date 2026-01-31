@@ -93,8 +93,11 @@ const App: React.FC = () => {
   const closeModal = () => {
     setGameState(prev => ({
       ...prev,
-      // 智能判断恢复的阶段
-      phase: prev.flags.hospitalDays > 0 ? 'SLEEP' : (prev.time.includes('23') ? 'SLEEP' : (prev.time.includes('12') ? 'LUNCH' : 'DINNER')),
+      // 核心修复：如果 phase 仍然是弹窗暂停状态，才根据时间进行恢复
+      // 如果我们在点击按钮时已经通过 finishHospitalBlock 推进了 phase，就保持原样
+      phase: prev.phase === 'MODAL_PAUSE' 
+        ? (prev.flags.hospitalDays > 0 ? 'SLEEP' : (prev.time.includes('23') ? 'SLEEP' : (prev.time.includes('12') ? 'LUNCH' : 'DINNER')))
+        : prev.phase,
       modal: { ...prev.modal, isOpen: false }
     }));
   };
@@ -234,12 +237,38 @@ const App: React.FC = () => {
       gameOverReason: ''
     });
   };
-  // --- 完善：医院访问逻辑 (解决 handleHospitalVisit 未定义问题) ---
+// --- 医院结算辅助逻辑：确保看病后时间正常推进 ---
+  const finishHospitalBlock = () => {
+    setGameState(prev => {
+        let nextP = prev.phase;
+        let nextT = prev.time;
+        
+        // 基于当前小时数判定看病耗时
+        const currentHour = parseInt(prev.time.split(':')[0]);
+
+        if (currentHour < 11) { 
+            // 早上看病 -> 推进到中午吃饭
+            nextP = 'LUNCH'; 
+            nextT = '12:00';
+        } else if (currentHour >= 11 && currentHour <= 16) {
+            // 下午看病 -> 推进到傍晚下班/晚餐
+            nextP = 'DINNER'; 
+            nextT = '18:00';
+        } else {
+            // 晚上看病 -> 结束后该睡觉了
+            nextP = 'SLEEP'; 
+            nextT = '23:00';
+        }
+        return { ...prev, phase: nextP, time: nextT };
+    });
+  };
+
+  // --- 完整版：医院访问逻辑 (含体检剧情与时间推进) ---
   const handleHospitalVisit = () => {
     const config: ModalConfig = {
       isOpen: true,
-      title: "莆田系...啊不，市第一人民医院",
-      description: "消毒水的味道扑面而来。挂号处的大妈头也不抬地问：“挂什么科？先交钱！”",
+      title: "市第一人民医院",
+      description: "消毒水的味道扑面而来。挂号处的大妈头也不抬地问：“挂什么科？先把医保卡拿出来，没钱去左边ATM机取！”",
       type: 'EVENT',
       actions: HOSPITAL_SERVICES.map(service => ({
         label: `${service.name} (¥${service.cost})`,
@@ -255,58 +284,72 @@ const App: React.FC = () => {
 
           // 3. 处理具体业务
           if (service.id === 'checkup') {
-            // 体检逻辑：得知自己的真实健康值，并触发黑面包车风险
             const realHealth = gameState.stats.physical;
             let resultDesc = "";
             
+            // 根据健康值触发描述
             if (realHealth > 150) {
-                resultDesc = "医生看着报告手在颤抖：‘这...这简直是超人类的数据！’（他偷偷打了个电话）";
+                resultDesc = "医生看着报告手在颤抖：‘这...这简直是人类进化奇迹！’（他默默记下了你的家庭住址）";
             } else if (realHealth > 97) {
                 resultDesc = "身体素质极佳，甚至好得有点过分了。医生多看了你几眼。";
             } else if (realHealth > 80) {
-                resultDesc = "非常健康，小伙子很有前途。";
+                resultDesc = "非常健康，继续保持。";
             } else if (realHealth < 40) {
-                resultDesc = "身体状况堪忧，建议立即住院。";
+                resultDesc = "身体状况极差，建议立即办理住院手续，别在外面晃悠。";
             } else {
-                resultDesc = "典型的亚健康状态，少熬夜，多吃菜。";
+                resultDesc = "亚健康状态。医生说：‘少点外卖，多运动，不然下一个猝死的就是你。’";
             }
 
+            // 更新标记：得知真实健康值，并激活黑面包车风险
             setGameState(prev => ({
               ...prev,
               flags: {
                 ...prev.flags,
                 lastCheckupDate: formatDateCN(prev.date),
                 knownHealth: realHealth,
-                // 开启/更新黑面包车风险：如果健康>97且体检了，风险就开始累积
+                // 只有体检了且属性极高，黑面包车才会盯上你
                 blackVanRisk: realHealth > 97 ? Math.max(prev.flags.blackVanRisk, 10) : 0
               }
             }));
 
+            // 展示体检报告详情
             showModal({
-              title: "体检报告结果",
-              description: `【体质评分】：${realHealth} / 200\n【医生结论】：${resultDesc}\n${realHealth > 97 ? '⚠️ 你似乎引起了某些不必要的关注。' : ''}`,
+              title: "体检审判书",
+              description: `【体质评分】：${realHealth} / 200\n【医生结论】：${resultDesc}\n${realHealth > 97 ? '⚠️ 注意：你的数据已被上传至机密数据库，最近小心陌生车辆。' : ''}`,
               type: 'EVENT',
-              actions: [{ label: "知道了", onClick: closeModal }]
+              actions: [{ 
+                label: "我知道了", 
+                onClick: () => { 
+                    finishHospitalBlock(); // 推进时间
+                    closeModal(); 
+                } 
+              }]
             });
           } 
-          else if (service.effect) {
-            // 处理药物或心理咨询效果
-            // @ts-ignore
-            updateStats(service.effect, `进行了【${service.name}】。`);
-            closeModal();
-          }
           else {
+            // 处理药物、心理咨询、干细胞疗法等效果
+            if ((service as any).effect) {
+                // @ts-ignore
+                updateStats(service.effect, `进行了【${service.name}】。`);
+            }
+            addLog(`完成了${service.name}，感觉身体状态有些许变化。`, "success");
+            finishHospitalBlock(); // 推进时间
             closeModal();
           }
         }
       }))
     };
 
-    // 添加离开选项
-    config.actions.push({ label: "润了，治不起", onClick: closeModal, style: 'secondary' });
+    // 添加退出按钮
+    config.actions.push({ 
+        label: "润了，治不起", 
+        onClick: closeModal, 
+        style: 'secondary' 
+    });
     
-    // 打开弹窗并暂停阶段
-    showModal(config);
+    // 打开医院菜单
+    setGameState(prev => ({ ...prev, phase: 'MODAL_PAUSE', modal: config }));
+  };al(config);
   };
   // --- App 17: 主播剧情系统 (完整保留) ---
   const triggerStreamerEvent = () => {
