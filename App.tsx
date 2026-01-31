@@ -142,19 +142,22 @@ const App: React.FC = () => {
     }));
   };
 
-  // --- 游戏开始逻辑 (整合背景与职业) ---
   const startGame = (profType: ProfessionType) => {
     const prof = PROFESSIONS[profType];
     const bg = tempBg;
     
-    // 计算初始资金与负债
+    // 1. 计算金钱和债务
     const startMoney = (prof.id === 'UNEMPLOYED' ? 2000 : 5000) + bg.moneyModifier;
     const startDebt = bg.debtModifier;
-    // 初始属性修正
+
+    // 2. 计算初始属性并增加【保底逻辑】
     const startStats = { 
         ...INITIAL_STATS, 
         ...bg.statModifier, 
-        physical: Math.min(200, Math.max(20, (INITIAL_STATS.physical + (bg.statModifier.physical || 0)))),
+        // 核心修改：使用 Math.max(30, ...) 确保健康、精神、饱食度开局至少有30点，不会直接死
+        physical: Math.max(30, Math.min(200, (INITIAL_STATS.physical + (bg.statModifier.physical || 0)))),
+        mental: Math.max(30, Math.min(100, (INITIAL_STATS.mental + (bg.statModifier.mental || 0)))),
+        satiety: Math.max(30, Math.min(100, (INITIAL_STATS.satiety + (bg.statModifier.satiety || 0)))),
         money: startMoney, 
         debt: startDebt, 
         age: tempAge 
@@ -167,10 +170,10 @@ const App: React.FC = () => {
       phase: 'MORNING',
       date: new Date('2024-01-01T07:30:00'),
       time: '07:30',
-      log: [{ id: 1, text: `>>> 档案载入完毕。年龄：${tempAge}岁。身份：${prof.name}。家庭背景：${bg.name}。`, type: 'info' }],
+      log: [{ id: 1, text: `>>> 档案载入完毕。年龄：${tempAge}岁。身份：${prof.name}。背景：${bg.name}。`, type: 'info' }],
       flags: { 
           isDepressed: false, disease: null, hasLoan: startDebt > 0, isSingle: true, 
-          streamerSimpCount: 0, // 恢复主播计数
+          streamerSimpCount: 0,
           partner: null, isPursuing: false, hasHouse: false, hasCar: false, parentPressure: 0,
           hasInsurance: prof.hasInsurance,
           hospitalDays: 0, hospitalDailyCost: 0,
@@ -183,7 +186,6 @@ const App: React.FC = () => {
       gameOverReason: ''
     });
   };
-
   // --- App 17: 主播剧情系统 (完整保留) ---
   const triggerStreamerEvent = () => {
     showModal({
@@ -590,113 +592,145 @@ if (currentHour < 10) {
       if (gameState.phase !== 'MODAL_PAUSE') setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:30' }));
   };
   // --- 睡眠与结算逻辑 (整合所有死亡判定) ---
+// --- 睡眠与结算逻辑 (完整版：含住院、疾病、死亡) ---
   const handleSleep = () => {
-    // 1. 住院日结算 (App 18)
+    // 1. 优先处理住院逻辑 (如果 hospitalDays > 0，则进入强制住院流程)
     if (gameState.flags.hospitalDays > 0) {
         const { hospitalDays, hospitalDailyCost } = gameState.flags;
+        // 扣除今日住院费
         const newMoney = gameState.stats.money - hospitalDailyCost;
+        
+        // 没钱治病的死亡判定
         if (newMoney < -20000 && !gameState.flags.hasHouse) {
-             triggerDeath("欠费停药。因长期拖欠医疗费，你被保安扔出了医院，在寒风中咽下了最后一口气。"); return;
+             triggerDeath("欠费停药。因长期拖欠医疗费，你被保安扔出了医院，在寒风中咽下了最后一口气。"); 
+             return;
         }
+
+        // 更新状态：扣钱、回血
         updateStats({ money: -hospitalDailyCost, physical: 25 });
         const nextDays = hospitalDays - 1;
         
+        // 判断是否出院
         if (nextDays <= 0) {
+            // 出院：清除标记，恢复自由
             setGameState(prev => ({
                 ...prev,
                 flags: { ...prev.flags, hospitalDays: 0, hospitalDailyCost: 0, disease: null },
                 phase: 'MORNING',
                 date: new Date(prev.date.getTime() + 86400000)
             }));
-            showModal({ title: "康复出院", description: "虽然钱包空了，但好歹捡回一条命。", type: 'EVENT', actions: [{ label: "活着真好", onClick: closeModal }] });
+            showModal({ title: "康复出院", description: "虽然钱包空了，但好歹捡回一条命。医生叮嘱你别再作死了。", type: 'EVENT', actions: [{ label: "活着真好", onClick: closeModal }] });
         } else {
+            // 继续住院：只推进日期，Phase 保持或者在 UI 层锁死
             setGameState(prev => ({
                 ...prev,
                 flags: { ...prev.flags, hospitalDays: nextDays },
                 date: new Date(prev.date.getTime() + 86400000),
-                phase: 'MORNING'
+                phase: 'MORNING' // 第二天早上
             }));
         }
-        return;
+        return; // 住院期间，跳过后续所有普通结算
     }
 
-    // 2. 黑色面包车逻辑 (App 18) - 移至结算时触发
+    // 2. 黑色面包车逻辑 (App 18: 体检后身体太好会被抓走)
     const { knownHealth, blackVanRisk } = gameState.flags;
     if (blackVanRisk > 0 && gameState.stats.physical > 97) {
         if (Math.random() < (blackVanRisk / 100)) {
             triggerDeath("你在睡梦中听到撬锁声，随后眼前一黑。醒来时发现自己躺在冰冷的手术台上。（死因：身体太好被特招了）");
             return;
         }
+        // 没被抓走，风险增加
         setGameState(prev => ({ ...prev, flags: { ...prev.flags, blackVanRisk: Math.min(100, prev.flags.blackVanRisk + 5) } }));
     }
 
+    // 3. 基础生存判定 (热梗文案版)
     let debtLimit = -20000;
-    if (gameState.flags.hasHouse) debtLimit -= 1500000;
+    if (gameState.flags.hasHouse) debtLimit -= 1500000; // 有房可以欠更多
     if (gameState.stats.money < debtLimit) { triggerDeath("征信黑名单。你被列为失信被执行人，不仅坐不了高铁，连外卖都点不起了，绝望之下重开。"); return; }
     if (gameState.stats.physical <= 0) { triggerDeath("ICU一日游。长期996福报让你身体透支，为了那点窝囊费把命搭进去了。"); return; }
     if (gameState.stats.mental <= 0) { triggerDeath("彻底疯了。你光着身子冲上大街高喊‘我没疯，我要上班’，最后被送进宛平南路600号。"); return; }
     if (gameState.stats.satiety <= 0) { triggerDeath("饿死街头。在全面小康的时代，你凭实力把自己饿死了，也是一种本事。"); return; }
 
-    // 4. 随机暴毙 (App 17) - 移至结算触发
+    // 4. 随机暴毙 (3% 概率)
     if (Math.random() < 0.003) {
          triggerDeath(`【飞来横祸】${DAILY_ACCIDENTS[getRandomInt(0, DAILY_ACCIDENTS.length - 1)]}`); return;
     }
 
-    // 5. 疾病判定 (整合)
-    if (!gameState.flags.disease && Math.random() < 0.05) {
+    // --- 关键点：疾病触发判定 ---
+    // 逻辑：如果没有生病，且随机数 < 0.05 (5%概率)，或者身体极差时概率提升
+    const sickChance = gameState.stats.physical < 40 ? 0.2 : 0.05;
+
+    if (!gameState.flags.disease && Math.random() < sickChance) {
          const disease = DISEASES[getRandomInt(0, DISEASES.length - 1)];
-         // 医保计算
+         // 医保计算逻辑
          const hasInsurance = gameState.flags.hasInsurance;
          const actualAdmission = hasInsurance ? Math.floor(disease.admission * 0.3) : disease.admission;
          const actualDaily = hasInsurance ? Math.floor(disease.daily * 0.3) : disease.daily;
+         const insuranceText = hasInsurance ? '(医保已报销)' : '(自费)';
 
          showModal({
            title: "突发恶疾", 
-           description: `确诊【${disease.name}】。${disease.desc}\n需治疗费/押金: ¥${actualAdmission} ${hasInsurance ? '(医保已报销)' : '(自费)'}`, 
+           description: `确诊【${disease.name}】。${disease.desc}\n需治疗费/押金: ¥${actualAdmission} ${insuranceText}`, 
            type: 'DISEASE',
            actions: [
              { 
-                label: "治疗", 
+                label: disease.days > 0 ? `办理住院 (需${disease.days}天)` : "门诊治疗", 
                 onClick: () => {
                     if (gameState.stats.money >= actualAdmission) {
                         updateStats({ money: -actualAdmission });
-                        // @ts-ignore
+                        
+                        // 【这里是进入住院状态的关键】
                         if (disease.days > 0) {
-                             // @ts-ignore
-                             setGameState(prev => ({ ...prev, flags: { ...prev.flags, disease: disease.name, hospitalDays: disease.days, hospitalDailyCost: actualDaily }, phase: 'SLEEP' }));
+                             setGameState(prev => ({ 
+                                 ...prev, 
+                                 flags: { 
+                                     ...prev.flags, 
+                                     disease: disease.name, 
+                                     hospitalDays: disease.days, // 设置住院天数
+                                     hospitalDailyCost: actualDaily // 设置每日扣费
+                                 }, 
+                                 phase: 'SLEEP' // 保持在结算状态，等待 UI 渲染住院界面
+                             }));
                              closeModal();
-                        } else closeModal();
-                    } else triggerDeath("没钱治病，病情恶化死在出租屋里。");
-                }
+                        } else {
+                             // 小病，治好就行
+                             closeModal();
+                        }
+                    } else {
+                        triggerDeath("没钱交押金，被保安扔出医院，病情恶化死在出租屋里。");
+                    }
+                },
+                style: 'primary'
              },
              {
-                 label: "放弃治疗",
+                 label: "放弃治疗 (赌命)",
                  onClick: () => {
                      closeModal();
-                     // @ts-ignore
-                     if (disease.harm > 30) triggerDeath(`【${disease.name}】恶化，你在痛苦中离世。`);
+                     // 重病放弃治疗直接死
+                     if (disease.harm > 30) triggerDeath(`放弃治疗【${disease.name}】，你在极度痛苦中离世。`);
                      else {
+                         // 轻病硬抗，带病生存
                          setGameState(prev => ({ ...prev, flags: { ...prev.flags, disease: disease.name } }));
-                         addLog("你选择了硬抗，身体状况每况愈下。", "danger");
+                         addLog(`你选择了硬抗【${disease.name}】，身体状况每况愈下。`, "danger");
                      }
                  }, style: 'secondary'
              }
            ]
          });
-         return; 
+         return; // 触发疾病弹窗后，暂停后续结算
     }
 
-    // 6. 子女成长与消耗 (App 18)
+    // 6. 子女成长逻辑
     handleChildLogic();
 
-    // 7. 利息结算
+    // 7. 负债利息结算
     if (gameState.stats.debt > 0) {
         const interest = Math.floor(gameState.stats.debt * 0.0005);
         updateStats({ money: -interest });
-        addLog(`支付了今日利息: ¥${interest}`, "warning");
+        addLog(`支付了今日房贷/车贷利息: ¥${interest}`, "warning");
     }
 
-    // 8. 结算与日期推进
+    // 8. 正常结算与日期推进
     updateStats({ physical: 5, mental: 5, satiety: -20 });
     const nextDate = new Date(gameState.date);
     nextDate.setDate(nextDate.getDate() + 1);
@@ -704,7 +738,7 @@ if (currentHour < 10) {
     // 生日与升学逻辑
     if (gameState.stats.daysSurvived > 0 && gameState.stats.daysSurvived % 365 === 0) {
         updateStats({ age: gameState.stats.age + 1 });
-        // 孩子升学逻辑
+        // 孩子升学
         setGameState(prev => ({
             ...prev,
             flags: {
@@ -712,6 +746,7 @@ if (currentHour < 10) {
                 children: prev.flags.children.map(c => {
                     const newAge = c.age + 1;
                     let newStage = c.educationStage;
+                    // 简单的年龄对应学段逻辑
                     if (newAge >= 3 && newAge < 7) newStage = 'KINDER';
                     else if (newAge >= 7 && newAge < 13) newStage = 'PRIMARY';
                     else if (newAge >= 13 && newAge < 16) newStage = 'MIDDLE';
