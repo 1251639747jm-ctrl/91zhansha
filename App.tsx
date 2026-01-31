@@ -234,6 +234,80 @@ const App: React.FC = () => {
       gameOverReason: ''
     });
   };
+  // --- 完善：医院访问逻辑 (解决 handleHospitalVisit 未定义问题) ---
+  const handleHospitalVisit = () => {
+    const config: ModalConfig = {
+      isOpen: true,
+      title: "莆田系...啊不，市第一人民医院",
+      description: "消毒水的味道扑面而来。挂号处的大妈头也不抬地问：“挂什么科？先交钱！”",
+      type: 'EVENT',
+      actions: HOSPITAL_SERVICES.map(service => ({
+        label: `${service.name} (¥${service.cost})`,
+        onClick: () => {
+          // 1. 检查余额
+          if (gameState.stats.money < service.cost) {
+            addLog("余额不足，保安把你赶出了医院，并叮嘱你没钱别来修仙。", "danger");
+            return;
+          }
+
+          // 2. 扣费
+          updateStats({ money: -service.cost });
+
+          // 3. 处理具体业务
+          if (service.id === 'checkup') {
+            // 体检逻辑：得知自己的真实健康值，并触发黑面包车风险
+            const realHealth = gameState.stats.physical;
+            let resultDesc = "";
+            
+            if (realHealth > 150) {
+                resultDesc = "医生看着报告手在颤抖：‘这...这简直是超人类的数据！’（他偷偷打了个电话）";
+            } else if (realHealth > 97) {
+                resultDesc = "身体素质极佳，甚至好得有点过分了。医生多看了你几眼。";
+            } else if (realHealth > 80) {
+                resultDesc = "非常健康，小伙子很有前途。";
+            } else if (realHealth < 40) {
+                resultDesc = "身体状况堪忧，建议立即住院。";
+            } else {
+                resultDesc = "典型的亚健康状态，少熬夜，多吃菜。";
+            }
+
+            setGameState(prev => ({
+              ...prev,
+              flags: {
+                ...prev.flags,
+                lastCheckupDate: formatDateCN(prev.date),
+                knownHealth: realHealth,
+                // 开启/更新黑面包车风险：如果健康>97且体检了，风险就开始累积
+                blackVanRisk: realHealth > 97 ? Math.max(prev.flags.blackVanRisk, 10) : 0
+              }
+            }));
+
+            showModal({
+              title: "体检报告结果",
+              description: `【体质评分】：${realHealth} / 200\n【医生结论】：${resultDesc}\n${realHealth > 97 ? '⚠️ 你似乎引起了某些不必要的关注。' : ''}`,
+              type: 'EVENT',
+              actions: [{ label: "知道了", onClick: closeModal }]
+            });
+          } 
+          else if (service.effect) {
+            // 处理药物或心理咨询效果
+            // @ts-ignore
+            updateStats(service.effect, `进行了【${service.name}】。`);
+            closeModal();
+          }
+          else {
+            closeModal();
+          }
+        }
+      }))
+    };
+
+    // 添加离开选项
+    config.actions.push({ label: "润了，治不起", onClick: closeModal, style: 'secondary' });
+    
+    // 打开弹窗并暂停阶段
+    showModal(config);
+  };
   // --- App 17: 主播剧情系统 (完整保留) ---
   const triggerStreamerEvent = () => {
     showModal({
