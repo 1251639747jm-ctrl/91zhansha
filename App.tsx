@@ -1367,7 +1367,6 @@ const App: React.FC = () => {
       </main>
     </div>
   );
-};
 
 // --- UI 组件：操作按钮 ---
 const ActionBtn = ({ label, icon, onClick, color, sub }: any) => {
