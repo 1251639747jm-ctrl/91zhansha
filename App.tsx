@@ -20,14 +20,14 @@ import {
 
 // === 常量定义：保留所有文本描述 ===
 const DAILY_ACCIDENTS = [
-  "走在路上玩手机，不慎掉进没有井盖的下水道。",
-  "路过高层建筑时，被一个坠落的花盆精准命中。",
-  "吃夜宵时被鱼刺卡住喉咙，引发剧烈咳血窒息。",
-  "手机充电时玩大型游戏，电池爆炸引发火灾。",
-  "过马路时被一辆闯红灯的渣土车卷入车底。",
-  "洗澡时燃气热水器泄漏，在不知不觉中一氧化碳中毒。",
-  "喝水喝太急呛到了，引发剧烈咳嗽导致肺泡破裂。",
-  "熬夜后突然猛地起床，导致脑血管破裂。"
+  "走路刷只有3个粉丝的抖音，没看路掉进没有井盖的下水道。",
+  "路过烂尾楼时，被一块脱落的‘文明城市’宣传牌精准爆头。",
+  "吃‘科技与狠活’的路边摊，海克斯科技含量超标，当场变异（划掉）去世。",
+  "在拼夕夕买的劣质充电宝，半夜爆炸把家点了。",
+  "骑共享单车抢黄灯，被一辆超速的泥头车（异世界转生车）送走了。",
+  "洗澡时燃气热水器泄漏，在不知不觉中重开。",
+  "熬夜看霸总短剧太上头，情绪激动导致脑血管原地爆炸。",
+  "喝了过期的‘9.9元酱香拿铁’，引发剧烈喷射导致脱水而亡。"
 ];
 
 const App: React.FC = () => {
@@ -187,28 +187,28 @@ const App: React.FC = () => {
   // --- App 17: 主播剧情系统 (完整保留) ---
   const triggerStreamerEvent = () => {
     showModal({
-      title: "主播的私信",
-      description: "‘榜一大哥，为了感谢你的支持，今晚出来见一面？’ 你看着手机屏幕，心跳加速。",
+      title: "女神的专属私信",
+      description: "‘哥哥~ 最近房租好贵哦，能不能帮帮人家？’ 你的女神发来一张‘露得很少但很纯’的照片，你感觉这就是爱情。",
       type: 'LOVE',
       actions: [
         {
-          label: "必须去！(80%概率翻车)",
+          label: "冲！全仓梭哈 (80%几率遇到坦克)",
           onClick: () => {
             if (Math.random() < 0.8) {
               showModal({
-                title: "奔现翻车", description: "到了约定地点，发现对方是开了十级美颜的乔碧萝，而且是个酒托。你被坑了酒钱还受了情伤。", type: 'DEATH',
-                actions: [{ label: "含泪回家 (精神-50, 钱-3000)", onClick: () => {
-                  updateStats({ mental: -50, money: -3000 }, "精神受到暴击，钱包被掏空。");
+                title: "奔现翻车现场", description: "到了约定地点，发现对方是使用了‘量子纠缠美颜术’的乔碧萝殿下，而且还带了三个男闺蜜来蹭饭。", type: 'DEATH',
+                actions: [{ label: "小丑竟是我自己 (破防-50, 钱包-3000)", onClick: () => {
+                  updateStats({ mental: -50, money: -3000 }, "作为沸羊羊，你含泪买单，并在朋友圈发了句‘累了’。");
                   closeModal();
                 }, style: 'danger' }]
               });
             } else {
-              updateStats({ mental: 50 }, "虽然是酒托，但至少长得和照片一样。");
+              updateStats({ mental: 50 }, "虽然是酒托，但至少长得和精修图只有三分像，你觉得这波不亏。");
               closeModal();
             }
           }
         },
-        { label: "算了，那是电子老婆", onClick: () => { updateStats({ mental: -5 }); closeModal(); }, style: 'secondary' }
+        { label: "算了吧，电子厂还要上夜班", onClick: () => { updateStats({ mental: -5 }); closeModal(); }, style: 'secondary' }
       ]
     });
   };
@@ -381,16 +381,16 @@ if (currentHour < 10) {
      });
   };
 
-  // --- 整合版：情感与家庭动作 ---
+// --- 核心动作：情感、资产与家庭 (魔改热梗版) ---
   const relActions = {
     findPartner: () => {
       const target = POTENTIAL_PARTNERS[getRandomInt(0, POTENTIAL_PARTNERS.length - 1)];
       setGameState(prev => ({ ...prev, flags: { ...prev.flags, partner: { ...target, affection: 15, realAffection: 5 }, isPursuing: true } }));
-      addLog(`在相亲角认识了【${target.name}】，开始了漫长的追求。`, 'warning');
+      addLog(`在“探探/陌陌”上滑到了【${target.name}】，备注改成了“女神”，你的舔狗生涯开始了。`, 'warning');
     },
     dateMovie: () => {
-       if (gameState.stats.money < 300) { addLog("钱不够买票，被嫌弃了。", "danger"); return; }
-       updateStats({ money: -300, mental: 10 }, "看了一场电影，对方心情不错。");
+       if (gameState.stats.money < 300) { addLog("团购票都买不起，对方回了句“我去洗澡了”就再也没理你。", "danger"); return; }
+       updateStats({ money: -300, mental: 10 }, "看了场爆米花烂片，全程帮她拿包、递奶茶，手都酸了，但她对你笑了一下。");
        modifyAffection(5);
     },
     dateShopping: () => {
@@ -400,7 +400,7 @@ if (currentHour < 10) {
        if (gameState.stats.money < cost) {
           modifyAffection(-20);
           showModal({
-              title: "社死现场", description: `你豪气地冲向收银台说要清空购物车，结果显示【余额不足】。${partner.name}翻了个白眼，直接转身走了。`, type: 'LOVE',
+              title: "社死现场", description: `你豪气地冲向收银台大喊“刷我的卡”，结果POS机播报【余额不足】。${partner.name}翻了个白眼，发朋友圈屏蔽了你，并把你备注改为“穷逼”。`, type: 'LOVE',
               actions: [{ label: "找个地缝钻进去", onClick: closeModal, style: 'secondary' }]
           });
           return;
@@ -408,8 +408,8 @@ if (currentHour < 10) {
        updateStats({ money: -cost, mental: 5 });
        modifyAffection(15);
        showModal({
-           title: "买买买！", description: `帮${partner.name}清空了购物车(¥${cost})。虽然心在滴血，但她笑得很开心。`, type: 'EVENT',
-           actions: [{ label: "值得！", onClick: closeModal }]
+           title: "ATM奴的觉醒", description: `帮${partner.name}清空了购物车(¥${cost})。虽然心在滴血，但她叫了你一声“宝”，你觉得自己是世界上最幸福的沸羊羊。`, type: 'EVENT',
+           actions: [{ label: "我是自愿的！", onClick: closeModal }]
        });
     },
     confess: () => {
@@ -419,48 +419,47 @@ if (currentHour < 10) {
       const successChance = (partner.realAffection || 0) / 100; 
       if (Math.random() < successChance) {
         setGameState(prev => ({ ...prev, flags: { ...prev.flags, isPursuing: false, isSingle: false } }));
-        showModal({ title: "表白成功！", description: "恭喜你，脱单了！", type: 'LOVE', actions: [{ label: "太好了！", onClick: closeModal }] });
+        showModal({ title: "上岸了！", description: "恭喜你，接盘成功（划掉），脱单成功！今晚不用在那自导自演了，朋友圈文案都想好了。", type: 'LOVE', actions: [{ label: "泪流满面", onClick: closeModal }] });
       } else {
         updateStats({ mental: -30, physical: -10 });
         modifyAffection(-20, -50); 
-        let failReason = "你是个好人。";
+        let failReason = "你是个好人，但我现在不想谈恋爱（想谈也不找你）。";
         // @ts-ignore
-        if (partner.realAffection < 0) failReason = "她心里其实挺讨厌你的，只把你当提款机。";
-        else if (partner.affection > 80) failReason = "虽然表面上和你很亲密，但她内心还没完全接纳你。";
+        if (partner.realAffection < 0) failReason = "其实我一直把你当哥哥/提款机/司机/备胎。";
+        else if (partner.affection > 80) failReason = "虽然你对我很好，但你给不了我想要的生活（指保时捷和爱马仕）。";
 
         showModal({
-            title: "表白惨案", description: `你单膝跪地表白，${partner.name}却后退了一步：“${failReason}”`, type: 'DEATH',
+            title: "小丑竟是我自己", description: `你摆了一地的蜡烛表白，引来路人围观，${partner.name}却后退了一步：“${failReason}”`, type: 'DEATH',
             actions: [{ label: "痛彻心扉", onClick: closeModal, style: 'danger' }]
         });
       }
     },
     breakup: () => {
        setGameState(prev => ({ ...prev, flags: { ...prev.flags, partner: null, isPursuing: false, isSingle: true } }));
-       updateStats({ mental: -10 }, "你提出了分手。");
+       updateStats({ mental: -10 }, "你提出了分手。虽然很难过，但终于不用吃泡面养别人了。");
        setGameState(prev => ({ ...prev, showRelationshipPanel: false }));
     },
     buyHouse: () => {
        if (gameState.flags.hasHouse) return;
        const down = ASSET_COSTS.HOUSE_DOWN_PAYMENT;
-       if (gameState.stats.money < down) { addLog("首付不够，售楼小姐给了你一个白眼。", "danger"); return; }
-       updateStats({ money: -down, debt: (ASSET_COSTS.HOUSE_TOTAL_PRICE - down) }, "支付首付，背上了巨额房贷，成为了光荣的房奴。");
+       if (gameState.stats.money < down) { addLog("首付不够，售楼小姐用看“臭要饭的”眼神送走了你。", "danger"); return; }
+       updateStats({ money: -down, debt: (ASSET_COSTS.HOUSE_TOTAL_PRICE - down) }, "掏空六个钱包付了首付，背上30年房贷，成功入住远郊钢筋水泥鸽子笼，成为光荣的房奴。");
        setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasHouse: true, parentPressure: 0, hasLoan: true } }));
     },
     buyCar: () => {
        if (gameState.flags.hasCar) return;
        const cost = ASSET_COSTS.CAR_COST;
-       if (gameState.stats.money < cost) { addLog("钱不够，买个车模吧。", "danger"); return; }
-       updateStats({ money: -cost }, "全款提了一辆新车，虽然存款空了，但至少相亲有底气了。");
+       if (gameState.stats.money < cost) { addLog("钱不够，去买辆雅迪电动车吧，那个不堵车。", "danger"); return; }
+       updateStats({ money: -cost }, "全款提了一辆“尊贵的”代步车，虽然存款归零，但在村口停车时腰杆硬了，相亲也有底气了。");
        setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasCar: true } }));
     },
     repayDebt: (amount: number) => {
         if (gameState.stats.money < amount) return;
         updateStats({ money: -amount, debt: -amount });
-        addLog(`提前还贷 ¥${amount}，感觉肩膀轻了一点点。`, "success");
+        addLog(`提前还贷 ¥${amount}，感觉肩膀轻了一点点，离自由又近了一毫米。`, "success");
     },
-    // App 18: 领养/生育
     adoptChild: () => {
-        if (gameState.stats.money < 5000) { addLog("领养/生育手续费/营养费至少需要5000元。", "warning"); return; }
+        if (gameState.stats.money < 5000) { addLog("领养/生育手续费/营养费至少需要5000元，没钱养什么吞金兽？", "warning"); return; }
         updateStats({ money: -5000 });
         const newChild: Child = {
             id: Date.now().toString(),
@@ -469,10 +468,10 @@ if (currentHour < 10) {
             age: 0, educationStage: 'NONE', health: 100, hunger: 100, schoolFeePaid: false
         };
         setGameState(prev => ({ ...prev, flags: { ...prev.flags, children: [...prev.flags.children, newChild] } }));
-        addLog("家里迎来了一个新生命！记得买奶粉！", "success");
+        addLog("家里迎来了一只四脚吞金兽！你的钱包开始颤抖！", "success");
     },
     buyBabyItem: (item: any) => {
-        if (gameState.stats.money < item.cost) { addLog("余额不足。", "danger"); return; }
+        if (gameState.stats.money < item.cost) { addLog("余额不足，孩子要饿哭了。", "danger"); return; }
         updateStats({ money: -item.cost });
         setGameState(prev => ({
             ...prev,
@@ -484,10 +483,10 @@ if (currentHour < 10) {
                 }
             }
         }));
-        addLog(`购买了${item.name}。`, "success");
+        addLog(`含泪购买了${item.name}，这就是为人父母的代价。`, "success");
     },
     payTuition: (childId: string, cost: number) => {
-        if (gameState.stats.money < cost) { addLog("学费不够，孩子要被退学了！", "danger"); return; }
+        if (gameState.stats.money < cost) { addLog("学费不够，老师在家长群里点名批评你了！", "danger"); return; }
         updateStats({ money: -cost });
         setGameState(prev => ({
             ...prev,
@@ -496,7 +495,7 @@ if (currentHour < 10) {
                 children: prev.flags.children.map(c => c.id === childId ? { ...c, schoolFeePaid: true } : c)
             }
         }));
-        addLog("缴纳了学费。", "success");
+        addLog(`缴纳了天价学费 ¥${cost}，感觉身体被掏空。`, "success");
     }
   };
 
@@ -558,41 +557,38 @@ if (currentHour < 10) {
         }
     });
   };
-
-  // --- 自由时间逻辑 (恢复 App 17 所有选项) ---
   const handleFreeTime = (action: string) => {
       switch(action) {
           case 'SPA': 
-              if (gameState.stats.money < 1288) { addLog("1288的套餐点不起。", "danger"); return; }
-              updateStats({ money: -1288, physical: 25, mental: 20 }, "技师说你这腰得加钟。一阵酥麻后，感觉活过来了。");
+              if (gameState.stats.money < 1288) { addLog("金帝皇洗脚城也是有门槛的，攒够钱再来点88号技师吧。", "danger"); return; }
+              updateStats({ money: -1288, physical: 25, mental: 20 }, "在金帝皇洗脚城点了尊贵帝王套。88号技师的手法让你灵魂升天，临走时还加了微信。");
               break;
           case 'STREAMER': 
-              if (gameState.stats.money < 1000) { addLog("没钱刷礼物。", "warning"); return; }
+              if (gameState.stats.money < 1000) { addLog("没钱刷礼物，被房管禁言了。", "warning"); return; }
               const newCount = gameState.flags.streamerSimpCount + 1;
               setGameState(prev => ({ ...prev, flags: { ...prev.flags, streamerSimpCount: newCount } }));
-              updateStats({ money: -1000, mental: 15 }, "刷了一个嘉年华！");
+              updateStats({ money: -1000, mental: 15 }, "刷了一个嘉年华！女神终于念了你的名字，虽然念错了。");
               if (newCount >= 3 && Math.random() < 0.4) { triggerStreamerEvent(); return; }
               break;
-          case 'BBQ': updateStats({ money: -100, physical: -5, mental: 10, satiety: 30 }, "路边摊撸串真香。"); break;
-          case 'SQUARE_DANCE': updateStats({ physical: 5, mental: 5, satiety: -5 }, "跳广场舞身心舒畅。"); break;
+          case 'BBQ': updateStats({ money: -100, physical: -5, mental: 10, satiety: 30 }, "路边摊狂撸‘科技与狠活’，每一口都是化学元素周期表的味道，真香！"); break;
+          case 'SQUARE_DANCE': updateStats({ physical: 5, mental: 5, satiety: -5 }, "混入大妈的队伍跳广场舞，试图寻找富婆，未果。"); break;
           case 'MOVIE':
-              if (gameState.stats.money < 50) { addLog("电影票都买不起了。", "warning"); return; }
-              updateStats({ money: -50, mental: 15 }, "看了一场爆米花电影，暂时忘记了烦恼。");
+              if (gameState.stats.money < 50) { addLog("团购票都买不起。", "warning"); return; }
+              updateStats({ money: -50, mental: 15 }, "去私人影院看了一部只有两个人能看懂的电影，心情复杂。");
               break;
           case 'INTERNET_CAFE':
-              if (gameState.stats.money < 20) { addLog("网费不足。", "warning"); return; }
-              updateStats({ money: -20, mental: 20, physical: -5 }, "在网吧五连坐，大杀四方。");
+              if (gameState.stats.money < 20) { addLog("网费不足，被网管赶出来了。", "warning"); return; }
+              updateStats({ money: -20, mental: 20, physical: -5 }, "在网吧通宵，仿佛回到了‘三和挂壁’的快乐时光，大喊一声：网管，加钟！");
               break;
           case 'WALK':
-              updateStats({ mental: 5, physical: 2, satiety: -5 }, "在江边散步，看着对岸的豪宅发呆。");
+              updateStats({ mental: 5, physical: 2, satiety: -5 }, "在江边City Walk（其实是该溜子），看着对岸买不起的豪宅，立志下辈子投个好胎。");
               break;
           case 'HOME':
-              updateStats({ mental: 5, physical: 5 }, "在家躺平，哪里也不去。");
+              updateStats({ mental: 5, physical: 5 }, "我在家躺平，我为国家省资源。刷了一整天土味视频。");
               break;
       }
       if (gameState.phase !== 'MODAL_PAUSE') setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:30' }));
   };
-
   // --- 睡眠与结算逻辑 (整合所有死亡判定) ---
   const handleSleep = () => {
     // 1. 住院日结算 (App 18)
@@ -634,13 +630,12 @@ if (currentHour < 10) {
         setGameState(prev => ({ ...prev, flags: { ...prev.flags, blackVanRisk: Math.min(100, prev.flags.blackVanRisk + 5) } }));
     }
 
-    // 3. 基础生存判定 (App 17)
     let debtLimit = -20000;
     if (gameState.flags.hasHouse) debtLimit -= 1500000;
-    if (gameState.stats.money < debtLimit) { triggerDeath("资金链断裂。你背负的债务超过了资产价值，绝望之下选择了自我了断。"); return; }
-    if (gameState.stats.physical <= 0) { triggerDeath("过劳死。为了那点窝囊费，你把命搭进去了。"); return; }
-    if (gameState.stats.mental <= 0) { triggerDeath("精神彻底崩溃，你赤身裸体冲上大街，最后被送进精神病院。"); return; }
-    if (gameState.stats.satiety <= 0) { triggerDeath("饿死。在这个全面小康的时代，你是个特例。"); return; }
+    if (gameState.stats.money < debtLimit) { triggerDeath("征信黑名单。你被列为失信被执行人，不仅坐不了高铁，连外卖都点不起了，绝望之下重开。"); return; }
+    if (gameState.stats.physical <= 0) { triggerDeath("ICU一日游。长期996福报让你身体透支，为了那点窝囊费把命搭进去了。"); return; }
+    if (gameState.stats.mental <= 0) { triggerDeath("彻底疯了。你光着身子冲上大街高喊‘我没疯，我要上班’，最后被送进宛平南路600号。"); return; }
+    if (gameState.stats.satiety <= 0) { triggerDeath("饿死街头。在全面小康的时代，你凭实力把自己饿死了，也是一种本事。"); return; }
 
     // 4. 随机暴毙 (App 17) - 移至结算触发
     if (Math.random() < 0.003) {
@@ -750,11 +745,30 @@ if (currentHour < 10) {
        }
        
        // 推进时间
+       // 推进时间 (修复版：基于小时数判断，防止跳过阶段)
        setGameState(prev => {
-            let nextP = prev.phase; let nextT = prev.time;
-            if (prev.phase === 'MORNING') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; nextT = '09:00'; }
-            else if (prev.phase === 'LUNCH') { nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; nextT = '13:00'; }
-            else if (prev.phase === 'DINNER') { nextP = 'FREE_TIME'; nextT = '20:00'; }
+            let nextP = prev.phase; 
+            let nextT = prev.time;
+            
+            // 获取当前小时数 (例如 07:30 就是 7)
+            const currentHour = parseInt(prev.time.split(':')[0]);
+
+            if (currentHour < 10) { 
+                // 早餐阶段 (07:xx) -> 接下来去上班/休息 (09:00)
+                nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_AM' : 'WORK_AM'; 
+                nextT = '09:00'; 
+            }
+            else if (currentHour >= 10 && currentHour <= 14) { 
+                // 午餐阶段 (12:xx) -> 接下来下午搬砖 (13:00)
+                nextP = isWeekend(prev.date, prev.profession?.schedule||'965') ? 'REST_PM' : 'WORK_PM'; 
+                nextT = '13:00'; 
+            }
+            else { 
+                // 晚餐阶段 (18:xx) -> 接下来进入夜生活 (20:00)
+                nextP = 'FREE_TIME'; 
+                nextT = '20:00'; 
+            }
+            
             return { ...prev, phase: nextP, time: nextT };
        });
   };
@@ -896,36 +910,36 @@ if (currentHour < 10) {
                         {gameState.phase.includes('WORK') && (
                             <button onClick={handleWork} className="col-span-full py-12 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white rounded-xl transition-all group flex flex-col items-center justify-center gap-2 shadow-lg shadow-black/50">
                                 <Briefcase className="w-8 h-8 group-hover:animate-bounce text-zinc-400 group-hover:text-white" />
-                                <span className="text-xl font-bold tracking-[0.2em] uppercase">Start Working</span>
-                                <span className="text-xs text-zinc-500 font-mono">CLICK TO PROCEED</span>
+                                <span className="text-xl font-bold tracking-[0.2em] uppercase">我是牛马</span>
+                                <span className="text-xs text-zinc-500 font-mono">给资本家赚法拉利</span>
                             </button>
                         )}
                         
                         {/* 2. 饮食按钮 */}
                         {(gameState.phase === 'MORNING' || gameState.phase === 'LUNCH' || gameState.phase === 'DINNER') && (
                             <>
-                                <ActionBtn label="拼好饭" icon={<ShoppingBag/>} onClick={() => handleEat('TAKEOUT')} color="orange" sub="-¥30 | 续命" />
-                                <ActionBtn label="做饭/买菜" icon={<Utensils/>} onClick={() => handleEat('COOK_MENU')} color="green" sub="居家生存" />
-                                <ActionBtn label="不吃(省钱)" icon={<XCircle/>} onClick={() => handleEat('SKIP')} color="red" sub="消耗健康" />
+                                <ActionBtn label="拼好饭" icon={<ShoppingBag/>} onClick={() => handleEat('TAKEOUT')} color="orange" sub="-¥30 | 也是吃上饭了" />
+                                <ActionBtn label="小当家模式" icon={<Utensils/>} onClick={() => handleEat('COOK_MENU')} color="green" sub="科技与狠活" />
+                                <ActionBtn label="修仙(不吃)" icon={<XCircle/>} onClick={() => handleEat('SKIP')} color="red" sub="光合作用" />
                             </>
                         )}
                         
-                        {/* 3. 自由时间/周末按钮 - 完整恢复 App 17 的所有选项 + App 18 的医院 */}
+                        {/* 3. 自由时间/周末按钮 - 赛博社畜热梗版 */}
                         {(gameState.phase === 'FREE_TIME' || gameState.phase.includes('REST')) && (
                             <>
-                                {/* App 18: 医院体检 */}
-                                <ActionBtn label="去医院体检" icon={<Activity/>} onClick={() => {
+                                {/* App 18: 医院体检 - 销金窟文案 */}
+                                <ActionBtn label="去医院修仙" icon={<Activity/>} onClick={() => {
                                     const config: ModalConfig = { 
-                                        isOpen: true, title: "市第一人民医院", description: "消毒水的味道扑面而来。", type: 'EVENT',
+                                        isOpen: true, title: "莆田系...啊不，第一人民医院", description: "浓烈的消毒水味，这里是销金窟，也是碎钞机。请选择你的消费项目：", type: 'EVENT',
                                         actions: HOSPITAL_SERVICES.map(service => ({
                                             label: `${service.name} (¥${service.cost})`,
                                             onClick: () => {
-                                                if (gameState.stats.money < service.cost) { addLog("余额不足。", "danger"); return; }
+                                                if (gameState.stats.money < service.cost) { addLog("余额不足，保安让你出门左转去百度看病。", "danger"); return; }
                                                 updateStats({ money: -service.cost });
                                                 if (service.id === 'checkup') {
                                                     const realHealth = gameState.stats.physical;
                                                     setGameState(prev => ({ ...prev, flags: { ...prev.flags, lastCheckupDate: formatDateCN(prev.date), knownHealth: realHealth, blackVanRisk: realHealth > 97 ? (prev.flags.blackVanRisk || 10) : 0 } }));
-                                                    showModal({ title: "体检报告", description: `体质评分: ${realHealth}/200\n结论: ${realHealth > 150 ? '人类巅峰！' : '尚可。'}`, type: 'EVENT', actions: [{ label: "确认", onClick: closeModal }] });
+                                                    showModal({ title: "体检审判书", description: `你的肉体评分: ${realHealth}/200\n结论: ${realHealth > 150 ? '唐僧肉转世！已被大佬盯上。' : '典型的脆皮大学生/社畜体质，建议重开。'}`, type: 'EVENT', actions: [{ label: "这就去养生", onClick: closeModal }] });
                                                 } else if (service.effect) {
                                                     // @ts-ignore
                                                     updateStats(service.effect); closeModal();
@@ -933,22 +947,21 @@ if (currentHour < 10) {
                                             }
                                         }))
                                     };
-                                    config.actions.push({ label: "离开", onClick: closeModal, style: 'secondary' });
+                                    config.actions.push({ label: "润了，治不起", onClick: closeModal, style: 'secondary' });
                                     showModal(config);
-                                }} color="teal" sub="健康管理" />
+                                }} color="teal" sub="甚至想挂个急诊" />
 
-                                {/* App 17: 丰富娱乐 */}
-                                <ActionBtn label="看电影" icon={<Users/>} onClick={() => handleFreeTime('MOVIE')} color="purple" sub="-¥50" />
-                                <ActionBtn label="高端SPA" icon={<Footprints/>} onClick={() => handleFreeTime('SPA')} color="pink" sub="-¥1288" />
-                                <ActionBtn label="打赏主播" icon={<MonitorPlay/>} onClick={() => handleFreeTime('STREAMER')} color="indigo" sub="-¥1000" />
-                                <ActionBtn label="路边撸串" icon={<Beer/>} onClick={() => handleFreeTime('BBQ')} color="orange" sub="-¥100" />
-                                <ActionBtn label="去网吧" icon={<MonitorPlay/>} onClick={() => handleFreeTime('INTERNET_CAFE')} color="zinc" sub="-¥20" />
-                                <ActionBtn label="广场舞" icon={<Dumbbell/>} onClick={() => handleFreeTime('SQUARE_DANCE')} color="zinc" sub="免费" />
-                                <ActionBtn label="江边散步" icon={<Footprints/>} onClick={() => handleFreeTime('WALK')} color="zinc" sub="免费" />
-                                <ActionBtn label="回家睡觉" icon={<Home/>} onClick={() => handleFreeTime('HOME')} color="zinc" sub="休息" />
+                                {/* App 17: 魔改娱乐项目 */}
+                                <ActionBtn label="金帝皇洗脚城" icon={<Footprints/>} onClick={() => handleFreeTime('SPA')} color="pink" sub="-¥1288 | 帝王套" />
+                                <ActionBtn label="守护最好的Gigi" icon={<Heart/>} onClick={() => handleFreeTime('STREAMER')} color="purple" sub="-¥1000 | 沸羊羊" />
+                                <ActionBtn label="海克斯科技烧烤" icon={<Beer/>} onClick={() => handleFreeTime('BBQ')} color="orange" sub="-¥100 | 喷射战士" />
+                                <ActionBtn label="三和挂壁网吧" icon={<MonitorPlay/>} onClick={() => handleFreeTime('INTERNET_CAFE')} color="indigo" sub="-¥20 | 大神" />
+                                <ActionBtn label="私人影院" icon={<Users/>} onClick={() => handleFreeTime('MOVIE')} color="zinc" sub="-¥50 | 懂的都懂" />
+                                <ActionBtn label="混入广场舞" icon={<Dumbbell/>} onClick={() => handleFreeTime('SQUARE_DANCE')} color="zinc" sub="寻找富婆" />
+                                <ActionBtn label="Gai溜子" icon={<Footprints/>} onClick={() => handleFreeTime('WALK')} color="zinc" sub="City Walk" />
+                                <ActionBtn label="家里蹲" icon={<Home/>} onClick={() => handleFreeTime('HOME')} color="zinc" sub="彻底摆烂" />
                             </>
                         )}
-
                         {/* 4. 睡觉按钮 */}
                         {gameState.phase === 'SLEEP' && (
                             <button onClick={handleSleep} className="col-span-full bg-indigo-950/50 border border-indigo-900 py-10 rounded-xl text-indigo-200 font-bold hover:bg-indigo-900/50 transition-all flex flex-col items-center justify-center group">
