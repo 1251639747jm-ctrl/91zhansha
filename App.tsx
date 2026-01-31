@@ -90,13 +90,35 @@ const App: React.FC = () => {
     setGameState(prev => ({ ...prev, phase: 'MODAL_PAUSE', modal: { ...config, isOpen: true } }));
   };
 
-  const closeModal = () => {
-    setGameState(prev => ({
+ const closeModal = () => {
+  setGameState(prev => {
+    let nextPhase = prev.phase;
+
+    // 如果当前是因为弹窗暂停了，我们需要根据时间恢复到对应的操作阶段
+    if (prev.phase === 'MODAL_PAUSE') {
+      if (prev.flags.hospitalDays > 0) {
+        nextPhase = 'SLEEP'; // 住院强制睡觉
+      } else if (prev.time.includes('23')) {
+        nextPhase = 'SLEEP';
+      } else if (prev.time.includes('07')) {
+        nextPhase = 'MORNING'; // 增加早上的判定
+      } else if (prev.time.includes('12')) {
+        nextPhase = 'LUNCH';
+      } else if (prev.time.includes('18')) {
+        nextPhase = 'DINNER';
+      } else {
+        // 如果都不是，保持原样或者根据当前 phase 的逻辑走
+        nextPhase = 'FREE_TIME'; 
+      }
+    }
+
+    return {
       ...prev,
-     phase: prev.phase === 'MODAL_PAUSE' ? 'FREE_TIME' : prev.phase,
+      phase: nextPhase,
       modal: { ...prev.modal, isOpen: false }
-    }));
-  };
+    };
+  });
+};
 
   // --- 核心数值更新逻辑 ---
   const updateStats = (changes: Partial<typeof INITIAL_STATS>, reason?: string) => {
