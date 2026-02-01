@@ -851,7 +851,12 @@ buyCar: () => {
        return { ...prev, flags: { ...prev.flags, partner: { ...currentPartner, affection: newDisplay, realAffection: newReal } } };
      });
   };
-
+// 找到 handleWorkChoice 附近，添加这个 handleWork
+const handleWork = () => {
+    // 触发第一轮工作，将 workRounds 设为 0
+    setGameState(prev => ({ ...prev, workRounds: 0 }));
+    addLog("开始进入工位，打开打卡机，准备接受福报...", "info");
+};
 const handleWorkChoice = (type: 'SLACK' | 'HARD') => {
   setGameState(prev => {
     const isHard = type === 'HARD';
@@ -1382,13 +1387,37 @@ const finishWorkBlock = (finalPerformance: number) => {
                 ) : (
                     <>
                         {/* 1. 工作按钮 */}
-                        {gameState.phase.includes('WORK') && (
-                            <button onClick={handleWork} className="col-span-full py-12 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white rounded-xl transition-all group flex flex-col items-center justify-center gap-2 shadow-lg shadow-black/50">
-                                <Briefcase className="w-8 h-8 group-hover:animate-bounce text-zinc-400 group-hover:text-white" />
-                                <span className="text-xl font-bold tracking-[0.2em] uppercase">我是牛马</span>
-                                <span className="text-xs text-zinc-500 font-mono">给资本家赚法拉利</span>
-                            </button>
-                        )}
+{gameState.phase.includes('WORK') && (
+    <div className="col-span-full">
+        {/* 如果还没开始点选项，显示主工作按钮 */}
+        {gameState.workRounds === undefined || gameState.workRounds === 0 ? (
+            <button 
+                onClick={handleWork} 
+                className="w-full py-12 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white rounded-xl transition-all group flex flex-col items-center justify-center gap-2"
+            >
+                <Briefcase className="w-8 h-8 text-zinc-400 group-hover:text-white" />
+                <span className="text-xl font-bold tracking-[0.2em] uppercase">我是牛马 (进入工位)</span>
+            </button>
+        ) : null}
+
+        {/* 如果已经在工作轮次中，显示摸鱼/内卷选项 */}
+        {gameState.workRounds > 0 && gameState.workRounds <= 3 && (
+            <div className="grid grid-cols-2 gap-4 bg-zinc-900 p-6 rounded-xl border-2 border-yellow-600/50 mt-2">
+                <div className="col-span-full text-center mb-2 font-bold text-yellow-500">
+                    工作进度: {gameState.workRounds}/3 阶段
+                </div>
+                <button onClick={() => handleWorkChoice('HARD')} className="py-8 bg-red-900/40 border border-red-500 text-white rounded-lg hover:bg-red-800/60 transition-all">
+                    <p className="font-bold">疯狂内卷</p>
+                    <p className="text-[10px] opacity-60">表现+20 | 体力-15</p>
+                </button>
+                <button onClick={() => handleWorkChoice('SLACK')} className="py-8 bg-green-900/40 border border-green-500 text-white rounded-lg hover:bg-green-800/60 transition-all">
+                    <p className="font-bold">带薪摸鱼</p>
+                    <p className="text-[10px] opacity-60">表现-10 | 精神+5</p>
+                </button>
+            </div>
+        )}
+    </div>
+)}
                         
                         {/* 2. 饮食按钮 */}
                         {(gameState.phase === 'MORNING' || gameState.phase === 'LUNCH' || gameState.phase === 'DINNER') && (
