@@ -307,21 +307,7 @@ const finishHospitalBlock = () => {
             addLog("余额不足，保安把你赶出了医院，并叮嘱你没钱别来修仙。", "danger");
             return;
           }
-          // 在 HOSPITAL_SERVICES 增加一项或直接在 handleHospitalVisit 的 actions 里 push
-{
-  label: "二楼尽头：停尸间",
-  onClick: () => {
-    const history = JSON.parse(localStorage.getItem('death_records') || '[]');
-    showModal({
-      title: "冰冷的储藏柜",
-      description: history.length > 0 
-        ? `这里整齐地码放着 ${history.length} 具社畜的遗体：\n` + history.map((d:any) => `【${d.name}】${d.profession}，${d.age}岁，死于：${d.reason}`).join('\n')
-        : "目前还没有人死在这里，但这只是时间问题。",
-      type: 'EVENT',
-      actions: [{ label: "赶紧离开这鬼地方", onClick: closeModal }]
-    });
-  }
-}
+          
           // 2. 扣费
           updateStats({ money: -service.cost });
 
@@ -389,7 +375,21 @@ const finishHospitalBlock = () => {
         onClick: closeModal, 
         style: 'secondary' 
     });
-    
+    config.actions.push({
+    label: "二楼尽头：停尸间",
+    onClick: () => {
+        const history = JSON.parse(localStorage.getItem('death_records') || '[]');
+        showModal({
+            title: "冰冷的储藏柜",
+            description: history.length > 0 
+                ? `这里整齐地码放着 ${history.length} 具社畜的遗体：\n\n` + 
+                  history.map((d: any) => `【${d.name}】${d.profession}，${d.age}岁，死于：${d.reason}`).join('\n')
+                : "目前还没有人死在这里，但这只是时间问题。",
+            type: 'EVENT',
+            actions: [{ label: "赶紧离开这鬼地方", onClick: closeModal }]
+        });
+    }
+});
     // 打开医院菜单
     setGameState(prev => ({ ...prev, phase: 'MODAL_PAUSE', modal: config }));
   };
