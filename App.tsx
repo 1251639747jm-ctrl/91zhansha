@@ -1021,10 +1021,6 @@ const finishWorkBlock = (finalPerformance: number) => {
       if (gameState.phase !== 'MODAL_PAUSE') setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:30' }));
   };
   const handleSleep = () => {
-    let debtLimit = -20000;
-    if (gameState.flags.hasHouse) debtLimit -= 1500000;
-    if (gameState.stats.money < debtLimit) { triggerDeath("【破产】由于资不抵债，你被列入失信名单。"); return; }
-    // 注意：physical/mental 的检查现在由上面的 useEffect 接管，这里可以保留作为双重保险
 
     // B. 随机暴毙（提到前面）
     if (Math.random() < 0.003) {
@@ -1412,8 +1408,33 @@ if (!isAlreadySick && Math.random() < sickChance) {
     </div>
   );
 }
-
-  // --- UI: 主游戏界面 ---
+// --- UI: 停尸间界面 (移出 JSX 内部以修复 Unexpected return 错误) ---
+  if (gameState.phase === 'MORTUARY') {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-400 p-8 font-mono">
+        <h1 className="text-4xl font-black text-white mb-8 border-b-2 border-zinc-800 pb-4">
+          冷库档案管理系统 v1.0
+        </h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {gameState.deathHistory.map((d: any, i: number) => (
+            <div key={i} className="p-4 border-2 border-zinc-800 bg-zinc-900/50 hover:border-red-900/50 transition-colors">
+              <div className="text-red-500 font-bold mb-2">档案 #{i + 1}</div>
+              <p>姓名: {d.name}</p>
+              <p>死因: {d.reason}</p>
+              <p>最终职业: {d.profession}</p>
+              <p>卒年: {d.age}岁</p>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => setGameState(p => ({ ...p, phase: 'FREE_TIME' }))}
+          className="mt-8 px-6 py-3 bg-zinc-800 text-white hover:bg-zinc-700 font-bold rounded-lg transition-all"
+        >
+          返回医院走廊
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans pb-10 selection:bg-red-500/30">
       <EventModal config={gameState.modal} />
@@ -1596,33 +1617,6 @@ if (!isAlreadySick && Math.random() < sickChance) {
                                 <ActionBtn label="家里蹲" icon={<Home/>} onClick={() => handleFreeTime('HOME')} color="zinc" sub="彻底摆烂" />
                             </>
                         )}
-                      // 在 App.tsx 的 UI 渲染部分
-if (gameState.phase === 'MORTUARY') {
-    return (
-        <div className="min-h-screen bg-zinc-950 text-zinc-400 p-8 font-mono">
-            <h1 className="text-4xl font-black text-white mb-8 border-b-2 border-zinc-800 pb-4">
-                冷库档案管理系统 v1.0
-            </h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {gameState.deathHistory.map((d: any, i: number) => (
-                    <div key={i} className="p-4 border-2 border-zinc-800 bg-zinc-900/50 hover:border-red-900/50 transition-colors">
-                        <div className="text-red-500 font-bold mb-2">档案 #{i+1}</div>
-                        <p>姓名: {d.name}</p>
-                        <p>死因: {d.reason}</p>
-                        <p>最终职业: {d.profession}</p>
-                        <p>卒年: {d.age}岁</p>
-                    </div>
-                ))}
-            </div>
-            <button 
-                onClick={() => setGameState(p => ({...p, phase: 'FREE_TIME'}))}
-                className="mt-8 px-6 py-2 bg-zinc-800 text-white hover:bg-zinc-700"
-            >
-                返回医院走廊
-            </button>
-        </div>
-    );
-}
                         {/* 4. 睡觉按钮 */}
                         {gameState.phase === 'SLEEP' && (
                             <button onClick={handleSleep} className="col-span-full bg-indigo-950/50 border border-indigo-900 py-10 rounded-xl text-indigo-200 font-bold hover:bg-indigo-900/50 transition-all flex flex-col items-center justify-center group">
