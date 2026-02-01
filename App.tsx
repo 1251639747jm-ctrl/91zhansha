@@ -387,21 +387,32 @@ const finishHospitalBlock = () => {
 
         // 2. 停尸间逻辑 (读取 LocalStorage)
         {
-          label: "二楼尽头：停尸间",
-          style: 'secondary' as const,
-          onClick: () => {
-            const history = JSON.parse(localStorage.getItem('death_records') || '[]');
-            showModal({
-              title: "冰冷的金属柜",
-              description: history.length > 0 
-                ? `这里整齐地码放着 ${history.length} 个不愿透露姓名的“前辈”：\n\n` + 
-                  history.map((d: any, i: number) => `${i+1}. 【${d.name}】${d.profession}，${d.age}岁，死因：${d.reason}`).join('\n')
-                : "目前还没有人死在这里。但在这种环境下，这只是迟早的事。",
-              type: 'EVENT',
-              actions: [{ label: "赶紧离开", onClick: closeModal }]
-            });
-          }
-        },
+  label: "二楼尽头：停尸间",
+  style: 'secondary' as const,
+  onClick: () => {
+    const history = JSON.parse(localStorage.getItem('death_records') || '[]');
+    
+    // 生成格式化的档案列表
+    const mortuaryUI = history.length > 0 
+      ? history.map((d: any, i: number) => (
+          `--------------------------\n` +
+          `【 尸体编号：#00${i + 1} 】\n` +
+          ` 姓名：${d.name}\n` +
+          ` 职业：${d.profession}\n` +
+          ` 寿命：${d.age} 岁\n` +
+          ` 结论：${d.reason}\n` +
+          ` 销户日期：${d.date}`
+        )).join('\n')
+      : "这里空荡荡的，只有冷风吹过。\n（目前还没有死亡记录）";
+
+    showModal({
+      title: "☣️ 圣玛丽医院·地下冷库",
+      description: `这里保存着被社会“淘汰”的生物资产：\n\n${mortuaryUI}\n\n--------------------------`,
+      type: 'EVENT', // 这里的图标会变成 AlertOctagon 或者其他定义的图标
+      actions: [{ label: "离开这股死人味", onClick: closeModal }]
+    });
+  }
+},
 
         // 3. 退出按钮
         { 
@@ -1585,6 +1596,33 @@ if (!isAlreadySick && Math.random() < sickChance) {
                                 <ActionBtn label="家里蹲" icon={<Home/>} onClick={() => handleFreeTime('HOME')} color="zinc" sub="彻底摆烂" />
                             </>
                         )}
+                      // 在 App.tsx 的 UI 渲染部分
+if (gameState.phase === 'MORTUARY') {
+    return (
+        <div className="min-h-screen bg-zinc-950 text-zinc-400 p-8 font-mono">
+            <h1 className="text-4xl font-black text-white mb-8 border-b-2 border-zinc-800 pb-4">
+                冷库档案管理系统 v1.0
+            </h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {gameState.deathHistory.map((d: any, i: number) => (
+                    <div key={i} className="p-4 border-2 border-zinc-800 bg-zinc-900/50 hover:border-red-900/50 transition-colors">
+                        <div className="text-red-500 font-bold mb-2">档案 #{i+1}</div>
+                        <p>姓名: {d.name}</p>
+                        <p>死因: {d.reason}</p>
+                        <p>最终职业: {d.profession}</p>
+                        <p>卒年: {d.age}岁</p>
+                    </div>
+                ))}
+            </div>
+            <button 
+                onClick={() => setGameState(p => ({...p, phase: 'FREE_TIME'}))}
+                className="mt-8 px-6 py-2 bg-zinc-800 text-white hover:bg-zinc-700"
+            >
+                返回医院走廊
+            </button>
+        </div>
+    );
+}
                         {/* 4. 睡觉按钮 */}
                         {gameState.phase === 'SLEEP' && (
                             <button onClick={handleSleep} className="col-span-full bg-indigo-950/50 border border-indigo-900 py-10 rounded-xl text-indigo-200 font-bold hover:bg-indigo-900/50 transition-all flex flex-col items-center justify-center group">
