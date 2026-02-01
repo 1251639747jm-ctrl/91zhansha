@@ -851,28 +851,27 @@ buyCar: () => {
        return { ...prev, flags: { ...prev.flags, partner: { ...currentPartner, affection: newDisplay, realAffection: newReal } } };
      });
   };
-// 找到 handleWorkChoice 附近，添加这个 handleWork
-const handleWork = () => {
-    // 触发第一轮工作，将 workRounds 设为 0
-    setGameState(prev => ({ ...prev, workRounds: 1 }));
+  const handleWork = () => {
+    setGameState(prev => ({ ...prev, workRounds: 1 })); // 这里从 0 改成 1
     addLog("开始进入工位，打开打卡机，准备接受福报...", "info");
 };
 const handleWorkChoice = (type: 'SLACK' | 'HARD') => {
   setGameState(prev => {
     const isHard = type === 'HARD';
-    const newPerformance = prev.workPerformance + (isHard ? 20 : -10);
+    // 累加工作表现
+    const newPerformance = (prev.workPerformance || 0) + (isHard ? 20 : -10);
     const newRounds = prev.workRounds + 1;
     
-    // 每一轮工作的消耗
+    // 即时扣除体力
     updateStats({
       physical: isHard ? -15 : -5,
-      mental: isHard ? -10 : 5, // 摸鱼可以回神
-      satiety: -10
+      mental: isHard ? -10 : 5,
+      satiety: -8
     });
 
     if (newRounds >= 3) {
-      // 工作结束，进入结算逻辑
-      finishWorkBlock(newPerformance);
+      // 达到3轮后，重置轮次并去结算
+      finishWorkBlock(newPerformance); 
       return { ...prev, workRounds: 0, workPerformance: 0 };
     }
     
@@ -899,35 +898,60 @@ const handleWorkChoice = (type: 'SLACK' | 'HARD') => {
 
 const finishWorkBlock = (finalPerformance: number) => {
   setGameState(prev => {
+    // 1. 判定是否为上午班（WORK_AM）
     const isMorningShift = prev.phase === 'WORK_AM';
+    
+    // 计算当次工作的薪水 (底薪 * 表现倍率)
+    const baseSalary = prev.profession?.salaryBase || 0;
+    const performanceBonus = 1 + (finalPerformance / 100);
+    const earnedSalary = Math.floor(baseSalary * performanceBonus);
+
     if (isMorningShift) {
-        return { ...prev, phase: 'LUNCH', time: '12:00' };
-    } else {
-        // 下午下班结算
-        const schedule = prev.profession?.schedule || '965';
-        const isOvertimeCulture = schedule.includes('996') || schedule.includes('007');
-        const overtimeChance = isOvertimeCulture ? 0.8 : 0.2;
-        
-        const salary = Math.floor((prev.profession?.salaryBase || 0) * (1 + finalPerformance/100));
-
-        if (Math.random() < overtimeChance) {
-            // 触发加班
-            showModal({
-                title: "老板推门而入",
-                description: "‘大家先别走，简单开个复盘会。’ 这个会一开就是4个小时，且没有加班费。",
-                type: 'WORK',
-                actions: [{ label: "福报，都是福报", onClick: () => {
-                    updateStats({ physical: -20, mental: -20 }, "无偿加班结束，你走出大楼时看到了凌晨的星光。");
-                    setGameState(p => ({ ...p, phase: 'DINNER', time: '22:30', stats: {...p.stats, money: p.stats.money + salary} }));
-                    closeModal();
-                }}]
-            });
-            return prev;
-        }
-
+        // 上午下班：直接去吃饭，不领钱（钱在下午一起结），不加班
         return { 
             ...prev, 
-            stats: { ...prev.stats, money: prev.stats.money + salary },
+            phase: 'LUNCH', 
+            time: '12:00',
+            log: [...prev.log, { id: Date.now(), text: "上午的活干完了，先去干饭补充体力，下午接着卷。", type: 'info' }]
+        };
+    } else {
+        // 2. 下午下班：开始结算工资 + 判定加班
+        const schedule = prev.profession?.schedule || '965';
+        const isOvertimeCulture = schedule.includes('996') || schedule.includes('007');
+        // 如果是996/007职种，80%几率加班；普通职种20%几率加班
+        const overtimeChance = isOvertimeCulture ? 0.8 : 0.2;
+        
+        if (Math.random() < overtimeChance) {
+            // --- 触发加班流程 ---
+            showModal({
+                title: "【突发加班】",
+                description: `老板在 18:00 准时出现在你身后：“大家辛苦了，有个紧急需求要对一下。” \n\n 本次窝囊费 ¥${earnedSalary} 已计算入账，但你被迫留在了工位。`,
+                type: 'WORK',
+                actions: [{ 
+                    label: "为了生活，我忍！", 
+                    onClick: () => {
+                        // 加班后的属性扣减
+                        updateStats({ 
+                            money: earnedSalary, // 这里的工资必须加进去！
+                            physical: -25, 
+                            mental: -20, 
+                            satiety: -20 
+                        }, `完成了长达4小时的无偿加班。你领到了 ¥${earnedSalary} 的工资。`);
+                        
+                        // 强制推进时间到深夜 22:30
+                        setGameState(p => ({ ...p, phase: 'DINNER', time: '22:30' }));
+                        closeModal();
+                    } 
+                }]
+            });
+            return prev; // 返回原状态，等弹窗点击后再更新
+        }
+
+        // --- 正常下班流程 ---
+        addLog(`【下班结算】今天的窝囊费 ¥${earnedSalary} 已到账，准时打卡下班，身心愉悦。`, "success");
+        return { 
+            ...prev, 
+            stats: { ...prev.stats, money: prev.stats.money + earnedSalary },
             phase: 'DINNER', 
             time: '18:30'
         };
