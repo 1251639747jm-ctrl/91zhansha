@@ -320,105 +320,99 @@ const finishHospitalBlock = () => {
   });
 };
 
-  // --- 完整版：医院访问逻辑 (含体检剧情与时间推进) ---
+// --- 完整版：医院访问逻辑 (含体检、停尸间、时间推进) ---
   const handleHospitalVisit = () => {
     const config: ModalConfig = {
       isOpen: true,
       title: "市第一人民医院",
-      description: "消毒水的味道扑面而来。挂号处的大妈头也不抬地问：“挂什么科？先把医保卡拿出来，没钱去左边ATM机取！”",
+      description: "浓烈的消毒水味扑面而来。走廊里挤满了人，墙上贴着标语：‘今天工作不努力，明天开除送这里。’",
       type: 'EVENT',
-      actions: HOSPITAL_SERVICES.map(service => ({
-        label: `${service.name} (¥${service.cost})`,
-        onClick: () => {
-          // 1. 检查余额
-          if (gameState.stats.money < service.cost) {
-            addLog("余额不足，保安把你赶出了医院，并叮嘱你没钱别来修仙。", "danger");
-            return;
-          }
-          
-          // 2. 扣费
-          updateStats({ money: -service.cost });
-
-          // 3. 处理具体业务
-          if (service.id === 'checkup') {
-            const realHealth = gameState.stats.physical;
-            let resultDesc = "";
-            
-            // 根据健康值触发描述
-            if (realHealth > 150) {
-                resultDesc = "医生看着报告手在颤抖：‘这...这简直是人类进化奇迹！’（他默默记下了你的家庭住址）";
-            } else if (realHealth > 97) {
-                resultDesc = "身体素质极佳，甚至好得有点过分了。医生多看了你几眼。";
-            } else if (realHealth > 80) {
-                resultDesc = "非常健康，继续保持。";
-            } else if (realHealth < 40) {
-                resultDesc = "身体状况极差，建议立即办理住院手续，别在外面晃悠。";
-            } else {
-                resultDesc = "亚健康状态。医生说：‘少点外卖，多运动，不然下一个猝死的就是你。’";
+      actions: [
+        // 1. 动态生成常量中的医疗服务列表
+        ...HOSPITAL_SERVICES.map(service => ({
+          label: `${service.name} (¥${service.cost})`,
+          onClick: () => {
+            // 检查余额
+            if (gameState.stats.money < service.cost) {
+              addLog("余额不足。挂号处大妈面无表情地指了指门外的共享单车，示意你赶紧润。", "danger");
+              return;
             }
+            
+            // 扣费
+            updateStats({ money: -service.cost });
 
-            // 更新标记：得知真实健康值，并激活黑面包车风险
-            setGameState(prev => ({
-              ...prev,
-              flags: {
-                ...prev.flags,
-                lastCheckupDate: formatDateCN(prev.date),
-                knownHealth: realHealth,
-                // 只有体检了且属性极高，黑面包车才会盯上你
-                blackVanRisk: realHealth > 97 ? Math.max(prev.flags.blackVanRisk, 10) : 0
-              }
-            }));
+            // A. 如果是体检服务
+            if (service.id === 'checkup') {
+              const realHealth = gameState.stats.physical;
+              let resultDesc = "";
+              
+              if (realHealth > 150) resultDesc = "这肉体简直是人类进化奇迹！(医生悄悄拍了张你的照片发到了暗网)";
+              else if (realHealth > 97) resultDesc = "身体素质极佳。医生看你的眼神就像看一块极品五花肉。";
+              else if (realHealth < 40) resultDesc = "身体状况极差，建议直接去二楼尽头订个柜子，别费钱治了。";
+              else resultDesc = "典型的社畜体质：颈椎反弓、腰椎突出、重度脂肪肝。";
 
-            // 展示体检报告详情
-            showModal({
-              title: "体检审判书",
-              description: `【体质评分】：${realHealth} / 200\n【医生结论】：${resultDesc}\n${realHealth > 97 ? '⚠️ 注意：你的数据已被上传至机密数据库，最近小心陌生车辆。' : ''}`,
-              type: 'EVENT',
-              actions: [{ 
-                label: "我知道了", 
-                onClick: () => { 
-                    finishHospitalBlock(); // 推进时间
-                    closeModal(); 
-                } 
-              }]
-            });
-          } 
-          else {
-            // 处理药物、心理咨询、干细胞疗法等效果
-            if ((service as any).effect) {
+              // 激活数据与风险
+              setGameState(prev => ({
+                ...prev,
+                flags: {
+                  ...prev.flags,
+                  lastCheckupDate: formatDateCN(prev.date),
+                  knownHealth: realHealth,
+                  // SSR体质激活黑面包车风险 (基础10%)
+                  blackVanRisk: realHealth > 97 ? Math.max(prev.flags.blackVanRisk, 10) : 0
+                }
+              }));
+
+              showModal({
+                title: "体检审判书",
+                description: `【核心体质】：${realHealth} / 200\n【结论】：${resultDesc}\n${realHealth > 97 ? '⚠️ 注意：你已被列入“生物资产”重点观察名单。' : ''}`,
+                type: 'EVENT',
+                actions: [{ 
+                  label: "我知道了", 
+                  onClick: () => { finishHospitalBlock(); closeModal(); } 
+                }]
+              });
+            } 
+            // B. 正常治疗服务
+            else {
+              if ((service as any).effect) {
                 // @ts-ignore
                 updateStats(service.effect, `进行了【${service.name}】。`);
+              }
+              finishHospitalBlock();
+              closeModal();
             }
-            addLog(`完成了${service.name}，感觉身体状态有些许变化。`, "success");
-            finishHospitalBlock(); // 推进时间
-            closeModal();
           }
+        })),
+
+        // 2. 停尸间逻辑 (读取 LocalStorage)
+        {
+          label: "二楼尽头：停尸间",
+          style: 'secondary' as const,
+          onClick: () => {
+            const history = JSON.parse(localStorage.getItem('death_records') || '[]');
+            showModal({
+              title: "冰冷的金属柜",
+              description: history.length > 0 
+                ? `这里整齐地码放着 ${history.length} 个不愿透露姓名的“前辈”：\n\n` + 
+                  history.map((d: any, i: number) => `${i+1}. 【${d.name}】${d.profession}，${d.age}岁，死因：${d.reason}`).join('\n')
+                : "目前还没有人死在这里。但在这种环境下，这只是迟早的事。",
+              type: 'EVENT',
+              actions: [{ label: "赶紧离开", onClick: closeModal }]
+            });
+          }
+        },
+
+        // 3. 退出按钮
+        { 
+          label: "润了，治不起", 
+          onClick: closeModal, 
+          style: 'secondary' as const 
         }
-      }))
+      ]
     };
 
-    // 添加退出按钮
-    config.actions.push({ 
-        label: "润了，治不起", 
-        onClick: closeModal, 
-        style: 'secondary' 
-    });
-    config.actions.push({
-    label: "二楼尽头：停尸间",
-    onClick: () => {
-        const history = JSON.parse(localStorage.getItem('death_records') || '[]');
-        showModal({
-            title: "冰冷的储藏柜",
-            description: history.length > 0 
-                ? `这里整齐地码放着 ${history.length} 具社畜的遗体：\n\n` + 
-                  history.map((d: any) => `【${d.name}】${d.profession}，${d.age}岁，死于：${d.reason}`).join('\n')
-                : "目前还没有人死在这里，但这只是时间问题。",
-            type: 'EVENT',
-            actions: [{ label: "赶紧离开这鬼地方", onClick: closeModal }]
-        });
-    }
-});
-    // 打开医院菜单
+    // 开启弹窗并暂停游戏
     setGameState(prev => ({ ...prev, phase: 'MODAL_PAUSE', modal: config }));
   };
   // --- App 17: 主播剧情系统 (完整保留) ---
@@ -1572,9 +1566,9 @@ if (!isAlreadySick && Math.random() < sickChance) {
                                 <ActionBtn 
   label="去医院修仙" 
   icon={<Activity/>} 
-  onClick={handleHospitalVisit}
+  onClick={handleHospitalVisit} // 统一调用函数，不要在这里写 config
   color="teal" 
-  sub="甚至想挂个急诊" 
+  sub="查看体检与档案" 
 />
                                 <ActionBtn label="打开家庭中心" icon={<Home/>} onClick={() => setGameState(p => ({...p, showRelationshipPanel: true}))} color="zinc" sub="看娃/理财" />
                                 <ActionBtn label="做顿好的" icon={<Utensils/>} onClick={() => handleEat('COOK_MENU')} color="green" sub="大厨模式" />
