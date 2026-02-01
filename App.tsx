@@ -937,6 +937,10 @@ const finishWorkBlock = (finalPerformance: number) => {
                       label: "含泪坐回工位", 
                       onClick: () => {
                           // 加班扣属性，同时把钱加进去
+                        if (gameState.stats.physical < 30 && Math.random() < 0.3) {
+        triggerDeath(`【过劳死】凌晨两点，你眼前的Excel表格开始重叠，心脏传来一阵剧烈的刺痛。你试图呼救，但空荡荡的办公室只有自动饮水机加热的声音。（死因：长期极限加班导致的心源性猝死）`);
+        return;
+    }
                           updateStats({ 
                               money: earnedSalary, 
                               physical: -25, 
@@ -1087,7 +1091,15 @@ const finishWorkBlock = (finalPerformance: number) => {
     if (gameState.flags.hasHouse) debtLimit -= 1500000; // 有房可以欠更多
     if (gameState.stats.money < debtLimit) { triggerDeath("征信黑名单。你被列为失信被执行人，不仅坐不了高铁，连外卖都点不起了，绝望之下重开。"); return; }
     if (gameState.stats.physical <= 0) { triggerDeath("ICU一日游。长期996福报让你身体透支，为了那点窝囊费把命搭进去了。"); return; }
-    if (gameState.stats.mental <= 0) { triggerDeath("彻底疯了。你光着身子冲上大街高喊‘我没疯，我要上班’，最后被送进宛平南路600号。"); return; }
+    if (gameState.stats.mental <= 0) {
+    const socialDeaths = [
+        "你删除了所有社交软件，拉黑了所有人，在一个雨天走进了深山，再也没有出来。",
+        "你站在天台上看着霓虹灯火，觉得自己像一粒微不足道的灰尘。你决定跳下去，看看风的声音。",
+        "你彻底疯了，在地铁站对着每一个穿西装的人下跪乞讨，嘴里喊着：‘老板再给次机会吧。’"
+    ];
+    triggerDeath(`【精神崩溃】${socialDeaths[getRandomInt(0, 2)]}`); 
+    return; 
+}
     if (gameState.stats.satiety <= 0) { triggerDeath("饿死街头。在全面小康的时代，你凭实力把自己饿死了，也是一种本事。"); return; }
 
     // 4. 随机暴毙 (3% 概率)
@@ -1095,79 +1107,97 @@ const finishWorkBlock = (finalPerformance: number) => {
          triggerDeath(`【飞来横祸】${DAILY_ACCIDENTS[getRandomInt(0, DAILY_ACCIDENTS.length - 1)]}`); return;
     }
 
-    // --- 关键点：疾病触发判定 ---
-    // 逻辑：如果没有生病，且随机数 < 0.05 (5%概率)，或者身体极差时概率提升
-    const sickChance = gameState.stats.physical < 40 ? 0.2 : 0.05;
+// --- 找到 handleSleep 里的疾病触发判定并替换 ---
 
-    if (!gameState.flags.disease && Math.random() < sickChance) {
-         const disease = DISEASES[getRandomInt(0, DISEASES.length - 1)];
-         // 医保计算逻辑
-         const hasInsurance = gameState.flags.hasInsurance;
-         const actualAdmission = hasInsurance ? Math.floor(disease.admission * 0.3) : disease.admission;
-         const actualDaily = hasInsurance ? Math.floor(disease.daily * 0.3) : disease.daily;
-         const insuranceText = hasInsurance ? '(医保已报销)' : '(自费)';
+// 1. 计算动态生病概率 (基础概率 8% + 体力惩罚 + 年龄惩罚)
+const currentHealth = gameState.stats.physical;
+const currentAge = gameState.stats.age;
 
-         showModal({
-           title: "突发恶疾", 
-           description: `确诊【${disease.name}】。${disease.desc}\n需治疗费/押金: ¥${actualAdmission} ${insuranceText}`, 
-           type: 'DISEASE',
-           actions: [
-             { 
-                label: disease.days > 0 ? `办理住院 (需${disease.days}天)` : "门诊治疗", 
+// 基础病发率
+let sickChance = 0.08; 
+
+// 体力惩罚：体力越低，几率加成越高
+if (currentHealth < 120) sickChance += 0.10; // 亚健康状态
+if (currentHealth < 80)  sickChance += 0.20; // 虚弱状态
+if (currentHealth < 40)  sickChance += 0.40; // 濒死状态
+
+// 年龄惩罚：35岁后每10年增加 5% 概率
+if (currentAge > 35) sickChance += (currentAge - 35) * 0.005;
+
+// 2. 如果已经有病了，且体力还低，有 15% 几率恶化（触发更重的病）
+const isAlreadySick = !!gameState.flags.disease;
+
+if (!isAlreadySick && Math.random() < sickChance) {
+    // 触发新疾病
+    const disease = DISEASES[getRandomInt(0, DISEASES.length - 1)];
+    
+    // 如果体力极低，强制过滤掉“感冒”这种小病，直接上重病
+    const finalDisease = (currentHealth < 50 && disease.harm < 20) 
+        ? DISEASES.find(d => d.harm > 40) || disease 
+        : disease;
+
+    const hasInsurance = gameState.flags.hasInsurance;
+    const actualAdmission = hasInsurance ? Math.floor(finalDisease.admission * 0.3) : finalDisease.admission;
+    const actualDaily = hasInsurance ? Math.floor(finalDisease.daily * 0.3) : finalDisease.daily;
+
+    showModal({
+        title: "身体报警",
+        description: `【${finalDisease.name}】袭来！${finalDisease.desc}\n当前体力：${currentHealth}。医生叹了口气：‘再晚来几天就直接送火葬场了。’\n治疗押金：¥${actualAdmission}`,
+        type: 'DISEASE',
+        actions: [
+            { 
+                label: finalDisease.days > 0 ? `办理住院 (${finalDisease.days}天)` : "门诊开药", 
                 onClick: () => {
                     if (gameState.stats.money >= actualAdmission) {
                         updateStats({ money: -actualAdmission });
-                        
-                        // 【这里是进入住院状态的关键】
-                        if (disease.days > 0) {
-                             setGameState(prev => ({ 
-                                 ...prev, 
-                                 flags: { 
-                                     ...prev.flags, 
-                                     disease: disease.name, 
-                                     hospitalDays: disease.days, // 设置住院天数
-                                     hospitalDailyCost: actualDaily // 设置每日扣费
-                                 }, 
-                                 phase: 'SLEEP' // 保持在结算状态，等待 UI 渲染住院界面
-                             }));
-                             closeModal();
-                        } else {
-                             // 小病，治好就行
-                             closeModal();
+                        if (finalDisease.days > 0) {
+                            setGameState(prev => ({ 
+                                ...prev, 
+                                flags: { ...prev.flags, disease: finalDisease.name, hospitalDays: finalDisease.days, hospitalDailyCost: actualDaily },
+                                phase: 'SLEEP'
+                            }));
                         }
+                        closeModal();
                     } else {
-                        triggerDeath("没钱交押金，被保安扔出医院，病情恶化死在出租屋里。");
+                        triggerDeath("没钱交住院押金。你被医院保安劝离，最后死在了冰冷的地下室出租屋里。");
+                    }
+                }
+            },
+            {
+                label: "死硬抗 (不花这冤枉钱)",
+                onClick: () => {
+                    // 硬抗重病直接死，轻病掉上限
+                    if (finalDisease.harm > 40) {
+                        triggerDeath(`你试图通过‘喝热水’治愈【${finalDisease.name}】，结果在半夜由于脏器衰竭去世。`);
+                    } else {
+                        setGameState(prev => ({ ...prev, flags: { ...prev.flags, disease: finalDisease.name } }));
+                        updateStats({ physical: -20 }, "你选择了硬抗，身体留下了永久性损伤。");
+                        closeModal();
                     }
                 },
-                style: 'primary'
-             },
-             {
-                 label: "放弃治疗 (赌命)",
-                 onClick: () => {
-                     closeModal();
-                     // 重病放弃治疗直接死
-                     if (disease.harm > 30) triggerDeath(`放弃治疗【${disease.name}】，你在极度痛苦中离世。`);
-                     else {
-                         // 轻病硬抗，带病生存
-                         setGameState(prev => ({ ...prev, flags: { ...prev.flags, disease: disease.name } }));
-                         addLog(`你选择了硬抗【${disease.name}】，身体状况每况愈下。`, "danger");
-                     }
-                 }, style: 'secondary'
-             }
-           ]
-         });
-         return; // 触发疾病弹窗后，暂停后续结算
-    }
+                style: 'danger'
+            }
+        ]
+    });
+    return; // 触发疾病后中断后续结算
+}
 
     // 6. 子女成长逻辑
     handleChildLogic();
 
     // 7. 负债利息结算
     if (gameState.stats.debt > 0) {
-        const interest = Math.floor(gameState.stats.debt * 0.0005);
-        updateStats({ money: -interest });
-        addLog(`支付了今日房贷/车贷利息: ¥${interest}`, "warning");
+    const interest = Math.floor(gameState.stats.debt * 0.0005);
+    updateStats({ money: -interest });
+    
+    // 增加：暴力催收逻辑
+    if (gameState.stats.money < -50000) {
+        if (Math.random() < 0.1) {
+            triggerDeath("【暴力催收】你家门口被喷上了红漆，锁眼被堵死。深夜，几个壮汉闯入你的出租屋，把你塞进了后备箱。（死因：由于无法偿还巨额网贷，你被送往了东南亚某电诈园区）");
+            return;
+        }
     }
+}
 
     // 8. 正常结算与日期推进
     updateStats({ physical: 5, mental: 5, satiety: -20 });
