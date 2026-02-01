@@ -269,6 +269,9 @@ const triggerDeath = (reason: string) => {
       profession: prof,
       background: bg,
       playerName: playerName,
+      deathHistory: JSON.parse(localStorage.getItem('death_records') || '[]'), 
+      workPerformance: 0,
+      workRounds: 0,
       stats: startStats,
       phase: 'MORNING',
       date: new Date('2024-01-01T07:30:00'),
@@ -488,7 +491,7 @@ const doCook = (recipe: typeof RECIPES[0]) => {
       const { inventory } = prev.flags;
       const { needs } = recipe;
       
-      // 1. 检查食材是否足够 (逻辑：油检查 0.1，其他按原需求)
+      // 1. 检查食材是否足够 (油消耗 0.1，其他按原需求)
       const missingItems: string[] = [];
       Object.keys(needs).forEach(k => {
           const required = k === 'oil' ? 0.1 : (needs[k] || 0);
@@ -513,7 +516,6 @@ const doCook = (recipe: typeof RECIPES[0]) => {
       const newInv = { ...inventory };
       Object.keys(needs).forEach(k => {
           if (k === 'oil') {
-              // 每次用 0.1 桶，并解决 JS 精度问题
               newInv.oil = Math.max(0, parseFloat((newInv.oil - 0.1).toFixed(1)));
           } else {
               // @ts-ignore
@@ -521,19 +523,21 @@ const doCook = (recipe: typeof RECIPES[0]) => {
           }
       });
       
-      // 【核心修复】：油用光了，自动清除坏油标记
+      // 油用光了，自动清除坏油标记
       if (newInv.oil <= 0) {
           newInv.badOil = false;
       }
 
-      // 3. 煤油/坏油中毒判定
+      // 3. 中毒判定与数值平衡
       let healthHit = 0;
-      let logText = `你展示了精湛的厨艺，烹饪了【${recipe.name}】，色香味俱全！`;
+      // [数值优化]：自炊基础健康恢复 +15，精神恢复 +5
+      let healthRecover = (recipe.stats.health || 0) + 15;
+      let logText = `你展示了精湛的厨艺，烹饪了【${recipe.name}】。虽然洗碗很麻烦，但吃着自己做的饭，总算有了点活人的样子。`;
       let logType: LogEntry['type'] = 'success';
 
-      // 只要这桶油是坏的，且你还在用它做饭，每顿都扣血
       if (needs.oil && inventory.badOil) {
-           healthHit = 35; // 每次中毒扣 35 血
+           healthHit = 35; // 坏油中毒依然致命
+           healthRecover = 0; 
            logText = `【海克斯科技残留】这桶坏油还没用完！做出来的${recipe.name}有股刺鼻的煤油味，吃完你感觉胃部像被火烧一样。`;
            logType = 'danger';
       }
@@ -545,15 +549,12 @@ const doCook = (recipe: typeof RECIPES[0]) => {
       const currentHour = parseInt(prev.time.split(':')[0]);
 
       if (currentHour < 10) { 
-          // 早餐后 -> 上午工作/休息
           nextP = isWknd ? 'REST_AM' : 'WORK_AM';
           nextT = '08:30'; 
       } else if (currentHour >= 10 && currentHour <= 14) {
-          // 午餐后 -> 下午工作/休息
           nextP = isWknd ? 'REST_PM' : 'WORK_PM';
           nextT = '13:00';
       } else {
-          // 晚餐后 -> 自由时间
           nextP = 'FREE_TIME';
           nextT = '19:30';
       }
@@ -564,9 +565,8 @@ const doCook = (recipe: typeof RECIPES[0]) => {
           stats: { 
               ...prev.stats, 
               satiety: Math.min(100, prev.stats.satiety + recipe.stats.satiety),
-              mental: Math.min(100, prev.stats.mental + recipe.stats.mental),
-              // 扣除中毒伤害
-              physical: Math.max(0, prev.stats.physical + (recipe.stats.health || 0) - healthHit),
+              mental: Math.min(100, prev.stats.mental + recipe.stats.mental + 5), // 精神额外奖励
+              physical: Math.min(200, Math.max(0, prev.stats.physical + healthRecover - healthHit)),
               cookingSkill: (prev.stats.cookingSkill || 0) + 1
           },
           flags: { ...prev.flags, inventory: newInv },
@@ -576,7 +576,7 @@ const doCook = (recipe: typeof RECIPES[0]) => {
           log: [...prev.log, { id: Date.now(), text: logText, type: logType }]
       };
     });
-  };
+};
 // --- 休息日专属活动 (完善版) ---
   const handleRestDayActivity = (type: string) => {
       switch(type) {
@@ -876,21 +876,27 @@ const handleWork = () => {
 const handleWorkChoice = (type: 'SLACK' | 'HARD') => {
     const isHard = type === 'HARD';
     
-    // 1. 先扣除属性（即时更新）
+    // [数值优化]：内卷体力消耗 -12 -> -8，摸鱼体力消耗 0 -> +3
+    const pChange = isHard ? -8 : 3;
+    const mChange = isHard ? -8 : 8; // 摸鱼精神回更多
+    const sChange = -8; // 只要干活就饿
+
+    // 1. 立即更新基础数值
     updateStats({
-      physical: isHard ? -12 : -4,
-      mental: isHard ? -8 : 6,   // 摸鱼回神
-      satiety: -8
-    }, isHard ? "你疯狂内卷，试图引起老板的注意，但只引起了腰椎间盘的注意。" : "你熟练地切换到桌面背景，开启带薪摸鱼模式，精神得到了升华。");
+      physical: pChange,
+      mental: mChange,
+      satiety: sChange
+    }, isHard 
+       ? "你疯狂内卷，试图在老板面前表现，虽然腰椎隐隐作痛，但你觉得离升职又近了一步（其实并没有）。" 
+       : "你熟练地切换到桌面背景，开启带薪摸鱼模式，甚至在工位上偷偷做起了扩胸运动，精神得到了升华。");
 
     // 2. 更新表现和轮次
     setGameState(prev => {
       const newPerformance = (prev.workPerformance || 0) + (isHard ? 20 : -10);
       const newRounds = (prev.workRounds || 0) + 1;
 
-      // 如果达到3轮，执行结算
+      // 如果达到3轮，执行下班结算
       if (newRounds >= 3) {
-        // 使用 setTimeout 确保结算在当前 State 更新完成后触发
         setTimeout(() => finishWorkBlock(newPerformance), 50);
         return { 
           ...prev, 
@@ -905,20 +911,19 @@ const handleWorkChoice = (type: 'SLACK' | 'HARD') => {
         workPerformance: newPerformance 
       };
     });
-  };
+};
 
 const finishWorkBlock = (finalPerformance: number) => {
     setGameState(prev => {
-      // 判定是上午还是下午
       const isMorningShift = prev.phase === 'WORK_AM';
       
-      // 计算这一趟下来的工资：底薪 * 表现倍率 (表现0为100%，表现60为160%，表现-30为70%)
+      // 计算工资：底薪 * (1 + 表现倍率)
       const baseSalary = prev.profession?.salaryBase || 0;
       const performanceBonus = 1 + (finalPerformance / 100);
       const earnedSalary = Math.floor(baseSalary * performanceBonus);
 
       if (isMorningShift) {
-          // 上午下班：直接去吃饭，不领钱，不加班
+          // 上午下班：不领钱，去吃午饭
           return { 
               ...prev, 
               phase: 'LUNCH', 
@@ -926,40 +931,41 @@ const finishWorkBlock = (finalPerformance: number) => {
               log: [...prev.log, { id: Date.now(), text: ">>> 上午的任务勉强应付完了，领饭盒去！", type: 'info' }]
           };
       } else {
-          // 下午下班：领钱 + 判定加班
+          // 下午下班：判定加班文化
           const schedule = prev.profession?.schedule || '965';
           const isOvertimeCulture = schedule.includes('996') || schedule.includes('007');
-          // 概率设定：996职种85%概率加班，普通职种20%
           const overtimeChance = isOvertimeCulture ? 0.85 : 0.2;
           
           if (Math.random() < overtimeChance) {
               // --- 触发加班流程 ---
               showModal({
                   title: "【老板的夺命连环Call】",
-                  description: `你刚拎起包，老板发来语音：“那个方案，客户说要五彩斑斓的黑，今晚改不出来别走。” \n\n 今天的窝囊费 ¥${earnedSalary} 已在结算中。`,
+                  description: `你刚拎起包，老板发来语音：“那个方案，客户说要五彩斑斓的黑，今晚改不出来别走。” \n\n 今天的窝囊费 ¥${earnedSalary} 已入账。`,
                   type: 'WORK',
                   actions: [{ 
                       label: "含泪坐回工位", 
                       onClick: () => {
-                          // 加班扣属性，同时把钱加进去
-                        if (gameState.stats.physical < 30 && Math.random() < 0.3) {
-        triggerDeath(`【过劳死】凌晨两点，你眼前的Excel表格开始重叠，心脏传来一阵剧烈的刺痛。你试图呼救，但空荡荡的办公室只有自动饮水机加热的声音。（死因：长期极限加班导致的心源性猝死）`);
-        return;
-    }
+                          // 加班猝死判定
+                          if (gameState.stats.physical < 30 && Math.random() < 0.3) {
+                              triggerDeath(`【过劳死】凌晨两点，你眼前的Excel表格开始重叠，心脏传来一阵剧烈的刺痛。你试图呼救，但空荡荡的办公室只有自动饮水机加热的声音。`);
+                              return;
+                          }
+
+                          // [数值优化]：加班体力/精神消耗 -25 -> -15
                           updateStats({ 
                               money: earnedSalary, 
-                              physical: -25, 
-                              mental: -25, 
-                              satiety: -15 
+                              physical: -15, 
+                              mental: -15, 
+                              satiety: -10 
                           }, `你被迫加班到深夜。总算拿到了今天的 ¥${earnedSalary}。`);
                           
-                          // 强制推进时间到 22:45
+                          // 强制推进时间到深夜
                           setGameState(p => ({ ...p, phase: 'DINNER', time: '22:45' }));
                           closeModal();
                       } 
                   }]
               });
-              return prev; // 返回 prev 等待弹窗点击
+              return prev; 
           }
 
           // --- 正常下班流程 ---
@@ -972,7 +978,7 @@ const finishWorkBlock = (finalPerformance: number) => {
           };
       }
     });
-  };
+};
   const handleFreeTime = (action: string) => {
       switch(action) {
           case 'SPA': 
@@ -1418,7 +1424,7 @@ if (!isAlreadySick && Math.random() < sickChance) {
 
           {/* 档案列表 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {gameState.deathHistory.length > 0 ? (
+            {(gameState.deathHistory || []).length > 0 ? (
               gameState.deathHistory.map((d: any, i: number) => (
                 <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl relative overflow-hidden group hover:border-red-900/50 transition-all">
                   {/* 背景编号水印 */}
