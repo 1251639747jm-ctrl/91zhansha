@@ -34,10 +34,14 @@ const App: React.FC = () => {
   // --- 状态定义 ---
   const [tempAge, setTempAge] = useState(22);
   const [tempBg, setTempBg] = useState<FamilyBackground>(FAMILY_BACKGROUNDS[1]); 
-
+  const [playerName, setPlayerName] = useState("王小二");
   const [gameState, setGameState] = useState<GameState>({
     profession: null,
     background: null,
+    playerName: "未命名",
+    workPerformance: 0, // 工作表现，影响工资
+    workRounds: 0,      // 当前工作轮次
+    deathHistory: JSON.parse(localStorage.getItem('death_records') || '[]'), // 从本地读取死者档案
     stats: INITIAL_STATS,
     phase: 'START',
     date: new Date('2024-01-01T07:00:00'),
@@ -152,16 +156,26 @@ const App: React.FC = () => {
     }
   };
 
-  // --- 死亡触发器 ---
-  const triggerDeath = (reason: string) => {
+const triggerDeath = (reason: string) => {
+    // 保存死者档案
+    const newRecord = {
+        name: gameState.playerName,
+        age: gameState.stats.age,
+        profession: gameState.profession?.name,
+        reason: reason,
+        date: new Date().toLocaleDateString()
+    };
+    const history = JSON.parse(localStorage.getItem('death_records') || '[]');
+    localStorage.setItem('death_records', JSON.stringify([newRecord, ...history].slice(0, 5))); // 只保留最近5个
+
     setGameState(prev => ({ 
       ...prev, phase: 'MODAL_PAUSE',
       modal: {
         isOpen: true, type: 'DEATH', title: '人生重启', description: reason,
-        actions: [{ label: '投胎重开', onClick: () => setGameState({ ...gameState, phase: 'GAME_OVER', gameOverReason: reason, modal: { ...gameState.modal, isOpen: false } }), style: 'danger' }]
+        actions: [{ label: "接受命运", onClick: () => setGameState({ ...gameState, phase: 'GAME_OVER', gameOverReason: reason, modal: { ...gameState.modal, isOpen: false } }), style: 'danger' }]
       }
     }));
-  };
+};
 // --- 开局子女生成逻辑 ---
   const generateInitialChildren = (parentAge: number): Child[] => {
     const children: Child[] = [];
@@ -226,6 +240,7 @@ const App: React.FC = () => {
     setGameState({
       profession: prof,
       background: bg,
+      playerName: playerName,
       stats: startStats,
       phase: 'MORNING',
       date: new Date('2024-01-01T07:30:00'),
@@ -292,7 +307,21 @@ const finishHospitalBlock = () => {
             addLog("余额不足，保安把你赶出了医院，并叮嘱你没钱别来修仙。", "danger");
             return;
           }
-
+          // 在 HOSPITAL_SERVICES 增加一项或直接在 handleHospitalVisit 的 actions 里 push
+{
+  label: "二楼尽头：停尸间",
+  onClick: () => {
+    const history = JSON.parse(localStorage.getItem('death_records') || '[]');
+    showModal({
+      title: "冰冷的储藏柜",
+      description: history.length > 0 
+        ? `这里整齐地码放着 ${history.length} 具社畜的遗体：\n` + history.map((d:any) => `【${d.name}】${d.profession}，${d.age}岁，死于：${d.reason}`).join('\n')
+        : "目前还没有人死在这里，但这只是时间问题。",
+      type: 'EVENT',
+      actions: [{ label: "赶紧离开这鬼地方", onClick: closeModal }]
+    });
+  }
+}
           // 2. 扣费
           updateStats({ money: -service.cost });
 
@@ -436,94 +465,98 @@ const finishHospitalBlock = () => {
       });
   };
 
-// --- 核心烹饪逻辑：含坏油物理清除与时间精准跳转 ---
-  const doCook = (recipe: typeof RECIPES[0]) => {
+const doCook = (recipe: typeof RECIPES[0]) => {
     setGameState(prev => {
-        const { inventory } = prev.flags;
-        const { needs } = recipe;
-        
-        // 1. 检查食材是否足够
-        const missingItems: string[] = [];
-        Object.keys(needs).forEach(k => {
-            // @ts-ignore
-            if ((inventory[k] || 0) < (needs[k] || 0)) {
-                missingItems.push(k);
-            }
-        });
+      const { inventory } = prev.flags;
+      const { needs } = recipe;
+      
+      // 1. 检查食材是否足够 (逻辑：油检查 0.1，其他按原需求)
+      const missingItems: string[] = [];
+      Object.keys(needs).forEach(k => {
+          const required = k === 'oil' ? 0.1 : (needs[k] || 0);
+          // @ts-ignore
+          if ((inventory[k] || 0) < required) {
+              missingItems.push(k);
+          }
+      });
 
-        if (missingItems.length > 0) {
-            return {
-                ...prev,
-                modal: { 
-                    ...prev.modal, 
-                    title: "食材不足", 
-                    description: `做【${recipe.name}】还缺：${missingItems.join(', ')}\n当前库存: 油${inventory.oil} 米${inventory.rice} 蔬${inventory.veggies} 肉${inventory.meat}` 
-                }
-            };
-        }
+      if (missingItems.length > 0) {
+          return {
+              ...prev,
+              modal: { 
+                  ...prev.modal, 
+                  title: "食材不足", 
+                  description: `做【${recipe.name}】还缺：${missingItems.join(', ')}\n当前油量: ${inventory.oil.toFixed(1)} 桶` 
+              }
+          };
+      }
 
-        // 2. 扣除食材库存
-        const newInv = { ...inventory };
-        Object.keys(needs).forEach(k => {
-            // @ts-ignore
-            newInv[k] -= needs[k];
-        });
-        
-        // 【核心修复点】：如果油用光了，必须强制重置坏油状态，防止污染下一桶好油
-        if (newInv.oil <= 0) {
-            newInv.badOil = false;
-        }
+      // 2. 扣除食材库存
+      const newInv = { ...inventory };
+      Object.keys(needs).forEach(k => {
+          if (k === 'oil') {
+              // 每次用 0.1 桶，并解决 JS 精度问题
+              newInv.oil = Math.max(0, parseFloat((newInv.oil - 0.1).toFixed(1)));
+          } else {
+              // @ts-ignore
+              newInv[k] -= needs[k];
+          }
+      });
+      
+      // 【核心修复】：油用光了，自动清除坏油标记
+      if (newInv.oil <= 0) {
+          newInv.badOil = false;
+      }
 
-        // 3. 煤油中毒判定逻辑
-        let healthHit = 0;
-        let logText = `烹饪了【${recipe.name}】，色香味俱全！`;
-        let logType: LogEntry['type'] = 'success';
+      // 3. 煤油/坏油中毒判定
+      let healthHit = 0;
+      let logText = `你展示了精湛的厨艺，烹饪了【${recipe.name}】，色香味俱全！`;
+      let logType: LogEntry['type'] = 'success';
 
-        // 只有当食谱需要油，且当前库存的油是坏的时候才触发
-        if (needs.oil && inventory.badOil) {
-             healthHit = 40; 
-             logText = `【海克斯科技】做好的${recipe.name}有一股刺鼻的煤油味！为了不浪费钱你含泪吃下，感觉胃里像有刀在割。`;
-             logType = 'danger';
-        }
+      // 只要这桶油是坏的，且你还在用它做饭，每顿都扣血
+      if (needs.oil && inventory.badOil) {
+           healthHit = 35; // 每次中毒扣 35 血
+           logText = `【海克斯科技残留】这桶坏油还没用完！做出来的${recipe.name}有股刺鼻的煤油味，吃完你感觉胃部像被火烧一样。`;
+           logType = 'danger';
+      }
 
-        // 4. 精准时间跳转逻辑 (修复跳过时段问题)
-        let nextP = prev.phase; 
-        let nextT = prev.time;
-        const isWknd = isWeekend(prev.date, prev.profession?.schedule || '965');
-        
-        // 基于小时数判定当前属于哪个餐次
-        const currentHour = parseInt(prev.time.split(':')[0]);
+      // 4. 精准时间跳转逻辑
+      let nextP = prev.phase; 
+      let nextT = prev.time;
+      const isWknd = isWeekend(prev.date, prev.profession?.schedule || '965');
+      const currentHour = parseInt(prev.time.split(':')[0]);
 
-        if (currentHour < 10) { 
-            // 早餐结束 (07:xx -> 08:30)
-            nextP = isWknd ? 'REST_AM' : 'WORK_AM';
-            nextT = '08:30'; 
-        } else if (currentHour >= 10 && currentHour <= 14) {
-            // 午餐结束 (12:xx -> 13:00)
-            nextP = isWknd ? 'REST_PM' : 'WORK_PM';
-            nextT = '13:00';
-        } else {
-            // 晚餐结束 (18:xx -> 19:30)
-            nextP = 'FREE_TIME';
-            nextT = '19:30';
-        }
+      if (currentHour < 10) { 
+          // 早餐后 -> 上午工作/休息
+          nextP = isWknd ? 'REST_AM' : 'WORK_AM';
+          nextT = '08:30'; 
+      } else if (currentHour >= 10 && currentHour <= 14) {
+          // 午餐后 -> 下午工作/休息
+          nextP = isWknd ? 'REST_PM' : 'WORK_PM';
+          nextT = '13:00';
+      } else {
+          // 晚餐后 -> 自由时间
+          nextP = 'FREE_TIME';
+          nextT = '19:30';
+      }
 
-        // 5. 返回新状态
-        return {
-            ...prev,
-            stats: { 
-                ...prev.stats, 
-                satiety: Math.min(100, prev.stats.satiety + recipe.stats.satiety),
-                mental: Math.min(100, prev.stats.mental + recipe.stats.mental),
-                physical: Math.min(200, prev.stats.physical + (recipe.stats.health || 0) - healthHit),
-                cookingSkill: (prev.stats.cookingSkill || 0) + 1
-            },
-            flags: { ...prev.flags, inventory: newInv },
-            phase: nextP,
-            time: nextT,
-            modal: { ...prev.modal, isOpen: false }, // 关闭做饭菜单
-            log: [...prev.log, { id: Date.now(), text: logText, type: logType }]
-        };
+      // 5. 更新状态
+      return {
+          ...prev,
+          stats: { 
+              ...prev.stats, 
+              satiety: Math.min(100, prev.stats.satiety + recipe.stats.satiety),
+              mental: Math.min(100, prev.stats.mental + recipe.stats.mental),
+              // 扣除中毒伤害
+              physical: Math.max(0, prev.stats.physical + (recipe.stats.health || 0) - healthHit),
+              cookingSkill: (prev.stats.cookingSkill || 0) + 1
+          },
+          flags: { ...prev.flags, inventory: newInv },
+          phase: nextP,
+          time: nextT,
+          modal: { ...prev.modal, isOpen: false }, 
+          log: [...prev.log, { id: Date.now(), text: logText, type: logType }]
+      };
     });
   };
 // --- 休息日专属活动 (完善版) ---
@@ -577,7 +610,7 @@ const finishHospitalBlock = () => {
   const getKitchenModalConfig = (inv: any, money: number): Omit<ModalConfig, 'isOpen'> => {
       return {
           title: "自家厨房 & 菜市场",
-          description: `资金: ¥${money}\n库存：油x${inv.oil} ${inv.badOil?'(疑)':''} | 米面x${inv.rice} | 蔬x${inv.veggies} | 肉x${inv.meat} | 料x${inv.seasoning}`,
+          description: `资金: ¥${money}\n库存：油x${inv.oil.toFixed(1)} ${inv.badOil?'(有怪味)':''} | 米面x${inv.rice} | 蔬x${inv.veggies} | 肉x${inv.meat}`,
           type: 'EVENT',
           actions: [
               ...INGREDIENTS_SHOP.map(ing => ({ label: `买${ing.name} (¥${ing.cost})`, onClick: () => buyIngredient(ing), style: 'secondary' as const })),
@@ -819,74 +852,83 @@ buyCar: () => {
      });
   };
 
-  // --- 工作与时间逻辑 ---
-// --- 工作处理逻辑 ---
-  const handleWork = () => {
-    if (!gameState.profession) return;
-    const { stressFactor, healthRisk } = gameState.profession;
-    const profEvent = (JOB_EVENTS as any)[gameState.profession.id];
+const handleWorkChoice = (type: 'SLACK' | 'HARD') => {
+  setGameState(prev => {
+    const isHard = type === 'HARD';
+    const newPerformance = prev.workPerformance + (isHard ? 20 : -10);
+    const newRounds = prev.workRounds + 1;
     
-    // 30% 几率触发社畜专属破事
-    if (profEvent && Math.random() < 0.3) {
-        const event = profEvent[getRandomInt(0, profEvent.length - 1)];
-        showModal({
-            title: event.title, 
-            description: event.desc, 
-            type: 'WORK',
-            actions: event.options.map((opt: any) => ({
-                label: opt.text,
-                onClick: () => { 
-                    // 1. 更新数值
-                    updateStats(opt.changes, "面对职场PUA，你做出了选择。"); 
-                    // 2. 关闭弹窗
-                    closeModal(); 
-                    // 3. 执行时间推进
-                    finishWorkBlock();
-                }
-            }))
-        });
-    } else {
-        // 普通搬砖逻辑
-        const profLog = (JOB_LOGS as any)[gameState.profession.id] || ["枯燥的工作..."];
-        const desc = profLog[getRandomInt(0, profLog.length - 1)];
-        const actualRisk = healthRisk + (gameState.flags.disease ? 8 : 0); 
-        
-        // 更新属性
-        updateStats({ physical: -actualRisk, mental: -stressFactor, satiety: -15 }, desc);
-        // 执行时间推进
-        finishWorkBlock();
-    }
-  };
-
-// --- 搬砖结算逻辑 (修复跳转Bug，加入时间感知) ---
-  const finishWorkBlock = () => {
-    setGameState(prev => {
-        // 【核心修复点】：判定是“上午搬砖”还是“下午搬砖”
-        // 逻辑：如果当前 phase 是 WORK_AM，或者当前时间是早上 09:00（即便在弹窗暂停状态）
-        const isMorningShift = prev.phase === 'WORK_AM' || prev.time.includes('09');
-
-        if (isMorningShift) {
-            // 上午搬砖结束 -> 去吃午饭
-            return { 
-                ...prev, 
-                phase: 'LUNCH', 
-                time: '12:00',
-                log: [...prev.log, { id: Date.now(), text: ">>> 上午的砖搬完了，腰酸背痛，该去吃午饭续命了。", type: 'info' }]
-            };
-        } else {
-            // 下午搬砖结束 -> 结算工资 -> 进入晚餐阶段
-            const salary = (prev.profession?.salaryBase || 0) + getRandomInt(-50, 50); 
-            const newMoney = prev.stats.money + salary;
-            return { 
-                ...prev, 
-                stats: { ...prev.stats, money: newMoney },
-                phase: 'DINNER', 
-                time: '18:30',
-                log: [...prev.log, { id: Date.now(), text: `【下班】今天的窝囊费 ¥${salary} 已到账，又是为资本家法拉利添砖加瓦的一天。`, type: 'success' }]
-            };
-        }
+    // 每一轮工作的消耗
+    updateStats({
+      physical: isHard ? -15 : -5,
+      mental: isHard ? -10 : 5, // 摸鱼可以回神
+      satiety: -10
     });
-  };
+
+    if (newRounds >= 3) {
+      // 工作结束，进入结算逻辑
+      finishWorkBlock(newPerformance);
+      return { ...prev, workRounds: 0, workPerformance: 0 };
+    }
+    
+    return { ...prev, workRounds: newRounds, workPerformance: newPerformance };
+  });
+};
+
+// 在 UI 操作板中显示
+{gameState.phase.includes('WORK') && (
+    <div className="col-span-full grid grid-cols-2 gap-4 bg-zinc-800 p-6 rounded-xl border-2 border-yellow-600/50">
+        <div className="col-span-full text-center mb-2 font-bold text-yellow-500">
+            正在工作中 (第 {gameState.workRounds + 1}/3 阶段)
+        </div>
+        <button onClick={() => handleWorkChoice('HARD')} className="py-8 bg-red-900/40 border border-red-500 text-white rounded-lg hover:bg-red-800/60 transition-all">
+            <p className="font-bold">疯狂内卷</p>
+            <p className="text-[10px] opacity-60">表现+20 | 体力-15 | 精神-10</p>
+        </button>
+        <button onClick={() => handleWorkChoice('SLACK')} className="py-8 bg-green-900/40 border border-green-500 text-white rounded-lg hover:bg-green-800/60 transition-all">
+            <p className="font-bold">带薪摸鱼</p>
+            <p className="text-[10px] opacity-60">表现-10 | 体力-5 | 精神+5</p>
+        </button>
+    </div>
+)}
+
+const finishWorkBlock = (finalPerformance: number) => {
+  setGameState(prev => {
+    const isMorningShift = prev.phase === 'WORK_AM';
+    if (isMorningShift) {
+        return { ...prev, phase: 'LUNCH', time: '12:00' };
+    } else {
+        // 下午下班结算
+        const schedule = prev.profession?.schedule || '965';
+        const isOvertimeCulture = schedule.includes('996') || schedule.includes('007');
+        const overtimeChance = isOvertimeCulture ? 0.8 : 0.2;
+        
+        const salary = Math.floor((prev.profession?.salaryBase || 0) * (1 + finalPerformance/100));
+
+        if (Math.random() < overtimeChance) {
+            // 触发加班
+            showModal({
+                title: "老板推门而入",
+                description: "‘大家先别走，简单开个复盘会。’ 这个会一开就是4个小时，且没有加班费。",
+                type: 'WORK',
+                actions: [{ label: "福报，都是福报", onClick: () => {
+                    updateStats({ physical: -20, mental: -20 }, "无偿加班结束，你走出大楼时看到了凌晨的星光。");
+                    setGameState(p => ({ ...p, phase: 'DINNER', time: '22:30', stats: {...p.stats, money: p.stats.money + salary} }));
+                    closeModal();
+                }}]
+            });
+            return prev;
+        }
+
+        return { 
+            ...prev, 
+            stats: { ...prev.stats, money: prev.stats.money + salary },
+            phase: 'DINNER', 
+            time: '18:30'
+        };
+    }
+  });
+};
   const handleFreeTime = (action: string) => {
       switch(action) {
           case 'SPA': 
@@ -1217,7 +1259,16 @@ buyCar: () => {
                  <span className="text-xs text-zinc-500 mt-1">{tempBg.desc}</span>
             </div>
           </div>
-
+          <div className="mb-8 max-w-xs mx-auto text-center">
+              <label className="text-zinc-500 text-[10px] block mb-2 uppercase tracking-widest font-bold">档案姓名 / Name</label>
+              <input 
+                  type="text" 
+                  value={playerName} 
+                  onChange={(e) => setPlayerName(e.target.value.slice(0, 8))} // 限制8个字
+                  placeholder="输入你的牛马编号"
+                  className="w-full bg-black border-2 border-zinc-700 p-3 text-center text-xl font-bold text-white focus:border-red-500 outline-none transition-all rounded-lg"
+              />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.values(PROFESSIONS).map((p: any) => {
               const isEligible = tempAge >= (p.minAge || 0) && tempAge <= (p.maxAge || 100);
@@ -1245,24 +1296,28 @@ buyCar: () => {
 
   // --- UI: 游戏结束 ---
   if (gameState.phase === 'GAME_OVER') {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-black text-white p-4 font-mono">
-            <div className="text-center max-w-xl w-full">
-                <h1 className="text-6xl font-black text-red-600 mb-6 tracking-[0.2em] uppercase">TERMINATED</h1>
-                <div className="bg-red-950/20 p-8 rounded-xl border border-red-900/50 mb-8 backdrop-blur relative overflow-hidden">
-                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-600 to-transparent opacity-50"></div>
-                     <p className="text-zinc-500 text-xs uppercase mb-2">生存记录</p>
-                     <p className="text-4xl font-bold mb-6 text-white">{gameState.stats.age} 岁</p>
-                     <p className="text-zinc-500 text-xs uppercase mb-2">销户原因</p>
-                     <p className="text-xl text-red-400 font-bold leading-relaxed">{gameState.gameOverReason}</p>
-                </div>
-                <button onClick={() => window.location.reload()} className="bg-zinc-800 px-8 py-4 rounded-full border border-zinc-700 hover:bg-zinc-700 hover:border-white transition-all flex items-center justify-center mx-auto text-sm font-bold tracking-widest uppercase">
-                    <RotateCcw className="w-4 h-4 mr-2" /> Restart System
-                </button>
-            </div>
+  return (
+    <div className="min-h-screen bg-red-900/40 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="text-center animate-in zoom-in duration-300">
+        <h1 className="text-8xl font-black text-red-600 mb-8 drop-shadow-[0_5px_5px_rgba(0,0,0,1)] tracking-tighter shadow-black">
+          你死了！
+        </h1>
+        <div className="bg-black/80 p-8 border-4 border-zinc-700 max-w-lg mx-auto text-left font-mono">
+          <p className="text-yellow-400 mb-2">【 档案编号：#00{gameState.deathHistory.length} 】</p>
+          <p className="text-white text-xl mb-1">姓名：{gameState.playerName}</p>
+          <p className="text-white text-xl mb-1">职业：{gameState.profession?.name}</p>
+          <p className="text-white text-xl mb-1">生存至：{gameState.stats.age} 岁</p>
+          <p className="text-red-400 text-lg mt-4 font-bold">原因：{gameState.gameOverReason}</p>
         </div>
-      )
-  }
+        <div className="mt-10 space-y-4">
+          <button onClick={() => window.location.reload()} className="w-64 py-3 bg-zinc-800 border-2 border-zinc-600 text-white hover:bg-zinc-700 transition-all font-bold">
+            回到主菜单
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
   // --- UI: 主游戏界面 ---
   return (
