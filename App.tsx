@@ -158,7 +158,6 @@ const App: React.FC = () => {
   };
 
 const triggerDeath = (reason: string) => {
-    // 保存死者档案
     const newRecord = {
         name: gameState.playerName,
         age: gameState.stats.age,
@@ -167,13 +166,25 @@ const triggerDeath = (reason: string) => {
         date: new Date().toLocaleDateString()
     };
     const history = JSON.parse(localStorage.getItem('death_records') || '[]');
-    localStorage.setItem('death_records', JSON.stringify([newRecord, ...history].slice(0, 5))); // 只保留最近5个
+    const updatedHistory = [newRecord, ...history].slice(0, 5);
+    localStorage.setItem('death_records', JSON.stringify(updatedHistory));
 
     setGameState(prev => ({ 
-      ...prev, phase: 'MODAL_PAUSE',
+      ...prev, 
+      deathHistory: updatedHistory, // 同步更新内存中的历史记录
+      phase: 'MODAL_PAUSE',
       modal: {
         isOpen: true, type: 'DEATH', title: '人生重启', description: reason,
-        actions: [{ label: "接受命运", onClick: () => setGameState({ ...gameState, phase: 'GAME_OVER', gameOverReason: reason, modal: { ...gameState.modal, isOpen: false } }), style: 'danger' }]
+        actions: [{ 
+          label: "接受命运", 
+          onClick: () => setGameState(p => ({ 
+            ...p, 
+            phase: 'GAME_OVER', 
+            gameOverReason: reason, 
+            modal: { ...p.modal, isOpen: false } 
+          })), 
+          style: 'danger' 
+        }]
       }
     }));
 };
@@ -1011,7 +1022,7 @@ const finishWorkBlock = (finalPerformance: number) => {
     triggerDeath(`【医疗事故】${accidents[getRandomInt(0, accidents.length - 1)]}`);
     return;
 }
-    const { hospitalDailyCost, partner, children } = gameState.flags;
+    const { hospitalDays, hospitalDailyCost, partner, children } = gameState.flags;
     const currentMoney = gameState.stats.money;
 
     // --- 新增：拔氧气罐判定 ---
