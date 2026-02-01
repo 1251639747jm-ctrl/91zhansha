@@ -101,35 +101,35 @@ export const POTENTIAL_PARTNERS: Partner[] = [
 
 // --- 5. 厨房与食谱 ---
 export const INGREDIENTS_SHOP = [
-  { id: 'oil', name: '食用油', cost: 60, desc: '注意辨别是否为罐车混装油。' },
-  { id: 'rice', name: '大米/面条', cost: 10, desc: '碳水来源。' },
-  { id: 'veggies', name: '时令蔬菜', cost: 15, desc: '补充维生素。' },
-  { id: 'meat', name: '打折猪肉', cost: 35, desc: '补充蛋白质。' },
-  { id: 'seasoning', name: '油盐酱醋', cost: 20, desc: '生活总得带点味。' }
+  { id: 'oil', name: '食用油', cost: 20, desc: '注意辨别是否为罐车混装油。' },
+  { id: 'rice', name: '大米/面条', cost: 5, desc: '碳水来源。' },
+  { id: 'veggies', name: '时令蔬菜', cost: 5, desc: '补充维生素。' },
+  { id: 'meat', name: '打折猪肉', cost: 15, desc: '补充蛋白质。' },
+  { id: 'seasoning', name: '油盐酱醋', cost: 8, desc: '生活总得带点味。' }
 ];
 
 export const RECIPES = [
   { 
     id: 'fried_rice', name: '黄金蛋炒饭', 
-    needs: { rice: 1, oil: 1, seasoning: 1 }, 
+    needs: { rice: 1, oil: 0.1, seasoning: 1 }, 
     stats: { satiety: 35, mental: 5, health: 0 },
     desc: "虽然只有蛋，但它是金色的。"
   },
   { 
     id: 'stir_fry_veg', name: '清炒时蔬', 
-    needs: { veggies: 2, oil: 1, seasoning: 1 }, 
+    needs: { veggies: 2, oil: 0.1, seasoning: 1 }, 
     stats: { satiety: 25, mental: 5, health: 8 },
     desc: "很多油的健康饮食。"
   },
   { 
     id: 'pork_stew', name: '红烧肉', 
-    needs: { meat: 2, oil: 1, seasoning: 1, rice: 1 }, 
+    needs: { meat: 2, oil: 0.1, seasoning: 1, rice: 1 }, 
     stats: { satiety: 70, mental: 25, health: 2 },
     desc: "狠狠犒劳自己一顿！软糯香甜。"
   },
   { 
     id: 'luxury_combo', name: '四菜一汤', 
-    needs: { meat: 2, veggies: 2, rice: 1, oil: 1, seasoning: 1 }, 
+    needs: { meat: 2, veggies: 2, rice: 1, oil: 0.1, seasoning: 1 }, 
     stats: { satiety: 90, mental: 35, health: 10 },
     desc: "仿佛回到了过年，妈妈的味道。"
   }
