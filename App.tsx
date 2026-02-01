@@ -1150,7 +1150,7 @@ buyCar: () => {
           updateStats({ satiety: -15, mental: -10, physical: -5 }, "光合作用失败。你决定修仙不吃饭，省下的30块钱离法拉利又近了一步。");
       }
       else if (type === 'TAKEOUT') {
-          updateStats({ money: -30, satiety: 40, physical: -2 }, "吃了份拼好饭。虽然是海克斯科技预制菜，但僵尸肉的口感让你感到了活着的尊严。");
+          updateStats({ money: -10, satiety: 40, physical: -2 }, "吃了份拼好饭。虽然是海克斯科技预制菜，但僵尸肉的口感让你感到了活着的尊严。");
       }
       else if (type === 'COOK_MENU') {
           // 仅打开菜单，不做时间跳转，跳转在 doCook 中处理
@@ -1338,7 +1338,7 @@ buyCar: () => {
                         {/* 2. 饮食按钮 */}
                         {(gameState.phase === 'MORNING' || gameState.phase === 'LUNCH' || gameState.phase === 'DINNER') && (
                             <>
-                                <ActionBtn label="拼好饭" icon={<ShoppingBag/>} onClick={() => handleEat('TAKEOUT')} color="orange" sub="-¥30 | 也是吃上饭了" />
+                                <ActionBtn label="拼好饭" icon={<ShoppingBag/>} onClick={() => handleEat('TAKEOUT')} color="orange" sub="-¥10 | 也是吃上饭了" />
                                 <ActionBtn label="小当家模式" icon={<Utensils/>} onClick={() => handleEat('COOK_MENU')} color="green" sub="科技与狠活" />
                                 <ActionBtn label="修仙(不吃)" icon={<XCircle/>} onClick={() => handleEat('SKIP')} color="red" sub="光合作用" />
                             </>
