@@ -100,18 +100,19 @@ const App: React.FC = () => {
 
     // 如果当前是因为弹窗暂停了，我们需要根据时间恢复到对应的操作阶段
     if (prev.phase === 'MODAL_PAUSE') {
+      // 只有在 hospitalDays 大于 0（即真正办理了住院手续）时才强制 SLEEP
+      // 否则根据时间恢复阶段
       if (prev.flags.hospitalDays > 0) {
-        nextPhase = 'SLEEP'; // 住院强制睡觉
+        nextPhase = 'SLEEP';
       } else if (prev.time.includes('23')) {
         nextPhase = 'SLEEP';
-      } else if (prev.time.includes('07')) {
-        nextPhase = 'MORNING'; // 增加早上的判定
+      } else if (prev.time.includes('07') || prev.time.includes('08')) {
+        nextPhase = 'MORNING';
       } else if (prev.time.includes('12')) {
         nextPhase = 'LUNCH';
       } else if (prev.time.includes('18')) {
         nextPhase = 'DINNER';
       } else {
-        // 如果都不是，保持原样或者根据当前 phase 的逻辑走
         nextPhase = 'FREE_TIME'; 
       }
     }
@@ -217,6 +218,7 @@ const triggerDeath = (reason: string) => {
     return children;
   };
   const startGame = (profType: ProfessionType) => {
+    const finalAge = tempAge; // 锁定当前看到的年龄
     const prof = PROFESSIONS[profType];
     const bg = tempBg;
     
@@ -234,9 +236,9 @@ const triggerDeath = (reason: string) => {
         satiety: Math.max(30, Math.min(100, (INITIAL_STATS.satiety + (bg.statModifier.satiety || 0)))),
         money: startMoney, 
         debt: startDebt, 
-        age: tempAge 
+        age: finalAge 
     };
-    const initialChildren = generateInitialChildren(tempAge);
+    const initialChildren = generateInitialChildren(finalAge);
     setGameState({
       profession: prof,
       background: bg,
@@ -246,7 +248,7 @@ const triggerDeath = (reason: string) => {
       date: new Date('2024-01-01T07:30:00'),
       time: '07:30',
       log: [
-        { id: 1, text: `>>> 档案载入完毕。年龄：${tempAge}岁。身份：${prof.name}。背景：${bg.name}。`, type: 'info' },
+        { id: 1, text: `>>> 档案载入完毕。年龄：${finalAge}岁。身份：${prof.name}。背景：${bg.name}。`, type: 'info' },
             ...(initialChildren.length > 0 ? [{ 
               id: 2, 
               text: `>>> 发现家庭档案：你已有 ${initialChildren.length} 个孩子需要抚养，碎钞机已启动。`, 
@@ -616,17 +618,17 @@ const doCook = (recipe: typeof RECIPES[0]) => {
               ...INGREDIENTS_SHOP.map(ing => ({ label: `买${ing.name} (¥${ing.cost})`, onClick: () => buyIngredient(ing), style: 'secondary' as const })),
               ...RECIPES.map(recipe => ({ label: `做【${recipe.name}】`, onClick: () => doCook(recipe), style: 'primary' as const })),
             { 
-        label: "倒掉剩下的油", 
-        onClick: () => {
-            setGameState(prev => ({
-                ...prev,
-                flags: { ...prev.flags, inventory: { ...prev.flags.inventory, oil: 0, badOil: false } }
-            }));
-            addLog("你把怀疑有问题的油全部倒进了下水道，虽然心疼钱，但保命要紧。", "warning");
-            closeModal();
-        }, 
-        style: 'danger' as const 
-    },
+    label: "倒掉剩下的油", 
+    onClick: () => {
+        setGameState(prev => ({
+            ...prev,
+            flags: { ...prev.flags, inventory: { ...prev.flags.inventory, oil: 0, badOil: false } }
+        }));
+        addLog("你把那桶散发着煤油味的毒药倒进了下水道，感觉呼吸都顺畅了。", "warning");
+        closeModal();
+    }, 
+    style: 'danger' 
+},
               { label: "离开", onClick: closeModal, style: 'secondary' as const }
           ]
       };
@@ -851,113 +853,106 @@ buyCar: () => {
        return { ...prev, flags: { ...prev.flags, partner: { ...currentPartner, affection: newDisplay, realAffection: newReal } } };
      });
   };
-  const handleWork = () => {
-    setGameState(prev => ({ ...prev, workRounds: 1 })); // 这里从 0 改成 1
-    addLog("开始进入工位，打开打卡机，准备接受福报...", "info");
-};
+const handleWork = () => {
+      setGameState(prev => ({ ...prev, workRounds: 1 }));
+      addLog("你坐在了工位上，感受着空气中弥漫的PUA气息，工作开始了。", "info");
+  };
 const handleWorkChoice = (type: 'SLACK' | 'HARD') => {
-  setGameState(prev => {
     const isHard = type === 'HARD';
-    // 累加工作表现
-    const newPerformance = (prev.workPerformance || 0) + (isHard ? 20 : -10);
-    const newRounds = prev.workRounds + 1;
     
-    // 即时扣除体力
+    // 1. 先扣除属性（即时更新）
     updateStats({
-      physical: isHard ? -15 : -5,
-      mental: isHard ? -10 : 5,
+      physical: isHard ? -12 : -4,
+      mental: isHard ? -8 : 6,   // 摸鱼回神
       satiety: -8
+    }, isHard ? "你疯狂内卷，试图引起老板的注意，但只引起了腰椎间盘的注意。" : "你熟练地切换到桌面背景，开启带薪摸鱼模式，精神得到了升华。");
+
+    // 2. 更新表现和轮次
+    setGameState(prev => {
+      const newPerformance = (prev.workPerformance || 0) + (isHard ? 20 : -10);
+      const newRounds = (prev.workRounds || 0) + 1;
+
+      // 如果达到3轮，执行结算
+      if (newRounds >= 3) {
+        // 使用 setTimeout 确保结算在当前 State 更新完成后触发
+        setTimeout(() => finishWorkBlock(newPerformance), 50);
+        return { 
+          ...prev, 
+          workRounds: 0, 
+          workPerformance: 0 
+        };
+      }
+
+      return { 
+        ...prev, 
+        workRounds: newRounds, 
+        workPerformance: newPerformance 
+      };
     });
-
-    if (newRounds >= 3) {
-      // 达到3轮后，重置轮次并去结算
-      finishWorkBlock(newPerformance); 
-      return { ...prev, workRounds: 0, workPerformance: 0 };
-    }
-    
-    return { ...prev, workRounds: newRounds, workPerformance: newPerformance };
-  });
-};
-
-// 在 UI 操作板中显示
-{gameState.phase.includes('WORK') && (
-    <div className="col-span-full grid grid-cols-2 gap-4 bg-zinc-800 p-6 rounded-xl border-2 border-yellow-600/50">
-        <div className="col-span-full text-center mb-2 font-bold text-yellow-500">
-            正在工作中 (第 {gameState.workRounds + 1}/3 阶段)
-        </div>
-        <button onClick={() => handleWorkChoice('HARD')} className="py-8 bg-red-900/40 border border-red-500 text-white rounded-lg hover:bg-red-800/60 transition-all">
-            <p className="font-bold">疯狂内卷</p>
-            <p className="text-[10px] opacity-60">表现+20 | 体力-15 | 精神-10</p>
-        </button>
-        <button onClick={() => handleWorkChoice('SLACK')} className="py-8 bg-green-900/40 border border-green-500 text-white rounded-lg hover:bg-green-800/60 transition-all">
-            <p className="font-bold">带薪摸鱼</p>
-            <p className="text-[10px] opacity-60">表现-10 | 体力-5 | 精神+5</p>
-        </button>
-    </div>
-)}
+  };
 
 const finishWorkBlock = (finalPerformance: number) => {
-  setGameState(prev => {
-    // 1. 判定是否为上午班（WORK_AM）
-    const isMorningShift = prev.phase === 'WORK_AM';
-    
-    // 计算当次工作的薪水 (底薪 * 表现倍率)
-    const baseSalary = prev.profession?.salaryBase || 0;
-    const performanceBonus = 1 + (finalPerformance / 100);
-    const earnedSalary = Math.floor(baseSalary * performanceBonus);
+    setGameState(prev => {
+      // 判定是上午还是下午
+      const isMorningShift = prev.phase === 'WORK_AM';
+      
+      // 计算这一趟下来的工资：底薪 * 表现倍率 (表现0为100%，表现60为160%，表现-30为70%)
+      const baseSalary = prev.profession?.salaryBase || 0;
+      const performanceBonus = 1 + (finalPerformance / 100);
+      const earnedSalary = Math.floor(baseSalary * performanceBonus);
 
-    if (isMorningShift) {
-        // 上午下班：直接去吃饭，不领钱（钱在下午一起结），不加班
-        return { 
-            ...prev, 
-            phase: 'LUNCH', 
-            time: '12:00',
-            log: [...prev.log, { id: Date.now(), text: "上午的活干完了，先去干饭补充体力，下午接着卷。", type: 'info' }]
-        };
-    } else {
-        // 2. 下午下班：开始结算工资 + 判定加班
-        const schedule = prev.profession?.schedule || '965';
-        const isOvertimeCulture = schedule.includes('996') || schedule.includes('007');
-        // 如果是996/007职种，80%几率加班；普通职种20%几率加班
-        const overtimeChance = isOvertimeCulture ? 0.8 : 0.2;
-        
-        if (Math.random() < overtimeChance) {
-            // --- 触发加班流程 ---
-            showModal({
-                title: "【突发加班】",
-                description: `老板在 18:00 准时出现在你身后：“大家辛苦了，有个紧急需求要对一下。” \n\n 本次窝囊费 ¥${earnedSalary} 已计算入账，但你被迫留在了工位。`,
-                type: 'WORK',
-                actions: [{ 
-                    label: "为了生活，我忍！", 
-                    onClick: () => {
-                        // 加班后的属性扣减
-                        updateStats({ 
-                            money: earnedSalary, // 这里的工资必须加进去！
-                            physical: -25, 
-                            mental: -20, 
-                            satiety: -20 
-                        }, `完成了长达4小时的无偿加班。你领到了 ¥${earnedSalary} 的工资。`);
-                        
-                        // 强制推进时间到深夜 22:30
-                        setGameState(p => ({ ...p, phase: 'DINNER', time: '22:30' }));
-                        closeModal();
-                    } 
-                }]
-            });
-            return prev; // 返回原状态，等弹窗点击后再更新
-        }
+      if (isMorningShift) {
+          // 上午下班：直接去吃饭，不领钱，不加班
+          return { 
+              ...prev, 
+              phase: 'LUNCH', 
+              time: '12:00',
+              log: [...prev.log, { id: Date.now(), text: ">>> 上午的任务勉强应付完了，领饭盒去！", type: 'info' }]
+          };
+      } else {
+          // 下午下班：领钱 + 判定加班
+          const schedule = prev.profession?.schedule || '965';
+          const isOvertimeCulture = schedule.includes('996') || schedule.includes('007');
+          // 概率设定：996职种85%概率加班，普通职种20%
+          const overtimeChance = isOvertimeCulture ? 0.85 : 0.2;
+          
+          if (Math.random() < overtimeChance) {
+              // --- 触发加班流程 ---
+              showModal({
+                  title: "【老板的夺命连环Call】",
+                  description: `你刚拎起包，老板发来语音：“那个方案，客户说要五彩斑斓的黑，今晚改不出来别走。” \n\n 今天的窝囊费 ¥${earnedSalary} 已在结算中。`,
+                  type: 'WORK',
+                  actions: [{ 
+                      label: "含泪坐回工位", 
+                      onClick: () => {
+                          // 加班扣属性，同时把钱加进去
+                          updateStats({ 
+                              money: earnedSalary, 
+                              physical: -25, 
+                              mental: -25, 
+                              satiety: -15 
+                          }, `你被迫加班到深夜。总算拿到了今天的 ¥${earnedSalary}。`);
+                          
+                          // 强制推进时间到 22:45
+                          setGameState(p => ({ ...p, phase: 'DINNER', time: '22:45' }));
+                          closeModal();
+                      } 
+                  }]
+              });
+              return prev; // 返回 prev 等待弹窗点击
+          }
 
-        // --- 正常下班流程 ---
-        addLog(`【下班结算】今天的窝囊费 ¥${earnedSalary} 已到账，准时打卡下班，身心愉悦。`, "success");
-        return { 
-            ...prev, 
-            stats: { ...prev.stats, money: prev.stats.money + earnedSalary },
-            phase: 'DINNER', 
-            time: '18:30'
-        };
-    }
-  });
-};
+          // --- 正常下班流程 ---
+          addLog(`【准时下班】今日无事，领取窝囊费 ¥${earnedSalary}。快跑，别回头！`, "success");
+          return { 
+              ...prev, 
+              stats: { ...prev.stats, money: prev.stats.money + earnedSalary },
+              phase: 'DINNER', 
+              time: '18:30'
+          };
+      }
+    });
+  };
   const handleFreeTime = (action: string) => {
       switch(action) {
           case 'SPA': 
