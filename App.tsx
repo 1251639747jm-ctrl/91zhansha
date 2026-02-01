@@ -1552,28 +1552,13 @@ if (!isAlreadySick && Math.random() < sickChance) {
                         {(gameState.phase === 'FREE_TIME' || gameState.phase.includes('REST')) && (
                             <>
                                 {/* App 18: 医院体检 - 销金窟文案 */}
-                                <ActionBtn label="去医院修仙" icon={<Activity/>} onClick={() => {
-                                    const config: ModalConfig = { 
-                                        isOpen: true, title: "莆田系...啊不，第一人民医院", description: "浓烈的消毒水味，这里是销金窟，也是碎钞机。请选择你的消费项目：", type: 'EVENT',
-                                        actions: HOSPITAL_SERVICES.map(service => ({
-                                            label: `${service.name} (¥${service.cost})`,
-                                            onClick: () => {
-                                                if (gameState.stats.money < service.cost) { addLog("余额不足，保安让你出门左转去百度看病。", "danger"); return; }
-                                                updateStats({ money: -service.cost });
-                                                if (service.id === 'checkup') {
-                                                    const realHealth = gameState.stats.physical;
-                                                    setGameState(prev => ({ ...prev, flags: { ...prev.flags, lastCheckupDate: formatDateCN(prev.date), knownHealth: realHealth, blackVanRisk: realHealth > 97 ? (prev.flags.blackVanRisk || 10) : 0 } }));
-                                                    showModal({ title: "体检审判书", description: `你的肉体评分: ${realHealth}/200\n结论: ${realHealth > 150 ? '唐僧肉转世！已被大佬盯上。' : '典型的脆皮大学生/社畜体质，建议重开。'}`, type: 'EVENT', actions: [{ label: "这就去养生", onClick: closeModal }] });
-                                                } else if (service.effect) {
-                                                    // @ts-ignore
-                                                    updateStats(service.effect); closeModal();
-                                                } else closeModal();
-                                            }
-                                        }))
-                                    };
-                                    config.actions.push({ label: "润了，治不起", onClick: closeModal, style: 'secondary' });
-                                    showModal(config);
-                                }} color="teal" sub="甚至想挂个急诊" />
+                                <ActionBtn 
+    label="去医院修仙" 
+    icon={<Activity/>} 
+    onClick={handleHospitalVisit} 
+    color="teal" 
+    sub="查看体检与停尸间" 
+/>
                                {/* 4. 周末/休息日专属操作面板 */}
                         {gameState.phase.includes('REST') && (
                             <>
