@@ -78,10 +78,25 @@ const App: React.FC = () => {
   });
 
   // --- 初始化逻辑 ---
-  useEffect(() => {
-    setTempAge(getRandomInt(18, 55));
-    setTempBg(FAMILY_BACKGROUNDS[getRandomInt(0, FAMILY_BACKGROUNDS.length - 1)]);
-  }, []);
+  // 新增：全局数值监控，一旦数值归零立即触发死亡
+useEffect(() => {
+  if (gameState.phase === 'START' || gameState.phase === 'GAME_OVER' || gameState.phase === 'MODAL_PAUSE') return;
+
+  const { physical, mental, satiety, money, debt } = gameState.stats;
+  
+  // 1. 体力斩杀
+  if (physical <= 0) {
+    triggerDeath("【猝死】你眼前的屏幕突然变成了一片漆黑，耳边最后的声响是同事推搡你的惊呼。你为了那点窝囊费，燃尽了最后一点生命的灯油。");
+  }
+  // 2. 精神斩杀
+  else if (mental <= 0) {
+    triggerDeath("【精神失常】你无法再忍受永无止境的表格和PUA，你当众撕碎了所有合同，狂笑着冲出了办公室，从此消失在城市最幽暗的角落。");
+  }
+  // 3. 饱食度斩杀
+  else if (satiety <= 0) {
+    triggerDeath("【饿死】在这个外卖半小时必达的时代，你竟然因为卡里没钱且没人接济，生生饿死在自己的出租屋里。");
+  }
+}, [gameState.stats.physical, gameState.stats.mental, gameState.stats.satiety, gameState.phase]);
 
   const addLog = useCallback((text: string, type: LogEntry['type'] = 'info') => {
     setGameState(prev => ({
@@ -1001,6 +1016,15 @@ const finishWorkBlock = (finalPerformance: number) => {
       if (gameState.phase !== 'MODAL_PAUSE') setGameState(prev => ({ ...prev, phase: 'SLEEP', time: '23:30' }));
   };
   const handleSleep = () => {
+    let debtLimit = -20000;
+    if (gameState.flags.hasHouse) debtLimit -= 1500000;
+    if (gameState.stats.money < debtLimit) { triggerDeath("【破产】由于资不抵债，你被列入失信名单。"); return; }
+    // 注意：physical/mental 的检查现在由上面的 useEffect 接管，这里可以保留作为双重保险
+
+    // B. 随机暴毙（提到前面）
+    if (Math.random() < 0.003) {
+         triggerDeath(`【飞来横祸】${DAILY_ACCIDENTS[getRandomInt(0, DAILY_ACCIDENTS.length - 1)]}`); return;
+    }
     // 建议放在 handleSleep 的开头
   if (gameState.flags.children.length > 0 && Math.random() < 0.05) {
       const child = gameState.flags.children[getRandomInt(0, gameState.flags.children.length - 1)];
@@ -1465,10 +1489,21 @@ if (!isAlreadySick && Math.random() < sickChance) {
                     <span>当前任务: 搬砖中</span>
                     <span>进度: {gameState.workRounds} / 3 阶段</span>
                 </div>
-                <button onClick={() => handleWorkChoice('HARD')} className="py-8 bg-red-900/40 border border-red-500 text-white rounded-lg hover:bg-red-800/60 transition-all active:scale-95">
-                    <p className="font-bold">疯狂内卷</p>
-                    <p className="text-[10px] opacity-60">表现+20 | 体力-15</p>
-                </button>
+                <button 
+    onClick={() => handleWorkChoice('HARD')} 
+    // --- 新增逻辑：体力小于 15 时禁用按钮 ---
+    disabled={gameState.stats.physical < 15} 
+    className={`py-8 rounded-lg transition-all active:scale-95 border ${
+        gameState.stats.physical < 15 
+        ? 'bg-zinc-800 text-zinc-600 border-zinc-700 cursor-not-allowed opacity-50' 
+        : 'bg-red-900/40 border-red-500 text-white hover:bg-red-800/60'
+    }`}
+>
+    <p className="font-bold">{gameState.stats.physical < 15 ? '体力透支' : '疯狂内卷'}</p>
+    <p className="text-[10px] opacity-60">
+        {gameState.stats.physical < 15 ? '无法进行高强度劳动' : '表现+20 | 体力-15'}
+    </p>
+</button>
                 <button onClick={() => handleWorkChoice('SLACK')} className="py-8 bg-green-900/40 border border-green-500 text-white rounded-lg hover:bg-green-800/60 transition-all active:scale-95">
                     <p className="font-bold">带薪摸鱼</p>
                     <p className="text-[10px] opacity-60">表现-10 | 精神+5</p>
