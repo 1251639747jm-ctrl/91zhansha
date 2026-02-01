@@ -390,27 +390,12 @@ const finishHospitalBlock = () => {
   label: "二楼尽头：停尸间",
   style: 'secondary' as const,
   onClick: () => {
-    const history = JSON.parse(localStorage.getItem('death_records') || '[]');
-    
-    // 生成格式化的档案列表
-    const mortuaryUI = history.length > 0 
-      ? history.map((d: any, i: number) => (
-          `--------------------------\n` +
-          `【 尸体编号：#00${i + 1} 】\n` +
-          ` 姓名：${d.name}\n` +
-          ` 职业：${d.profession}\n` +
-          ` 寿命：${d.age} 岁\n` +
-          ` 结论：${d.reason}\n` +
-          ` 销户日期：${d.date}`
-        )).join('\n')
-      : "这里空荡荡的，只有冷风吹过。\n（目前还没有死亡记录）";
-
-    showModal({
-      title: "☣️ 圣玛丽医院·地下冷库",
-      description: `这里保存着被社会“淘汰”的生物资产：\n\n${mortuaryUI}\n\n--------------------------`,
-      type: 'EVENT', // 这里的图标会变成 AlertOctagon 或者其他定义的图标
-      actions: [{ label: "离开这股死人味", onClick: closeModal }]
-    });
+    // 关闭当前的医院选择弹窗，直接切换游戏阶段到停尸间
+    setGameState(prev => ({ 
+      ...prev, 
+      phase: 'MORTUARY', 
+      modal: { ...prev.modal, isOpen: false } 
+    }));
   }
 },
 
@@ -1409,29 +1394,78 @@ if (!isAlreadySick && Math.random() < sickChance) {
   );
 }
 // --- UI: 停尸间界面 (移出 JSX 内部以修复 Unexpected return 错误) ---
+  // --- UI: 停尸间/生物资产回收站 (替换原来的旧版本) ---
   if (gameState.phase === 'MORTUARY') {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-400 p-8 font-mono">
-        <h1 className="text-4xl font-black text-white mb-8 border-b-2 border-zinc-800 pb-4">
-          冷库档案管理系统 v1.0
-        </h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {gameState.deathHistory.map((d: any, i: number) => (
-            <div key={i} className="p-4 border-2 border-zinc-800 bg-zinc-900/50 hover:border-red-900/50 transition-colors">
-              <div className="text-red-500 font-bold mb-2">档案 #{i + 1}</div>
-              <p>姓名: {d.name}</p>
-              <p>死因: {d.reason}</p>
-              <p>最终职业: {d.profession}</p>
-              <p>卒年: {d.age}岁</p>
+      <div className="fixed inset-0 z-50 bg-zinc-950 overflow-y-auto font-sans text-zinc-300 p-4 md:p-10">
+        <div className="max-w-4xl mx-auto">
+          {/* 标题区 */}
+          <div className="flex flex-col md:flex-row justify-between items-center mb-10 border-b border-red-900/50 pb-6 gap-4">
+            <div>
+              <h1 className="text-4xl font-black text-white tracking-tighter flex items-center gap-3">
+                <Skull className="text-red-600 w-10 h-10" /> 
+                生物资产回收档案库
+              </h1>
+              <p className="text-zinc-500 mt-2 font-mono text-sm uppercase tracking-widest">Biological Asset Recycling Archives</p>
             </div>
-          ))}
+            <button 
+              onClick={() => setGameState(p => ({...p, phase: 'FREE_TIME'}))}
+              className="px-8 py-3 bg-red-950/20 hover:bg-red-900/40 border border-red-900/50 text-red-500 font-bold rounded-lg transition-all flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" /> 返回阳间
+            </button>
+          </div>
+
+          {/* 档案列表 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {gameState.deathHistory.length > 0 ? (
+              gameState.deathHistory.map((d: any, i: number) => (
+                <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl relative overflow-hidden group hover:border-red-900/50 transition-all">
+                  {/* 背景编号水印 */}
+                  <div className="absolute -right-4 -bottom-4 text-8xl font-black text-white/[0.03] italic">
+                    #{String(i + 1).padStart(3, '0')}
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-xl font-bold text-zinc-100">{d.name}</h3>
+                      <span className="bg-red-900/30 text-red-500 text-[10px] px-2 py-1 rounded font-mono border border-red-900/20">
+                        {d.date}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">曾任职业：</span>
+                        <span className="text-zinc-300">{d.profession}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">销户年龄：</span>
+                        <span className="text-zinc-300 font-mono">{d.age} 岁</span>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-zinc-800/50">
+                        <span className="text-red-400/80 text-xs font-bold uppercase block mb-1">死亡鉴定结论：</span>
+                        <p className="text-zinc-400 italic leading-relaxed text-xs">
+                          {d.reason}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full py-20 text-center border-2 border-dashed border-zinc-800 rounded-2xl">
+                <p className="text-zinc-600 font-bold">暂无生物资产回收记录</p>
+                <p className="text-zinc-700 text-xs mt-1">看来你还没在这个城市留下血泪史</p>
+              </div>
+            )}
+          </div>
+
+          {/* 底部声明 */}
+          <p className="text-center mt-12 text-[10px] text-zinc-700 font-mono">
+            CONFIDENTIAL DOCUMENT: PROPERTY OF CITY MUNICIPAL HEALTH BUREAU
+          </p>
         </div>
-        <button
-          onClick={() => setGameState(p => ({ ...p, phase: 'FREE_TIME' }))}
-          className="mt-8 px-6 py-3 bg-zinc-800 text-white hover:bg-zinc-700 font-bold rounded-lg transition-all"
-        >
-          返回医院走廊
-        </button>
       </div>
     );
   }
