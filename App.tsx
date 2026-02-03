@@ -491,10 +491,11 @@ const doCook = (recipe: typeof RECIPES[0]) => {
       const { inventory } = prev.flags;
       const { needs } = recipe;
       
-      // 1. 检查食材是否足够 (油消耗 0.1，其他按原需求)
+      // 1. 检查食材是否足够 (现在的需求数值是 0.1, 0.2 等)
       const missingItems: string[] = [];
       Object.keys(needs).forEach(k => {
-          const required = k === 'oil' ? 0.1 : (needs[k] || 0);
+          // @ts-ignore
+          const required = needs[k] || 0;
           // @ts-ignore
           if ((inventory[k] || 0) < required) {
               missingItems.push(k);
@@ -505,40 +506,38 @@ const doCook = (recipe: typeof RECIPES[0]) => {
           return {
               ...prev,
               modal: { 
-                  ...prev.modal, 
-                  title: "食材不足", 
-                  description: `做【${recipe.name}】还缺：${missingItems.join(', ')}\n当前油量: ${inventory.oil.toFixed(1)} 桶` 
+                  isOpen: true,
+                  title: "巧妇难为无米之炊", 
+                  description: `做【${recipe.name}】食材不足！\n缺少：${missingItems.join(', ')}\n温馨提示：去“家庭中心-菜市场”买一袋米可以吃10顿。`,
+                  type: 'EVENT',
+                  actions: [{ label: "知道了", onClick: closeModal }]
               }
           };
       }
 
-      // 2. 扣除食材库存
+      // 2. 扣除食材库存 (使用 parseFloat 解决 0.1 + 0.2 = 0.30000004 的 JS 精度问题)
       const newInv = { ...inventory };
       Object.keys(needs).forEach(k => {
-          if (k === 'oil') {
-              newInv.oil = Math.max(0, parseFloat((newInv.oil - 0.1).toFixed(1)));
-          } else {
-              // @ts-ignore
-              newInv[k] -= needs[k];
-          }
+          // @ts-ignore
+          newInv[k] = Math.max(0, parseFloat((newInv[k] - needs[k]).toFixed(1)));
       });
       
-      // 油用光了，自动清除坏油标记
+      // 核心修复：油用光了，自动清除坏油标记
       if (newInv.oil <= 0) {
           newInv.badOil = false;
       }
 
-      // 3. 中毒判定与数值平衡
+      // 3. 营养与中毒结算
       let healthHit = 0;
-      // [数值优化]：自炊基础健康恢复 +15，精神恢复 +5
-      let healthRecover = (recipe.stats.health || 0) + 15;
-      let logText = `你展示了精湛的厨艺，烹饪了【${recipe.name}】。虽然洗碗很麻烦，但吃着自己做的饭，总算有了点活人的样子。`;
+      let healthRecover = (recipe.stats.health || 0) + 15; // 自炊回血增强
+      let logText = `你展示了精湛的厨艺，烹饪了【${recipe.name}】。锅气升腾的那一刻，你觉得自己还没被生活彻底打败。`;
       let logType: LogEntry['type'] = 'success';
 
+      // 坏油判定
       if (needs.oil && inventory.badOil) {
-           healthHit = 35; // 坏油中毒依然致命
-           healthRecover = 0; 
-           logText = `【海克斯科技残留】这桶坏油还没用完！做出来的${recipe.name}有股刺鼻的煤油味，吃完你感觉胃部像被火烧一样。`;
+           healthHit = 40; 
+           healthRecover = 0;
+           logText = `【海克斯科技残留】这桶混装油不仅有煤油味，吃完你感觉肝脏隐隐作痛。这顿饭白做了。`;
            logType = 'danger';
       }
 
@@ -559,13 +558,12 @@ const doCook = (recipe: typeof RECIPES[0]) => {
           nextT = '19:30';
       }
 
-      // 5. 更新状态
       return {
           ...prev,
           stats: { 
               ...prev.stats, 
               satiety: Math.min(100, prev.stats.satiety + recipe.stats.satiety),
-              mental: Math.min(100, prev.stats.mental + recipe.stats.mental + 5), // 精神额外奖励
+              mental: Math.min(100, prev.stats.mental + recipe.stats.mental + 5),
               physical: Math.min(200, Math.max(0, prev.stats.physical + healthRecover - healthHit)),
               cookingSkill: (prev.stats.cookingSkill || 0) + 1
           },
@@ -685,7 +683,12 @@ const doCook = (recipe: typeof RECIPES[0]) => {
           newHealth -= 5;
           mentalStress += 10;
         }
-
+        // 在 handleChildLogic 的循环内添加
+if (child.age < 3 && prev.flags.inventory.hasToxicMilk && Math.random() < 0.1) {
+    // 如果是婴儿，且库存有毒奶粉，每天 10% 概率出事
+    triggerMilkScandal(child.name);
+    return; // 立即中断后续逻辑，跳转弹窗
+}
         if (newHealth <= 0) return null; // 夭折逻辑
         return { ...child, hunger: newHunger, health: newHealth };
       }).filter(Boolean) as Child[];
@@ -829,19 +832,26 @@ buyCar: () => {
         addLog("家里迎来了一只四脚吞金兽！你的钱包开始颤抖！", "success");
     },
     buyBabyItem: (item: any) => {
-        if (gameState.stats.money < item.cost) { addLog("余额不足，孩子要饿哭了。", "danger"); return; }
-        updateStats({ money: -item.cost });
-        setGameState(prev => ({
-            ...prev,
-            flags: {
-                ...prev.flags,
-                inventory: {
-                    ...prev.flags.inventory,
-                    [item.id]: (prev.flags.inventory as any)[item.id] + 5 
-                }
+        if (gameState.stats.money < item.cost) { addLog("钱包比脸还干净，娃只能喝米汤了。", "danger"); return; }
+    
+    // 隐藏风险：5% 概率买到毒奶粉，不提示玩家
+    const isToxic = item.id === 'milkPowder' && Math.random() < 0.05;
+    
+    updateStats({ money: -item.cost });
+    setGameState(prev => ({
+        ...prev,
+        flags: {
+            ...prev.flags,
+            inventory: {
+                ...prev.flags.inventory,
+                // 每次买 1 单位（实际可吃10次，因为每天消耗0.1）
+                [item.id]: (prev.flags.inventory as any)[item.id] + 1,
+                // 只要库存里有毒奶粉，就会标记
+                hasToxicMilk: isToxic || prev.flags.hasToxicMilk
             }
-        }));
-        addLog(`含泪购买了${item.name}，这就是为人父母的代价。`, "success");
+        }
+    }));
+    addLog(`购买了${item.name}。看着包装上的金奖标志，你觉得很安心。`, "success");
     },
     payTuition: (childId: string, cost: number) => {
         if (gameState.stats.money < cost) { addLog("学费不够，老师在家长群里点名批评你了！", "danger"); return; }
@@ -856,7 +866,63 @@ buyCar: () => {
         addLog(`缴纳了天价学费 ¥${cost}，感觉身体被掏空。`, "success");
     }
   };
+const proceedToNextDay = () => {
+  // 1. 基础属性自然结算
+  updateStats({ physical: 5, mental: 5, satiety: -20 });
 
+  setGameState(prev => {
+    const nextDate = new Date(prev.date);
+    nextDate.setDate(nextDate.getDate() + 1);
+    const newDaysSurvived = prev.stats.daysSurvived + 1;
+
+    // 2. 年龄与升学逻辑 (周年判定)
+    let updatedChildren = [...prev.flags.children];
+    let currentAge = prev.stats.age;
+
+    if (newDaysSurvived > 0 && newDaysSurvived % 365 === 0) {
+      currentAge += 1;
+      updatedChildren = prev.flags.children.map(c => {
+        const newAge = c.age + 1;
+        let nextStage = c.educationStage;
+        if (newAge === 3) nextStage = 'KINDER';
+        else if (newAge === 7) nextStage = 'PRIMARY';
+        else if (newAge === 13) nextStage = 'MIDDLE';
+        else if (newAge === 16) nextStage = 'HIGH';
+        else if (newAge === 19) nextStage = 'UNI';
+        return { ...c, age: newAge, educationStage: nextStage, schoolFeePaid: false };
+      });
+
+      // 升学压力提示
+      const schoolCount = updatedChildren.filter(c => c.age >= 3).length;
+      if (schoolCount > 0) {
+        setTimeout(() => {
+          showModal({
+            title: "开学季的噩梦",
+            description: `又到了一年一度的开学季。你看着家里的 ${schoolCount} 个吞金兽，感觉到一阵窒息。请尽快前往家庭中心缴纳学费，否则孩子将被劝退。`,
+            type: 'EVENT',
+            actions: [{ label: "知道了 (含泪搬砖)", onClick: closeModal }]
+          });
+        }, 500);
+      }
+    }
+
+    return {
+      ...prev,
+      date: nextDate,
+      phase: 'MORNING',
+      time: '07:00',
+      stats: {
+        ...prev.stats,
+        age: currentAge,
+        daysSurvived: newDaysSurvived
+      },
+      flags: {
+        ...prev.flags,
+        children: updatedChildren
+      }
+    };
+  });
+};
   const modifyAffection = (displayedAmount: number, realAmount?: number) => {
      setGameState(prev => {
        if (!prev.flags.partner) return prev;
@@ -912,7 +978,40 @@ const handleWorkChoice = (type: 'SLACK' | 'HARD') => {
       };
     });
 };
-
+const triggerMilkScandal = (childName: string) => {
+    setGameState(prev => ({
+        ...prev,
+        phase: 'MODAL_PAUSE',
+        modal: {
+            isOpen: true,
+            title: "🆘 突发：深夜急诊",
+            description: `你的孩子 ${childName} 持续高烧并伴随剧烈呕吐。医生翻开孩子的眼睑，沉默良久后低声对你说：“是肾衰竭...而且孩子颅骨发育异常（大头娃娃）。你们最近喂的是什么奶粉？” \n\n 你瘫坐在地，那是你省吃俭用买的“大牌”奶粉。`,
+            type: 'DEATH',
+            actions: [
+                {
+                    label: "闹事：去相关部门讨说法 (高风险)",
+                    style: 'danger',
+                    onClick: () => {
+                        // 80% 几率人间消失
+                        if (Math.random() < 0.8) {
+                            triggerDeath("【人间消失】你带上化验单和横幅准备发声。在前往部门的路上，一辆没有牌照的面包车停在你身边，两名壮汉将你拖入车内。从此，这个世界上再也没有人见过你，甚至连你的社交账号也因“违反法律法规”被永久注销。（死因：试图寻求正义时不幸人间消失）");
+                        } else {
+                            updateStats({ money: -30000, mental: -80 }, "你闹事被判处“寻衅滋事”，缴纳了巨额罚金并被拘留。虽然没消失，但你发现自己已经成了所有公司眼中的“危险分子”。");
+                            closeModal();
+                        }
+                    }
+                },
+                {
+                    label: "忍气吞声：吃个哑巴亏",
+                    onClick: () => {
+                        updateStats({ mental: -50, money: -5000 }, "你默默销毁了奶粉罐，借钱交了孩子的透析费。在漫长的黑夜里，你看着孩子变形的头部，第一次感受到了绝望的重量。");
+                        closeModal();
+                    }
+                }
+            ]
+        }
+    }));
+};
 const finishWorkBlock = (finalPerformance: number) => {
     setGameState(prev => {
       const isMorningShift = prev.phase === 'WORK_AM';
@@ -1214,55 +1313,46 @@ if (!isAlreadySick && Math.random() < sickChance) {
         }
     }
 }
-
-    // 8. 正常结算与日期推进
-    updateStats({ physical: 5, mental: 5, satiety: -20 });
-    const nextDate = new Date(gameState.date);
-    nextDate.setDate(nextDate.getDate() + 1);
-    
-    // 生日与升学逻辑
-// 在 handleSleep 最后的日期推进逻辑中
-    if (gameState.stats.daysSurvived > 0 && gameState.stats.daysSurvived % 365 === 0) {
-        updateStats({ age: gameState.stats.age + 1 });
-        
-        setGameState(prev => ({
-            ...prev,
-            flags: {
-                ...prev.flags,
-                children: prev.flags.children.map(c => {
-                    const newAge = c.age + 1;
-                    let nextStage = c.educationStage;
-                    
-                    // 阶段判定
-                    if (newAge === 3) nextStage = 'KINDER';
-                    if (newAge === 7) nextStage = 'PRIMARY';
-                    if (newAge === 13) nextStage = 'MIDDLE';
-                    if (newAge === 16) nextStage = 'HIGH';
-                    if (newAge === 19) nextStage = 'UNI';
-                    
-                    // 每年学费重置为未缴纳
-                    return { ...c, age: newAge, educationStage: nextStage, schoolFeePaid: false };
-                })
-            }
-        }));
-        
-        // 弹窗提示：学费压力
-        const schoolCount = gameState.flags.children.filter(c => c.age >= 3).length;
-        if (schoolCount > 0) {
-            showModal({
-                title: "开学季的噩梦",
-                description: `又到了一年一度的开学季。你看着家里的 ${schoolCount} 个吞金兽，再看看存折，感觉到一阵窒息。请尽快前往家庭中心缴纳学费，否则孩子将被劝退。`,
-                type: 'EVENT',
-                actions: [{ label: "知道了 (含泪搬砖)", onClick: closeModal }]
-            });
-        }
-    }
-
-    setGameState(prev => ({ 
-        ...prev, 
-        date: nextDate, phase: 'MORNING', time: '07:00',
-        stats: {...prev.stats, daysSurvived: prev.stats.daysSurvived + 1}
+  // === 8. 插入：领导视察逻辑 (拦截器) ===
+  if (Math.random() < 0.08) {
+    setGameState(prev => ({
+      ...prev,
+      phase: 'MODAL_PAUSE',
+      modal: {
+        isOpen: true,
+        title: "⚠️ 社区紧急通知",
+        description: "网格员发来语音：‘大领导视察，全楼即刻严禁开窗，严禁使用天然气做饭！否则直接带走！’",
+        type: 'WORK',
+        actions: [
+          { 
+            label: "忍了 (关窗断气)", 
+            onClick: () => { 
+              updateStats({ mental: -20, physical: -10 }); 
+              closeModal();
+              moveToNextDay(); // 选完忍，才执行进入明天
+            } 
+          },
+          { 
+            label: "偏要开窗做饭", 
+            style: 'danger',
+            onClick: () => {
+              if (Math.random() < 0.5) {
+                triggerDeath("【顶风违纪】你刚拧开天然气，就被红外热成像仪捕捉。三分钟后特警破窗而入。你的人生在这一刻杀青了。");
+              } else {
+                addLog("算你走运，领导车队改道了，你保住了一条命。", "warning");
+                closeModal();
+                moveToNextDay(); // 没死也执行进入明天
+              }
+            } 
+          }
+        ]
+      }
     }));
+    return; // 重点：拦截，不让代码继续往下跑
+  }
+
+  // === 9. 如果没触发视察，正常进入明天 ===
+  proceedToNextDay();
   };
   
   // --- 饮食主入口 ---
