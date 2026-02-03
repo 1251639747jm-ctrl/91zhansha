@@ -623,30 +623,41 @@ const doCook = (recipe: typeof RECIPES[0]) => {
           return { ...prev, phase: nextP, time: nextT };
       });
   };
-  const getKitchenModalConfig = (inv: any, money: number): Omit<ModalConfig, 'isOpen'> => {
-      return {
-          title: "自家厨房 & 菜市场",
-          description: `资金: ¥${money}\n库存：油x${inv.oil.toFixed(1)} ${inv.badOil?'(有怪味)':''} | 米面x${inv.rice} | 蔬x${inv.veggies} | 肉x${inv.meat}`,
-          type: 'EVENT',
-          actions: [
-              ...INGREDIENTS_SHOP.map(ing => ({ label: `买${ing.name} (¥${ing.cost})`, onClick: () => buyIngredient(ing), style: 'secondary' as const })),
-              ...RECIPES.map(recipe => ({ label: `做【${recipe.name}】`, onClick: () => doCook(recipe), style: 'primary' as const })),
+const getKitchenModalConfig = (inv: any, money: number): Omit<ModalConfig, 'isOpen'> => {
+    return {
+        title: "自家厨房 & 菜市场",
+        description: `资金: ¥${money} | 库存: 油x${inv.oil.toFixed(1)}${inv.badOil?'(毒)':''} | 米x${inv.rice} | 面x${inv.flour} | 蔬x${inv.veggies} | 肉x${inv.meat}`,
+        type: 'EVENT',
+        actions: [
+            // 第一组：购买（精简文案以节省空间）
+            ...INGREDIENTS_SHOP.map(ing => ({ 
+                label: `${ing.name.split('(')[0]} ¥${ing.cost}`, // 只显示名字前缀
+                onClick: () => buyIngredient(ing), 
+                style: 'secondary' as const 
+            })),
+            // 第二组：做饭
+            ...RECIPES.map(recipe => ({ 
+                label: `🍳 ${recipe.name}`, 
+                onClick: () => doCook(recipe), 
+                style: 'primary' as const 
+            })),
+            // 第三组：清理与离开
             { 
-    label: "倒掉剩下的油", 
-    onClick: () => {
-        setGameState(prev => ({
-            ...prev,
-            flags: { ...prev.flags, inventory: { ...prev.flags.inventory, oil: 0, badOil: false } }
-        }));
-        addLog("你把那桶散发着煤油味的毒药倒进了下水道，感觉呼吸都顺畅了。", "warning");
-        closeModal();
-    }, 
-    style: 'danger' 
-},
-              { label: "离开", onClick: closeModal, style: 'secondary' as const }
-          ]
-      };
-  };
+                label: inv.badOil ? "🧨 倒掉毒油" : "清理灶台", 
+                onClick: () => {
+                    setGameState(prev => ({
+                        ...prev,
+                        flags: { ...prev.flags, inventory: { ...prev.flags.inventory, oil: 0, badOil: false } }
+                    }));
+                    addLog("你清理了厨房。", "info");
+                    closeModal();
+                }, 
+                style: 'danger' as const
+            },
+            { label: "❌ 离开", onClick: closeModal, style: 'secondary' as const }
+        ]
+    };
+};
 
  const handleChildLogic = () => {
     setGameState(prev => {
