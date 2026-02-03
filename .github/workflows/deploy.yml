@@ -27,6 +27,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }} # 这样构建时才能拿到 Key
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
