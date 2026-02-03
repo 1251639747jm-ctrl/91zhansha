@@ -4,8 +4,11 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+    
+    const baseConfig = process.env.GITHUB_ACTIONS ? '/91zhansha/' : '/';
+
     return {
-        base: '/',
+      base: baseConfig, 
       server: {
         port: 3000,
         host: '0.0.0.0',
