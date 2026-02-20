@@ -172,7 +172,109 @@ useEffect(() => {
         addLog(reason, isBad ? 'warning' : 'info');
     }
   };
+// App.tsx 内部新增
+const bankActions = {
+  depositAll: () => {
+    if (gameState.flags.isBankFrozen) {
+      addLog("你的账户已被冻结，无法进行任何交易。请配合调查。", "danger");
+      return;
+    }
+    const amount = gameState.stats.money;
+    if (amount <= 0) return;
+    
+    setGameState(prev => ({
+      ...prev,
+      stats: { ...prev.stats, money: 0 },
+      flags: { ...prev.flags, bankBalance: prev.flags.bankBalance + amount }
+    }));
+    addLog(`将 ¥${amount} 存入了银行，安全感+10（错觉）。`, "success");
+  },
+  
+  withdrawAll: () => {
+    if (gameState.flags.isBankFrozen) {
+      addLog("账户冻结中，取款失败。窗口柜员指了指旁边的保安。", "danger");
+      return;
+    }
+    
+    // 2% 概率暴雷
+    if (Math.random() < 0.02) {
+      setGameState(prev => ({
+        ...prev,
+        flags: { ...prev.flags, isBankFrozen: true }
+      }));
+      triggerDeath("【银行暴雷】你试图取款时，发现ATM机显示‘系统维护’。随后新闻报出该银行行长带小姨子卷款潜逃至海外，你的存款被列为‘待追缴赃款’，取款遥遥无期。（由于积蓄清零且申诉无门，你直接气绝身亡）");
+      return;
+    }
 
+    const amount = gameState.flags.bankBalance;
+    setGameState(prev => ({
+      ...prev,
+      stats: { ...prev.stats, money: prev.stats.money + amount },
+      flags: { ...prev.flags, bankBalance: 0 }
+    }));
+    addLog(`成功取出存款 ¥${amount}，你感觉这些钱从未如此亲切。`, "info");
+  }
+};
+
+const marriageActions = {
+  propose: () => {
+    const partner = gameState.flags.partner;
+    if (!partner) return;
+
+    // 内置好感度逻辑判定
+    const realAff = partner.realAffection || 0;
+    const materialism = partner.materialism;
+
+    // 1. 判定求婚是否成功 (基于 realAffection)
+    if (realAff < 40) {
+      updateStats({ mental: -40 });
+      addLog(`${partner.name} 礼貌地拒绝了你，并暗示你现在的条件‘给不了她想要的未来’。`, "danger");
+      return;
+    }
+
+    // 2. 计算彩礼要求 (好感度越高，彩礼越可能减免；物质指数越高，彩礼越狠)
+    // 基础彩礼 20万，根据好感度 offset
+    let dowryRequired = 200000 * materialism;
+    if (realAff > 80) dowryRequired *= 0.3; // 真爱减免
+    else if (realAff > 60) dowryRequired *= 0.7;
+
+    showModal({
+      title: "谈婚论嫁",
+      description: `${partner.name} 同意了你的求婚，但她家里要求 ¥${Math.floor(dowryRequired)} 的彩礼，且必须有房有车。`,
+      type: 'LOVE',
+      actions: [
+        {
+          label: `缴纳彩礼并领证 (¥${Math.floor(dowryRequired)})`,
+          onClick: () => {
+            if (gameState.stats.money < dowryRequired) {
+              addLog("钱不够，你丈母娘当场把你赶了出来。", "danger");
+              return;
+            }
+            if (!gameState.flags.hasHouse) {
+              addLog("没房也敢结婚？对方家长表示没商量。", "warning");
+              return;
+            }
+            
+            updateStats({ money: -dowryRequired, mental: 20 });
+            setGameState(prev => ({
+              ...prev,
+              flags: { 
+                ...prev.flags, 
+                isMarried: true, 
+                weddedPartner: prev.flags.partner,
+                partner: null, // 变成老婆了，不再是追求对象
+                isSingle: false 
+              }
+            }));
+            addLog(`新婚快乐！你签下了那张名为‘婚姻’的终身合同。`, "success");
+            closeModal();
+          }
+        },
+        { label: "还是单身自由", onClick: closeModal, style: 'secondary' }
+      ]
+    });
+  }
+};
 const triggerDeath = (reason: string) => {
     const newRecord = {
         name: gameState.playerName,
@@ -958,7 +1060,37 @@ if (nextSeason === 'SUMMER' && (!prev.flags.hasAC || !prev.flags.isACOn)) {
 } else {
   newSummerDays = 0;
 }
+let interest = 0;
+if (gameState.flags.bankBalance > 0 && !gameState.flags.isBankFrozen) {
+    interest = Math.floor(gameState.flags.bankBalance * 0.0001);
+}
 
+// 2. 婚姻稳定性判定 (每天 1% 几率判定)
+if (gameState.flags.isMarried && Math.random() < 0.01) {
+    const wife = gameState.flags.weddedPartner;
+    const realAff = wife?.realAffection || 0;
+    
+    if (realAff < 20) {
+        // 出轨或退婚剧情
+        showModal({
+            title: "头顶有点绿",
+            description: `你出差提前回家，发现衣柜里藏着一个自称是‘修水管’的健身教练。${wife?.name} 冷冷地说：‘我们结束了，彩礼我是不会退的，那是我的青春损失费。’`,
+            type: 'DEATH',
+            actions: [{
+                label: "净身出户",
+                onClick: () => {
+                    setGameState(prev => ({
+                        ...prev,
+                        flags: { ...prev.flags, isMarried: false, weddedPartner: null, isSingle: true },
+                        stats: { ...prev.stats, mental: -50 }
+                    }));
+                    closeModal();
+                },
+                style: 'danger'
+            }]
+        });
+    }
+}
 // 3. 计算体温
 const newBodyTemp = calculateBodyTemp(nextSeason, newEnvTemp, prev.flags.hasAC, prev.flags.isACOn, newSummerDays);
 
