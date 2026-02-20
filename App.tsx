@@ -406,6 +406,10 @@ const triggerDeath = (reason: string) => {
         isDepressed: false, 
         disease: null, 
         hasLoan: startDebt > 0, 
+        bankBalance: 0,
+        isBankFrozen: false,   // 必须初始化
+        isMarried: false,      // 必须初始化
+        weddedPartner: null,
         streamerSimpCount: 0,
         partner: null, 
         isPursuing: false, 
