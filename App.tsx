@@ -1182,6 +1182,19 @@ const finishWorkBlock = (finalPerformance: number) => {
       });
       return; // 暂停后续结算
   }
+if (gameState.season === 'SUMMER' && (!gameState.flags.hasAC || !gameState.flags.isACOn)) {
+    // 只有在炎热的夏天，且没开空调时，每天睡觉有20%几率触发
+    if (Math.random() < 0.20) {
+        const heatstroke = DISEASES.find(d => d.name === '热射病')!;
+        showModal({
+            title: "🌡️ 极度高温警告：热射病",
+            description: `【${heatstroke.name}】袭来！${heatstroke.desc}\n当前体温：${gameState.flags.bodyTemp}℃。你感觉大脑快要被煮熟了，视线开始模糊。\nICU抢救押金：¥${heatstroke.admission}`,
+            type: 'DISEASE',
+            actions:
+        });
+        return;
+    }
+}
     // 1. 优先处理住院逻辑 (如果 hospitalDays > 0，则进入强制住院流程)
     if (gameState.flags.hospitalDays > 0) {
       if (Math.random() < 0.01) {
@@ -1275,19 +1288,6 @@ const finishWorkBlock = (finalPerformance: number) => {
     }
 
 // --- 找到 handleSleep 里的疾病触发判定并替换 ---
-// --- 独立拦截：夏季热射病判定 ---
-if (gameState.season === 'SUMMER' && (!gameState.flags.hasAC || !gameState.flags.isACOn)) {
-    if (Math.random() < 0.20) {
-        const heatstroke = DISEASES.find(d => d.name === '热射病')!;
-        showModal({
-            title: "🌡️ 极度高温警告",
-            description: `【${heatstroke.name}】袭来！${heatstroke.desc}\n当前体温：${gameState.flags.bodyTemp}℃。你感觉大脑快要被煮熟了。\nICU抢救押金：¥${heatstroke.admission}`,
-            type: 'DISEASE',
-            actions:
-        });
-        return; // 强制中断后续所有结算
-    }
-}
 // 1. 计算动态生病概率 (基础概率 8% + 体力惩罚 + 年龄惩罚)
 const currentHealth = gameState.stats.physical;
 const currentAge = gameState.stats.age;
