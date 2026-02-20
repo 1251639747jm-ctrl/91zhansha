@@ -937,38 +937,63 @@ if (child.age < 3 && prev.flags.inventory.hasToxicMilk && Math.random() < 0.1) {
        setGameState(prev => ({ ...prev, showRelationshipPanel: false }));
     },
     buyHouse: () => {
-   if (gameState.flags.hasHouse) return;
-   const totalPrice = 3000000; // 总价300万
-   const currentMoney = gameState.stats.money;
-   
-   // 逻辑：有多少钱扣多少钱作为首付，剩下的全部变债务
-   const downPayment = Math.max(0, currentMoney); 
-   const loanAmount = totalPrice - downPayment;
+    if (gameState.flags.hasHouse) return;
+    const totalPrice = 3000000; // 总价 300万
+    const currentMoney = gameState.stats.money;
 
-   updateStats({ 
-       money: -downPayment, 
-       debt: loanAmount, 
-       mental: -30 
-   }, "你签下了那份长达30年的卖身契。即便兜里没钱，银行也贴心地为你办理了‘零首付’非法贷，你正式成为了尊贵的房奴。");
-   
-   setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasHouse: true, hasLoan: true, parentPressure: 0 } }));
+    // 修复点：支付金额不能超过房子的总价
+    const actualPayment = Math.min(currentMoney, totalPrice);
+    const loanAmount = Math.max(0, totalPrice - actualPayment);
+
+    // 文案判定
+    const logDesc = loanAmount > 0 
+        ? `你支付了 ¥${actualPayment} 作为首付，剩下的 ¥${loanAmount} 办理了30年贷款。你正式成为了房奴。`
+        : `你豪掷 ¥${totalPrice} 全款买下了这套房。销售小姐的笑容从未如此灿烂，你感受到了金钱的绝对力量。`;
+
+    updateStats({ 
+        money: -actualPayment, 
+        debt: loanAmount, 
+        mental: loanAmount > 0 ? -30 : 50 // 全款买房加精神，贷款买房扣精神
+    }, logDesc);
+    
+    setGameState(prev => ({ 
+        ...prev, 
+        flags: { 
+            ...prev.flags, 
+            hasHouse: true, 
+            hasLoan: loanAmount > 0 ? true : prev.flags.hasLoan,
+            parentPressure: 0 
+        } 
+    }));
 },
 
 buyCar: () => {
-   if (gameState.flags.hasCar) return;
-   const carPrice = 200000; // 20万
-   const currentMoney = gameState.stats.money;
+    if (gameState.flags.hasCar) return;
+    const carPrice = 200000; // 20万
+    const currentMoney = gameState.stats.money;
 
-   // 逻辑：同上，不够的钱全算贷款
-   const payByCash = Math.max(0, Math.min(currentMoney, carPrice));
-   const payByLoan = carPrice - payByCash;
+    // 修复点：支付金额不能超过车的总价
+    const actualPayment = Math.min(currentMoney, carPrice);
+    const loanAmount = Math.max(0, carPrice - actualPayment);
 
-   updateStats({ 
-       money: -payByCash, 
-       debt: payByLoan 
-   }, "销售小姐笑靥如花，为你办理了‘零首付’提车。即便卡里是0，你也能开上这辆让你腰杆变硬（但口袋空空）的铁壳子。");
-   
-   setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasCar: true, hasLoan: true } }));
+    const logDesc = loanAmount > 0
+        ? `你首付 ¥${actualPayment} 提了车，剩下 ¥${loanAmount} 分期支付。虽然背了债，但出门总算有面子了。`
+        : `你直接刷卡 ¥${carPrice} 全款提车。感受着新车的皮椅味，你觉得这就是成功的味道。`;
+
+    updateStats({ 
+        money: -actualPayment, 
+        debt: loanAmount,
+        mental: loanAmount > 0 ? -10 : 20
+    }, logDesc);
+    
+    setGameState(prev => ({ 
+        ...prev, 
+        flags: { 
+            ...prev.flags, 
+            hasCar: true, 
+            hasLoan: loanAmount > 0 ? true : prev.flags.hasLoan 
+        } 
+    }));
 },
     repayDebt: (amount: number) => {
         if (gameState.stats.money < amount) return;
