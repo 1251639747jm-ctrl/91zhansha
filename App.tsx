@@ -265,7 +265,7 @@ const triggerDeath = (reason: string) => {
         debt: startDebt, 
         age: finalAge 
     };
-    const hasInitialAC =.includes(bg.id);
+    const hasInitialAC = ['RICH_2', 'SCHOLAR', 'AVERAGE'].includes(bg.id);
     const initSeason = getRandomSeason();
     const initialChildren = generateInitialChildren(finalAge);
     setGameState({
@@ -1183,17 +1183,48 @@ const finishWorkBlock = (finalPerformance: number) => {
       return; // 暂停后续结算
   }
 if (gameState.season === 'SUMMER' && (!gameState.flags.hasAC || !gameState.flags.isACOn)) {
-    // 只有在炎热的夏天，且没开空调时，每天睡觉有20%几率触发
-    if (Math.random() < 0.20) {
-        const heatstroke = DISEASES.find(d => d.name === '热射病')!;
-        showModal({
-            title: "🌡️ 极度高温警告：热射病",
-            description: `【${heatstroke.name}】袭来！${heatstroke.desc}\n当前体温：${gameState.flags.bodyTemp}℃。你感觉大脑快要被煮熟了，视线开始模糊。\nICU抢救押金：¥${heatstroke.admission}`,
-            type: 'DISEASE',
-            actions:
-        });
-        return;
+  if (Math.random() < 0.20) {
+    const heatstroke = DISEASES.find(d => d.name === '热射病');
+    if (heatstroke) {
+      showModal({
+        title: "🌡️ 极度高温警告：热射病",
+        description: `【${heatstroke.name}】袭来！${heatstroke.desc}\n当前体温：${gameState.flags.bodyTemp}℃。你感觉大脑快要被煮熟了。\nICU抢救押金：¥${heatstroke.admission}`,
+        type: 'DISEASE',
+        actions: [
+          { 
+            label: `缴纳押金抢救 (¥${heatstroke.admission})`, 
+            onClick: () => {
+              if (gameState.stats.money >= heatstroke.admission) {
+                updateStats({ money: -heatstroke.admission });
+                setGameState(prev => ({ 
+                  ...prev, 
+                  flags: { ...prev.flags, disease: heatstroke.name, hospitalDays: heatstroke.days, hospitalDailyCost: heatstroke.daily },
+                  phase: 'SLEEP'
+                }));
+                closeModal();
+              } else {
+                triggerDeath("由于交不起ICU住院费，你被抬出了急诊室，死在了医院走廊的长椅上。");
+              }
+            }
+          },
+          { 
+            label: "放弃治疗", 
+            style: 'danger',
+            onClick: () => {
+              if (Math.random() < 0.8) {
+                triggerDeath("你拒绝了抢救。凌晨四点，你的体温达到了42℃，脏器在高温下彻底停止了工作工作。");
+              } else {
+                addLog("你竟然奇迹般地挺过来了，但大脑受损严重，感觉自己变笨了。", "warning");
+                updateStats({ mental: -50, physical: -30 });
+                closeModal();
+              }
+            }
+          }
+        ]
+      });
+      return; // 拦截成功，中断后续代码
     }
+  }
 }
     // 1. 优先处理住院逻辑 (如果 hospitalDays > 0，则进入强制住院流程)
     if (gameState.flags.hospitalDays > 0) {
