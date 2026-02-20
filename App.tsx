@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, ProfessionType, LogEntry, FamilyBackground, Child } from './types';
+import { getRandomSeason, getNextSeason, getDailyTemperature, calculateBodyTemp } from './weather';
 import { 
   PROFESSIONS, INITIAL_STATS, COMPLEX_DEATHS, 
   JOB_EVENTS, JOB_LOGS, DISEASES, POTENTIAL_PARTNERS, 
