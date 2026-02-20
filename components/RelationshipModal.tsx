@@ -26,6 +26,10 @@ interface Props {
   debt: number;
   actions: {
     findPartner: () => void;
+    deposit: (amount: number) => void;   // 存钱
+    withdraw: () => void;               // 取钱
+    propose: () => void;                // 求婚
+    tryToHaveChild: () => void;         // 生娃
     dateMovie: () => void;
     dateShopping: () => void;
     confess: () => void;
