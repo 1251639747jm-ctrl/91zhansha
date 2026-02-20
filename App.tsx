@@ -242,17 +242,11 @@ const marriageActions = {
             if (gameState.stats.money < dowryPrice) return addLog("钱不够，婚事吹了。", "danger");
             if (!gameState.flags.hasHouse) return addLog("没房，丈母娘不同意这门亲事。", "warning");
             
-            // 3. 概率触发：彩礼诈骗（拿钱不退，人消失）
-            if (partner.fidelity < 30 && Math.random() < 0.3) {
-                updateStats({ money: -dowryPrice, mental: -60 });
-                showModal({
-                    title: "【彩礼刺客】",
-                    description: `领证前一天，${partner.name} 和全家突然人间蒸发。你不仅损失了 ¥${dowryPrice}，还发现对方曾是三个省的在逃通缉犯。`,
-                    type: 'DEATH',
-                    actions: [{ label: "破防重开", onClick: () => window.location.reload(), style: 'danger' }]
-                });
-                return;
-            }
+             if (partner.fidelity < 30 && Math.random() < 0.3) {
+               updateStats({ money: -dowryPrice, mental: -60 });
+        triggerDeath(`【彩礼诈骗】你刚把 ¥${dowryPrice} 汇入对方指定的“弟弟购房账户”，${partner.name} 就反手把你拉黑并注销了账号。你报案后发现，对方连身份证都是假的。你不仅倾家荡产，还成了全村的笑柄。`);
+        return;
+    }
 
             updateStats({ money: -dowryPrice, mental: 30 });
             setGameState(prev => ({
@@ -1059,27 +1053,42 @@ const proceedToNextDay = () => {
   if (gameState.flags.bankBalance > 0 && !gameState.flags.isBankFrozen) {
       bankInterest = Math.floor(gameState.flags.bankBalance * 0.00015);
   }
-
-  // 2. 婚内出轨判定 (基于老婆的 Fidelity 和 你的 RealAffection)
-  if (gameState.flags.isMarried && Math.random() < 0.01) {
-      const wife = gameState.flags.weddedPartner;
-      // 如果老婆忠诚度低 或者 你对老婆太冷淡
-      if ((wife?.fidelity || 100) < 40 || (wife?.realAffection || 100) < 20) {
-          showModal({
-            title: "【婚姻危机】",
-            description: `你下班回家，发现家里多了一双不属于你的男士拖鞋。${wife?.name} 摊牌了：“你每天只知道搬砖，根本不懂浪漫。” \n 随后她带走了家里一半的存款和孩子。`,
-            type: 'DEATH',
-            actions: [{ label: "净身出户", onClick: () => {
-                setGameState(prev => ({
-                    ...prev,
-                    flags: { ...prev.flags, isMarried: false, weddedPartner: null, isSingle: true, children: [] },
-                    stats: { ...prev.stats, money: prev.stats.money / 2, mental: -50 }
-                }));
-                closeModal();
-            }, style: 'danger' }]
-          });
-      }
-  }
+if (gameState.flags.isMarried && Math.random() < 0.01) {
+    const wife = gameState.flags.weddedPartner;
+    if ((wife?.fidelity || 100) < 40 || (wife?.realAffection || 100) < 20) {
+        setGameState(prev => ({
+            ...prev,
+            phase: 'MODAL_PAUSE',
+            modal: {
+                isOpen: true,
+                title: "💔 婚姻彻底破裂",
+                description: `你推开门，发现家里多了一个正在练腹肌的陌生男子。${wife?.name} 递给你一份离婚协议：“彩礼我是不会退的，家产我也要分一半，孩子归我，你就滚吧。”`,
+                type: 'DEATH',
+                actions: [{ 
+                    label: "签了它 (净身出户)", 
+                    style: 'danger',
+                    onClick: () => {
+                        // 逻辑：直接判定是否满足“社会性死亡”
+                        const currentMoney = gameState.stats.money;
+                        if (currentMoney < 5000) {
+                            // 如果钱不够，直接判定为流落街头而死
+                            triggerDeath("【流落街头】你签了字，提着一个破蛇皮袋被赶出了家门。由于你之前为了买房掏空了所有存款，现在身无分文且背负贷款。在寒冷的冬夜，你蜷缩在公园的长椅上，再也没有醒来。");
+                        } else {
+                            // 否则，虽然没死，但大出血
+                            setGameState(p => ({
+                                ...p,
+                                flags: { ...p.flags, isMarried: false, weddedPartner: null, isSingle: true, children: [] },
+                                stats: { ...p.stats, money: p.stats.money / 2, mental: -50 }
+                            }));
+                            closeModal();
+                            addLog("你离婚了，虽然保住了命，但你的一半积蓄被带走了，精神极度萎靡。", "danger");
+                        }
+                    } 
+                }]
+            }
+        }));
+    }
+}
     // 2. 年龄与升学逻辑 (周年判定)
     let updatedChildren = [...prev.flags.children];
     let currentAge = prev.stats.age;
@@ -1878,8 +1887,9 @@ if (!isAlreadySick && Math.random() < sickChance) {
         money={gameState.stats.money}
         debt={gameState.stats.debt}
         actions={{...relActions,      // 基础情感动作
-    ...bankActions,     // 银行动作 (deposit, withdraw)
-    ...marriageActions}}
+   propose: marriageActions.propose, // 确保这个是修正后的版本
+  deposit: bankActions.deposit,...bankActions,     // 银行动作
+  ...marriageActions}}
       />
       
       <StatBar stats={gameState.stats} profession={gameState.profession} time={gameState.time} isDepressed={gameState.flags.isDepressed} date={gameState.date} season={gameState.season} weatherTemp={gameState.weatherTemp} bodyTemp={gameState.flags.bodyTemp}/>
