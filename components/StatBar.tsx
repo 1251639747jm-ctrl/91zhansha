@@ -16,7 +16,7 @@ interface Props {
   bodyTemp: number;
 }
 
-const StatBar: React.FC<Props> = ({ stats, profession, time, isDepressed, date }) => {
+const StatBar: React.FC<Props> = ({ stats, profession, time, isDepressed, date, season, weatherTemp, bodyTemp }) => {
   return (
     <div className="bg-black/90 backdrop-blur-md border-b border-zinc-800 p-3 sticky top-0 z-50 shadow-2xl">
       <div className="max-w-4xl mx-auto flex flex-wrap justify-between items-center gap-y-2">
