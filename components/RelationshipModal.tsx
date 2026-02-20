@@ -301,6 +301,29 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                     </div>
                 )}
               </div>
+              {/* 空调资产 */}
+<div className={`p-4 rounded-xl border ${flags.hasAC ? (flags.isACOn ? 'bg-cyan-900/20 border-cyan-800' : 'bg-zinc-800/50 border-zinc-600') : 'bg-zinc-800/50 border-zinc-700'}`}>
+  <div className="flex items-center justify-between mb-3">
+    <div className="flex items-center">
+      <span className="font-bold text-white flex items-center">
+         {flags.hasAC ? (flags.isACOn ? '🧊 空调(运行中)' : '⏹ 空调(已关)') : '🥵 无空调'}
+      </span>
+    </div>
+    {flags.hasAC && (
+       <span className="text-xs text-zinc-500 font-mono">-¥15/天</span>
+    )}
+  </div>
+  
+  {!flags.hasAC ? (
+    <button onClick={actions.buyAC} className="w-full py-2 bg-blue-900/40 hover:bg-blue-800 text-blue-200 rounded text-sm transition-colors border border-blue-700">
+      购买壁挂空调 (¥2500)
+    </button>
+  ) : (
+    <button onClick={actions.toggleAC} className={`w-full py-2 rounded text-sm transition-colors border ${flags.isACOn ? 'bg-zinc-700 text-zinc-300 border-zinc-600 hover:bg-zinc-600' : 'bg-cyan-900/50 text-cyan-200 border-cyan-700 hover:bg-cyan-800'}`}>
+      {flags.isACOn ? '关闭空调 (省钱)' : '开启空调 (续命)'}
+    </button>
+  )}
+</div>
             </div>
           </section>
 
