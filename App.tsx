@@ -174,35 +174,25 @@ useEffect(() => {
   };
 // App.tsx 内部新增
 const bankActions = {
-  depositAll: () => {
-    if (gameState.flags.isBankFrozen) {
-      addLog("你的账户已被冻结，无法进行任何交易。请配合调查。", "danger");
-      return;
-    }
-    const amount = gameState.stats.money;
-    if (amount <= 0) return;
+  deposit: (amount: number) => {
+    if (gameState.flags.isBankFrozen) return addLog("柜台显示：该账户因‘系统升级’暂停业务。", "danger");
+    if (gameState.stats.money < amount) return addLog("余额不足，无法存款。", "warning");
     
     setGameState(prev => ({
       ...prev,
-      stats: { ...prev.stats, money: 0 },
+      stats: { ...prev.stats, money: prev.stats.money - amount },
       flags: { ...prev.flags, bankBalance: prev.flags.bankBalance + amount }
     }));
-    addLog(`将 ¥${amount} 存入了银行，安全感+10（错觉）。`, "success");
+    addLog(`存入 ¥${amount}。虽然只有电子数字，但你觉得比放在枕头底下安全。`, "success");
   },
-  
-  withdrawAll: () => {
-    if (gameState.flags.isBankFrozen) {
-      addLog("账户冻结中，取款失败。窗口柜员指了指旁边的保安。", "danger");
-      return;
-    }
+
+  withdraw: () => {
+    if (gameState.flags.isBankFrozen) return addLog("无法取款！屏幕显示：由于银行流动性风险，您的账户已被依法冻结。", "danger");
     
-    // 2% 概率暴雷
+    // 2% 概率：银行暴雷/钱被挪用/充公
     if (Math.random() < 0.02) {
-      setGameState(prev => ({
-        ...prev,
-        flags: { ...prev.flags, isBankFrozen: true }
-      }));
-      triggerDeath("【银行暴雷】你试图取款时，发现ATM机显示‘系统维护’。随后新闻报出该银行行长带小姨子卷款潜逃至海外，你的存款被列为‘待追缴赃款’，取款遥遥无期。（由于积蓄清零且申诉无门，你直接气绝身亡）");
+      setGameState(prev => ({ ...prev, flags: { ...prev.flags, isBankFrozen: true } }));
+      triggerDeath("【金融铁拳】你尝试取钱时，发现ATM机贴着‘设备故障’。随后新闻报出该村镇银行负责人已携带20亿资金通过‘海豚计划’出境。由于存款未进预售资金监管账户，你的血汗钱被告知‘充公以抵债’。你看着卡里归零的余额，心脏剧烈抽搐。（死因：被时代的一粒沙精准砸中）");
       return;
     }
 
@@ -212,7 +202,7 @@ const bankActions = {
       stats: { ...prev.stats, money: prev.stats.money + amount },
       flags: { ...prev.flags, bankBalance: 0 }
     }));
-    addLog(`成功取出存款 ¥${amount}，你感觉这些钱从未如此亲切。`, "info");
+    addLog(`取出了全部存款 ¥${amount}。那一刻你觉得厚厚的现金才是唯一的真理。`, "info");
   }
 };
 
@@ -221,56 +211,77 @@ const marriageActions = {
     const partner = gameState.flags.partner;
     if (!partner) return;
 
-    // 内置好感度逻辑判定
+    // 内置好感度逻辑（RealAffection）
     const realAff = partner.realAffection || 0;
     const materialism = partner.materialism;
 
-    // 1. 判定求婚是否成功 (基于 realAffection)
+    // 1. 求婚成功门槛：隐藏好感度必须 > 40
     if (realAff < 40) {
-      updateStats({ mental: -40 });
-      addLog(`${partner.name} 礼貌地拒绝了你，并暗示你现在的条件‘给不了她想要的未来’。`, "danger");
+      updateStats({ mental: -30 });
+      showModal({
+        title: "求婚失败",
+        description: `${partner.name} 沉默了很久，最后说：“你是个好人，但我妈说没房没车没50万彩礼不能结婚。我们还是算了吧。”`,
+        type: 'LOVE',
+        actions: [{ label: "含泪分手", onClick: () => { relActions.breakup(); closeModal(); }, style: 'danger' }]
+      });
       return;
     }
 
-    // 2. 计算彩礼要求 (好感度越高，彩礼越可能减免；物质指数越高，彩礼越狠)
-    // 基础彩礼 20万，根据好感度 offset
-    let dowryRequired = 200000 * materialism;
-    if (realAff > 80) dowryRequired *= 0.3; // 真爱减免
-    else if (realAff > 60) dowryRequired *= 0.7;
+    // 2. 彩礼计算：物质指数 * 10万，隐藏好感度越高折扣越多
+    let dowryPrice = Math.floor(materialism * 100000);
+    if (realAff > 80) dowryPrice *= 0.2; // 真爱：只要象征性的一点
 
     showModal({
       title: "谈婚论嫁",
-      description: `${partner.name} 同意了你的求婚，但她家里要求 ¥${Math.floor(dowryRequired)} 的彩礼，且必须有房有车。`,
+      description: `${partner.name} 同意了！但她家里提出：\n1. 彩礼 ¥${dowryPrice}\n2. 必须有房 (House)\n3. 婚后你管钱 (假象)`,
       type: 'LOVE',
       actions: [
         {
-          label: `缴纳彩礼并领证 (¥${Math.floor(dowryRequired)})`,
+          label: "成交 (结婚)",
           onClick: () => {
-            if (gameState.stats.money < dowryRequired) {
-              addLog("钱不够，你丈母娘当场把你赶了出来。", "danger");
-              return;
-            }
-            if (!gameState.flags.hasHouse) {
-              addLog("没房也敢结婚？对方家长表示没商量。", "warning");
-              return;
-            }
+            if (gameState.stats.money < dowryPrice) return addLog("钱不够，婚事吹了。", "danger");
+            if (!gameState.flags.hasHouse) return addLog("没房，丈母娘不同意这门亲事。", "warning");
             
-            updateStats({ money: -dowryRequired, mental: 20 });
+            // 3. 概率触发：彩礼诈骗（拿钱不退，人消失）
+            if (partner.fidelity < 30 && Math.random() < 0.3) {
+                updateStats({ money: -dowryPrice, mental: -60 });
+                showModal({
+                    title: "【彩礼刺客】",
+                    description: `领证前一天，${partner.name} 和全家突然人间蒸发。你不仅损失了 ¥${dowryPrice}，还发现对方曾是三个省的在逃通缉犯。`,
+                    type: 'DEATH',
+                    actions: [{ label: "破防重开", onClick: () => window.location.reload(), style: 'danger' }]
+                });
+                return;
+            }
+
+            updateStats({ money: -dowryPrice, mental: 30 });
             setGameState(prev => ({
               ...prev,
-              flags: { 
-                ...prev.flags, 
-                isMarried: true, 
-                weddedPartner: prev.flags.partner,
-                partner: null, // 变成老婆了，不再是追求对象
-                isSingle: false 
-              }
+              flags: { ...prev.flags, isMarried: true, weddedPartner: partner, partner: null, isSingle: false }
             }));
-            addLog(`新婚快乐！你签下了那张名为‘婚姻’的终身合同。`, "success");
+            addLog("新婚大喜！你获得了‘合法繁衍权’，同时也背上了沉重的家庭责任。", "success");
             closeModal();
           }
         },
-        { label: "还是单身自由", onClick: closeModal, style: 'secondary' }
+        { label: "还是单身好", onClick: closeModal, style: 'secondary' }
+      ]
+    });
+  },
+
+  tryToHaveChild: () => {
+    if (!gameState.flags.isMarried) return;
+    showModal({
+      title: "繁衍后代？",
+      description: "孩子是生命的延续，也是钞票的焚化炉。确定要在这个充满卷味的世界生孩子吗？",
+      type: 'EVENT',
+      actions: [
+        { label: "为了传宗接代 (造人计划)", onClick: () => {
+            addLog("你们开始准备要孩子了，生活成本将大幅增加。", "warning");
+            // 直接触发之前的 adoptChild 逻辑即可，或者加一个怀孕期
+            relActions.adoptChild(); 
+            closeModal();
+        }},
+        { label: "丁克保平安", onClick: closeModal, style: 'secondary' }
       ]
     });
   }
@@ -1015,7 +1026,31 @@ const proceedToNextDay = () => {
     const nextDate = new Date(prev.date);
     nextDate.setDate(nextDate.getDate() + 1);
     const newDaysSurvived = prev.stats.daysSurvived + 1;
+    let bankInterest = 0;
+  if (gameState.flags.bankBalance > 0 && !gameState.flags.isBankFrozen) {
+      bankInterest = Math.floor(gameState.flags.bankBalance * 0.00015);
+  }
 
+  // 2. 婚内出轨判定 (基于老婆的 Fidelity 和 你的 RealAffection)
+  if (gameState.flags.isMarried && Math.random() < 0.01) {
+      const wife = gameState.flags.weddedPartner;
+      // 如果老婆忠诚度低 或者 你对老婆太冷淡
+      if ((wife?.fidelity || 100) < 40 || (wife?.realAffection || 100) < 20) {
+          showModal({
+            title: "【婚姻危机】",
+            description: `你下班回家，发现家里多了一双不属于你的男士拖鞋。${wife?.name} 摊牌了：“你每天只知道搬砖，根本不懂浪漫。” \n 随后她带走了家里一半的存款和孩子。`,
+            type: 'DEATH',
+            actions: [{ label: "净身出户", onClick: () => {
+                setGameState(prev => ({
+                    ...prev,
+                    flags: { ...prev.flags, isMarried: false, weddedPartner: null, isSingle: true, children: [] },
+                    stats: { ...prev.stats, money: prev.stats.money / 2, mental: -50 }
+                }));
+                closeModal();
+            }, style: 'danger' }]
+          });
+      }
+  }
     // 2. 年龄与升学逻辑 (周年判定)
     let updatedChildren = [...prev.flags.children];
     let currentAge = prev.stats.age;
@@ -1106,7 +1141,7 @@ const acCost = (prev.flags.hasAC && prev.flags.isACOn) ? 15 : 0;
       stats: {
         ...prev.stats,
         age: currentAge,
-        money: prev.stats.money - acCost,
+        money: prev.stats.money - acCost + bankInterest,
         daysSurvived: newDaysSurvived
       },
       flags: {
