@@ -83,6 +83,11 @@ export interface GameState {
     isDepressed: boolean;
     disease: string | null;
     hasInsurance: boolean;
+    bankBalance: number;      // 银行存款
+    isBankFrozen: boolean;    // 银行账户是否被封/冻结
+    isMarried: boolean;       // 是否已婚
+    marriageDate: string | null;
+    weddedPartner: Partner | null; // 结婚对象
     hasAC: boolean;       // 是否有空调
     isACOn: boolean;      // 空调是否开启
     bodyTemp: number;     // 玩家体温
