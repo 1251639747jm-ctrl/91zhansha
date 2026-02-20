@@ -265,6 +265,8 @@ const triggerDeath = (reason: string) => {
         debt: startDebt, 
         age: finalAge 
     };
+    const hasInitialAC =.includes(bg.id);
+    const initSeason = getRandomSeason();
     const initialChildren = generateInitialChildren(finalAge);
     setGameState({
       profession: prof,
@@ -277,6 +279,8 @@ const triggerDeath = (reason: string) => {
       phase: 'MORNING',
       date: new Date('2024-01-01T07:30:00'),
       time: '07:30',
+      season: initSeason,
+      weatherTemp: getDailyTemperature(initSeason),
       log: [
         { id: 1, text: `>>> 档案载入完毕。年龄：${finalAge}岁。身份：${prof.name}。背景：${bg.name}。`, type: 'info' },
             ...(initialChildren.length > 0 ? [{ 
@@ -290,6 +294,10 @@ const triggerDeath = (reason: string) => {
           streamerSimpCount: 0,
           partner: null, isPursuing: false, hasHouse: false, hasCar: false, parentPressure: 0,
           hasInsurance: prof.hasInsurance,
+          hasAC: hasInitialAC,
+          isACOn: hasInitialAC, // 有空调默认开启
+          bodyTemp: 36.5,
+          summerDaysWithoutAC: 0,
           hospitalDays: 0, hospitalDailyCost: 0,
           blackVanRisk: 0, lastCheckupDate: null, knownHealth: null,
           inventory: { oil: 0, badOil: false, rice: 0, veggies: 0, meat: 0, seasoning: 0, milkPowder: 0, diapers: 0 },
@@ -741,6 +749,15 @@ if (child.age < 3 && prev.flags.inventory.hasToxicMilk && Math.random() < 0.1) {
       setGameState(prev => ({ ...prev, flags: { ...prev.flags, partner: { ...target, affection: 15, realAffection: 5 }, isPursuing: true } }));
       addLog(`在“探探/陌陌”上滑到了【${target.name}】，备注改成了“女神”，你的舔狗生涯开始了。`, 'warning');
     },
+    buyAC: () => {
+      if (gameState.stats.money < 2500) { addLog("买不起空调，心静自然凉吧。", "warning"); return; }
+      updateStats({ money: -2500 });
+      setGameState(prev => ({ ...prev, flags: { ...prev.flags, hasAC: true, isACOn: true } }));
+      addLog("花了 ¥2500 买了一台空调，终于不用当烤肉了！", "success");
+  },
+  toggleAC: () => {
+      setGameState(prev => ({ ...prev, flags: { ...prev.flags, isACOn: !prev.flags.isACOn } }));
+  },
     dateMovie: () => {
        if (gameState.stats.money < 300) { addLog("团购票都买不起，对方回了句“我去洗澡了”就再也没理你。", "danger"); return; }
        updateStats({ money: -300, mental: 10 }, "看了场爆米花烂片，全程帮她拿包、递奶茶，手都酸了，但她对你笑了一下。");
@@ -917,19 +934,42 @@ const proceedToNextDay = () => {
         }, 500);
       }
     }
+    // 1. 换季与天气生成 (每30天换一次季)
+let nextSeason = prev.season;
+if (newDaysSurvived > 0 && newDaysSurvived % 30 === 0) {
+  nextSeason = getNextSeason(prev.season);
+}
+const newEnvTemp = getDailyTemperature(nextSeason);
 
+// 2. 空调惩罚天数判定
+let newSummerDays = prev.flags.summerDaysWithoutAC;
+if (nextSeason === 'SUMMER' && (!prev.flags.hasAC || !prev.flags.isACOn)) {
+  newSummerDays++;
+} else {
+  newSummerDays = 0;
+}
+
+// 3. 计算体温
+const newBodyTemp = calculateBodyTemp(nextSeason, newEnvTemp, prev.flags.hasAC, prev.flags.isACOn, newSummerDays);
+
+// 4. 结算空调电费 (每天15块)
+const acCost = (prev.flags.hasAC && prev.flags.isACOn) ? 15 : 0;
     return {
       ...prev,
       date: nextDate,
       phase: 'MORNING',
       time: '07:00',
+      season: nextSeason,
+      weatherTemp: newEnvTemp,
       stats: {
         ...prev.stats,
         age: currentAge,
+        money: prev.stats.money - acCost,
         daysSurvived: newDaysSurvived
       },
       flags: {
         ...prev.flags,
+        bodyTemp: newBodyTemp, summerDaysWithoutAC: newSummerDays,
         children: updatedChildren
       }
     };
@@ -1235,7 +1275,19 @@ const finishWorkBlock = (finalPerformance: number) => {
     }
 
 // --- 找到 handleSleep 里的疾病触发判定并替换 ---
-
+// --- 独立拦截：夏季热射病判定 ---
+if (gameState.season === 'SUMMER' && (!gameState.flags.hasAC || !gameState.flags.isACOn)) {
+    if (Math.random() < 0.20) {
+        const heatstroke = DISEASES.find(d => d.name === '热射病')!;
+        showModal({
+            title: "🌡️ 极度高温警告",
+            description: `【${heatstroke.name}】袭来！${heatstroke.desc}\n当前体温：${gameState.flags.bodyTemp}℃。你感觉大脑快要被煮熟了。\nICU抢救押金：¥${heatstroke.admission}`,
+            type: 'DISEASE',
+            actions:
+        });
+        return; // 强制中断后续所有结算
+    }
+}
 // 1. 计算动态生病概率 (基础概率 8% + 体力惩罚 + 年龄惩罚)
 const currentHealth = gameState.stats.physical;
 const currentAge = gameState.stats.age;
