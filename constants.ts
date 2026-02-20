@@ -594,7 +594,8 @@ export const DISEASES = [
   { name: '重度痔疮', harm: 5, admission: 1500, daily: 300, days: 3, desc: '久坐的报应，做了个微创手术，趴在床上动弹不得。' },
   { name: '肾结石碎石', harm: 20, admission: 2000, daily: 500, days: 2, desc: '痛不欲生，仿佛有人在腰子里钻孔。' },
   { name: '脑溢血', harm: 50, admission: 10000, daily: 5000, days: 10, desc: '长期熬夜高压，血管爆了。ICU抢救中，家属正在考虑是否拔管。' },
-  { name: '抑郁症(重度)', harm: 30, admission: 3000, daily: 500, days: 7, desc: '精神彻底崩溃，需要在封闭式病房进行干预治疗。' }
+  { name: '抑郁症(重度)', harm: 30, admission: 3000, daily: 500, days: 7, desc: '精神彻底崩溃，需要在封闭式病房进行干预治疗。' },
+  { name: '热射病', harm: 80,admission: 10000,daily: 3000, days: 3, desc: '由于在重度高温下未开空调导致核心体温失控。大脑像是在沸水里煮过，多器官正在快速衰竭。' }
 ];
 
 // 复合死亡条件逻辑已移至 App.tsx 中处理，此处保留空数组防止引用报错
