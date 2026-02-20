@@ -6,12 +6,17 @@ export const getRandomSeason = (): Season => SEASONS[Math.floor(Math.random() * 
 
 export const getNextSeason = (current: Season): Season => {
   const idx = SEASONS.indexOf(current);
-  return SEASONS;
+  return SEASONS[(idx + 1) % SEASONS.length]; 
 };
 
-export const getSeasonName = (season: Season) => {
-  const map = { SPRING: '春季', SUMMER: '夏季', AUTUMN: '秋季', WINTER: '冬季' };
-  return map;
+export const getSeasonName = (season: Season): string => {
+  const map = { 
+    SPRING: '春季', 
+    SUMMER: '夏季', 
+    AUTUMN: '秋季', 
+    WINTER: '冬季' 
+  };
+  return map[season];
 };
 
 export const getDailyTemperature = (season: Season): number => {
