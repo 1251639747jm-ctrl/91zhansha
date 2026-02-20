@@ -72,6 +72,8 @@ export interface GameState {
   background: FamilyBackground | null; // [新增]
   stats: PlayerStats;
   phase: GamePhase;
+  season: 'SPRING' | 'SUMMER' | 'AUTUMN' | 'WINTER';
+  weatherTemp: number; // 当前环境温度
   date: Date;
   debt: number;
   cookingSkill: number;
@@ -81,6 +83,10 @@ export interface GameState {
     isDepressed: boolean;
     disease: string | null;
     hasInsurance: boolean;
+    hasAC: boolean;       // 是否有空调
+    isACOn: boolean;      // 空调是否开启
+    bodyTemp: number;     // 玩家体温
+    summerDaysWithoutAC: number; // 连续不吹空调天数（用于推高体温）
     hospitalDays: number;
     hospitalDailyCost: number;
     hasLoan: boolean;
