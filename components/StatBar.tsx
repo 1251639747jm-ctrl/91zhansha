@@ -3,12 +3,17 @@ import { PlayerStats, Profession } from '../types';
 import { formatCurrency, getHealthColor, getMentalColor, formatDateCN } from '../utils';
 import { Heart, Brain, DollarSign, Utensils, Clock, User, Calendar } from 'lucide-react';
 
+import { Season, getSeasonName } from '../weather'; // 根据你的实际路径引入
+
 interface Props {
   stats: PlayerStats;
   profession: Profession | null;
   time: string;
   isDepressed: boolean;
   date: Date;
+  season: Season;
+  weatherTemp: number;
+  bodyTemp: number;
 }
 
 const StatBar: React.FC<Props> = ({ stats, profession, time, isDepressed, date }) => {
@@ -27,7 +32,14 @@ const StatBar: React.FC<Props> = ({ stats, profession, time, isDepressed, date }
             <span className="font-mono text-lg text-white font-bold">{time}</span>
           </div>
         </div>
-
+        <div className="flex flex-col items-center justify-center bg-zinc-900/80 px-3 py-1 rounded-lg border border-zinc-700">
+          <span className="text- text-zinc-400 font-mono flex items-center gap-1">
+             {getSeasonName(season)} <span className="text-white font-bold">{weatherTemp}℃</span>
+          </span>
+          <span className={`text- font-mono font-bold mt-0.5 ${bodyTemp > 38 ? 'text-red-500 animate-pulse' : 'text-green-400'}`}>
+            体温 {bodyTemp}℃
+          </span>
+        </div>
         {/* Profession Badge */}
          <div className="hidden md:flex items-center space-x-2 px-3 py-1 rounded bg-zinc-900/50 border border-zinc-700">
             <User className="w-3 h-3 text-zinc-400" />
