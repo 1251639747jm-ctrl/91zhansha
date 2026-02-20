@@ -1852,7 +1852,9 @@ if (!isAlreadySick && Math.random() < sickChance) {
         flags={gameState.flags}
         money={gameState.stats.money}
         debt={gameState.stats.debt}
-        actions={relActions}
+        actions={...relActions,      // 基础情感动作
+    ...bankActions,     // 银行动作 (deposit, withdraw)
+    ...marriageActions}
       />
       
       <StatBar stats={gameState.stats} profession={gameState.profession} time={gameState.time} isDepressed={gameState.flags.isDepressed} date={gameState.date} season={gameState.season} weatherTemp={gameState.weatherTemp} bodyTemp={gameState.flags.bodyTemp}/>
