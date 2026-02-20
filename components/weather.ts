@@ -1,6 +1,6 @@
 export type Season = 'SPRING' | 'SUMMER' | 'AUTUMN' | 'WINTER';
 
-export const SEASONS: Season[] =;
+export const SEASONS: Season[] =['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
 
 export const getRandomSeason = (): Season => SEASONS;
 
