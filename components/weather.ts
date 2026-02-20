@@ -2,7 +2,7 @@ export type Season = 'SPRING' | 'SUMMER' | 'AUTUMN' | 'WINTER';
 
 export const SEASONS: Season[] =['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
 
-export const getRandomSeason = (): Season => SEASONS;
+export const getRandomSeason = (): Season => SEASONS[Math.floor(Math.random() * SEASONS.length)];
 
 export const getNextSeason = (current: Season): Season => {
   const idx = SEASONS.indexOf(current);
