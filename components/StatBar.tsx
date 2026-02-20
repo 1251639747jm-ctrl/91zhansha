@@ -3,7 +3,7 @@ import { PlayerStats, Profession } from '../types';
 import { formatCurrency, getHealthColor, getMentalColor, formatDateCN } from '../utils';
 import { Heart, Brain, DollarSign, Utensils, Clock, User, Calendar } from 'lucide-react';
 
-import { Season, getSeasonName } from '../weather'; // 根据你的实际路径引入
+import { Season, getSeasonName } from './weather'; // 根据你的实际路径引入
 
 interface Props {
   stats: PlayerStats;
