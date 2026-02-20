@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, ProfessionType, LogEntry, FamilyBackground, Child } from './types';
-import { getRandomSeason, getNextSeason, getDailyTemperature, calculateBodyTemp } from './weather';
+import { getRandomSeason, getNextSeason, getDailyTemperature, calculateBodyTemp } from './components/weather';
 import { 
   PROFESSIONS, INITIAL_STATS, COMPLEX_DEATHS, 
   JOB_EVENTS, JOB_LOGS, DISEASES, POTENTIAL_PARTNERS, 
@@ -290,21 +290,30 @@ const triggerDeath = (reason: string) => {
           }] : [])
            ],
       flags: { 
-          isDepressed: false, disease: null, hasLoan: startDebt > 0, isSingle: true, 
-          streamerSimpCount: 0,
-          partner: null, isPursuing: false, hasHouse: false, hasCar: false, parentPressure: 0,
-          hasInsurance: prof.hasInsurance,
-          hasAC: hasInitialAC,
-          isACOn: hasInitialAC, // 有空调默认开启
-          bodyTemp: 36.5,
-          summerDaysWithoutAC: 0,
-          hospitalDays: 0, hospitalDailyCost: 0,
-          blackVanRisk: 0, lastCheckupDate: null, knownHealth: null,
-          inventory: { oil: 0, badOil: false, rice: 0, veggies: 0, meat: 0, seasoning: 0, milkPowder: 0, diapers: 0 },
-          children: initialChildren, // <--- 替换这里
-          isSingle: initialChildren.length > 0 ? false : true, // 有孩子默认不是单身状态（或者设定为离异/丧偶）
-          parentPressure: initialChildren.length > 0 ? 0 : 30, // 有了孩子，父母催婚压力消失
-      },
+        isDepressed: false, 
+        disease: null, 
+        hasLoan: startDebt > 0, 
+        streamerSimpCount: 0,
+        partner: null, 
+        isPursuing: false, 
+        hasHouse: false, 
+        hasCar: false, 
+        hasInsurance: prof.hasInsurance,
+        hospitalDays: 0, 
+        hospitalDailyCost: 0,
+        blackVanRisk: 0, 
+        lastCheckupDate: null, 
+        knownHealth: null,
+        inventory: { oil: 0, badOil: false, rice: 0, veggies: 0, meat: 0, seasoning: 0, milkPowder: 0, diapers: 0 },
+        children: initialChildren,
+        // --- 修复点：确保这里不重复 ---
+        isSingle: initialChildren.length === 0, 
+        parentPressure: initialChildren.length > 0 ? 0 : 30,
+        hasAC: ['RICH_2', 'SCHOLAR', 'AVERAGE'].includes(bg.id),
+        isACOn: ['RICH_2', 'SCHOLAR', 'AVERAGE'].includes(bg.id),
+        bodyTemp: 36.5,
+        summerDaysWithoutAC: 0,
+    },
       modal: { isOpen: false, title: '', description: '', type: 'EVENT', actions: [] },
       showRelationshipPanel: false,
       gameOverReason: ''
@@ -1674,7 +1683,7 @@ if (!isAlreadySick && Math.random() < sickChance) {
         actions={relActions}
       />
       
-      <StatBar stats={gameState.stats} profession={gameState.profession} time={gameState.time} isDepressed={gameState.flags.isDepressed} date={gameState.date} />
+      <StatBar stats={gameState.stats} profession={gameState.profession} time={gameState.time} isDepressed={gameState.flags.isDepressed} date={gameState.date} season={gameState.season} weatherTemp={gameState.weatherTemp} bodyTemp={gameState.flags.bodyTemp}/>
       
       <main className="max-w-5xl mx-auto p-4 flex flex-col gap-6">
         <GameLog logs={gameState.log} />
