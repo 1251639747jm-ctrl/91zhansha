@@ -88,6 +88,7 @@ export interface GameState {
     isMarried: boolean;       // 是否已婚
     marriageDate: string | null;
     weddedPartner: Partner | null; // 结婚对象
+    hasPregnancy: boolean;
     hasAC: boolean;       // 是否有空调
     isACOn: boolean;      // 空调是否开启
     bodyTemp: number;     // 玩家体温
