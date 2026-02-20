@@ -43,9 +43,9 @@ export const FAMILY_BACKGROUNDS: FamilyBackground[] = [
     },
     {
         id: 'RICH_2',
-        name: '拆迁户/富二代',
+        name: '富二代',
         desc: '家里有三套房收租。上班只是为了体验生活，或者被老爹逼着出来“锻炼”。',
-        moneyModifier: 100000, // 巨额初始资金
+        moneyModifier: 10000000, // 巨额初始资金
         debtModifier: 0,
         statModifier: { physical: -10, mental: 20 } // 身体虚，心态好
     },
