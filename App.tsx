@@ -305,6 +305,7 @@ const triggerDeath = (reason: string) => {
         lastCheckupDate: null, 
         knownHealth: null,
         inventory: { oil: 0, badOil: false, rice: 0, veggies: 0, meat: 0, seasoning: 0, milkPowder: 0, diapers: 0 },
+        hasToxicMilk: false,
         children: initialChildren,
         // --- 修复点：确保这里不重复 ---
         isSingle: initialChildren.length === 0, 
@@ -1433,7 +1434,7 @@ if (!isAlreadySick && Math.random() < sickChance) {
             onClick: () => { 
               updateStats({ mental: -20, physical: -10 }); 
               closeModal();
-              moveToNextDay(); // 选完忍，才执行进入明天
+              proceedToNextDay(); // 选完忍，才执行进入明天
             } 
           },
           { 
@@ -1445,7 +1446,7 @@ if (!isAlreadySick && Math.random() < sickChance) {
               } else {
                 addLog("算你走运，领导车队改道了，你保住了一条命。", "warning");
                 closeModal();
-                moveToNextDay(); // 没死也执行进入明天
+                proceedToNextDay(); // 没死也执行进入明天
               }
             } 
           }
