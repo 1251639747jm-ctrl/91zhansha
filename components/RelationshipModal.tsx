@@ -207,64 +207,58 @@ const RelationshipModal: React.FC<Props> = ({ isOpen, onClose, partner, children
                 </div>
              </div>
           </section>
-{/* 增加 Tab 切换或直接分段展示 */}
-<div className="space-y-6">
+{/* 在 RelationshipModal 的内容区域添加以下两个 Section */}
 
-  {/* --- 银行系统 --- */}
-  <section className="border-t border-zinc-800 pt-6">
-    <h3 className="text-zinc-400 text-sm font-mono uppercase tracking-widest mb-4 flex items-center">
-      Banking System {flags.isBankFrozen && <span className="ml-2 text-red-500 animate-pulse">[账户已冻结]</span>}
-    </h3>
-    <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
-      <div className="flex justify-between items-center mb-4">
-        <span className="text-zinc-400">银行存款：</span>
-        <span className="text-xl font-mono text-cyan-400 font-bold">¥{flags.bankBalance.toLocaleString()}</span>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <button onClick={actions.depositAll} className="btn-rel bg-cyan-900/20 text-cyan-200 border-cyan-800">
-           全部存入 (利息 0.01%/天)
-        </button>
-        <button onClick={actions.withdrawAll} className="btn-rel bg-amber-900/20 text-amber-200 border-amber-800">
-           全部取出 (2%风险)
-        </button>
-      </div>
+{/* 1. 赛博银行控制台 */}
+<section className="bg-zinc-950 border border-zinc-700 p-4 rounded-xl">
+    <div className="flex justify-between items-center mb-3">
+        <h3 className="text-cyan-400 font-bold flex items-center">
+            <Banknote className="w-4 h-4 mr-1"/> 赛博合作社 (银行)
+        </h3>
+        <span className="text-xs font-mono text-cyan-600">日息: 0.015%</span>
     </div>
-  </section>
+    <div className="flex justify-between mb-4 px-2">
+        <span className="text-zinc-500 text-sm">定期存款:</span>
+        <span className={`text-lg font-mono font-bold ${flags.isBankFrozen ? 'text-red-500 line-through' : 'text-cyan-300'}`}>
+            ¥{flags.bankBalance.toLocaleString()}
+        </span>
+    </div>
+    <div className="grid grid-cols-2 gap-2">
+        <button onClick={() => actions.deposit(money)} disabled={flags.isBankFrozen} 
+            className="text-[10px] py-2 bg-cyan-900/30 text-cyan-200 border border-cyan-700 rounded hover:bg-cyan-900/50">
+            全部存入 (避险?)
+        </button>
+        <button onClick={actions.withdraw} disabled={flags.isBankFrozen}
+            className="text-[10px] py-2 bg-amber-900/30 text-amber-200 border border-amber-700 rounded hover:bg-amber-900/50">
+            取款 (2%概率暴雷)
+        </button>
+    </div>
+</section>
 
-  {/* --- 婚姻系统 (修改原有的 Romance 部分) --- */}
-  <section className="border-t border-zinc-800 pt-6">
-    <h3 className="text-zinc-400 text-sm font-mono uppercase tracking-widest mb-4">
-      Marriage & Family
-    </h3>
-    <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700">
-      {flags.isMarried ? (
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-pink-300 font-bold">配偶：{flags.weddedPartner?.name}</span>
-            <span className="text-xs text-green-500">已领证</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-             <button onClick={actions.adoptChild} className="btn-rel bg-green-900/20 text-green-200 border-green-800">
-                准备生娃/领养
-             </button>
-             <button className="btn-rel opacity-50 cursor-not-allowed">
-                婚后理财
-             </button>
-          </div>
-        </div>
-      ) : (
-        partner && !flags.isPursuing && (
-          <div className="text-center">
-            <p className="text-sm text-zinc-400 mb-3">你们已经交往一段时间了...</p>
-            <button onClick={actions.propose} className="w-full py-3 bg-gradient-to-r from-pink-600 to-red-600 text-white font-bold rounded-lg shadow-lg">
-              向 {partner.name} 求婚
+{/* 2. 婚姻控制台 */}
+<section className="bg-zinc-900 border border-pink-900/30 p-4 rounded-xl">
+    {flags.isMarried ? (
+        <div className="space-y-3">
+            <div className="flex justify-between items-center">
+                <span className="text-pink-300 font-bold">配偶: {flags.weddedPartner?.name}</span>
+                <span className="text-[10px] text-green-500 bg-green-950 px-2 py-0.5 rounded">合法婚姻</span>
+            </div>
+            <button onClick={actions.tryToHaveChild} 
+                className="w-full py-2 bg-pink-900/40 text-pink-100 text-xs rounded border border-pink-700">
+                开启造人计划 (生孩子)
             </button>
-          </div>
+        </div>
+    ) : (
+        partner && !flags.isPursuing && (
+            <div className="text-center">
+                <p className="text-[10px] text-zinc-500 mb-2">好感度已达标，是时候给他/她一个家了</p>
+                <button onClick={actions.propose} className="w-full py-3 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-lg shadow-lg shadow-pink-900/20">
+                    💖 向 {partner.name} 求婚
+                </button>
+            </div>
         )
-      )}
-    </div>
-  </section>
-</div>
+    )}
+</section>
           {/* Section 3: 资产与债务 */}
           <section>
             <div className="flex justify-between items-center mb-4">
