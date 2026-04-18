@@ -16,7 +16,11 @@ import {
   Play, RotateCcw, Utensils, Briefcase, Moon, 
   ShoppingBag, Beer, Dumbbell, Footprints, 
   MonitorPlay, Heart, Skull, AlertOctagon,
-  XCircle, Users, Activity, Baby, Home
+  XCircle, Users, Activity, Baby, Home,CalendarDays,
+  Wallet,
+  Thermometer,
+  ShieldAlert,
+  Sparkles,
 } from 'lucide-react';
 
 // === 常量定义：保留所有文本描述 ===
