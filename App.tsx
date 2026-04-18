@@ -54,7 +54,7 @@ const App: React.FC = () => {
     log: [],
     flags: { 
       // 基础标记
-      isDepressed: false, disease: null, hasLoan: false, isSingle: true, 
+      isDepressed: false, disease: null, hasLoan: false, isSingle: true,lastJobEventDate: null as string | null,
       partner: null, isPursuing: false, hasHouse: false, hasCar: false, parentPressure: 0,
       hasInsurance: false,
       
@@ -416,6 +416,7 @@ const triggerDeath = (reason: string) => {
         hasInsurance: prof.hasInsurance,
         hospitalDays: 0, 
         hospitalDailyCost: 0,
+        lastJobEventDate: null,
         blackVanRisk: 0, 
         lastCheckupDate: null, 
         knownHealth: null,
@@ -1206,6 +1207,68 @@ const acCost = (prev.flags.hasAC && prev.flags.isACOn) ? 15 : 0;
        return { ...prev, flags: { ...prev.flags, partner: { ...currentPartner, affection: newDisplay, realAffection: newReal } } };
      });
   };
+  // --- 职业专属事件触发器 ---
+const tryTriggerJobEvent = (context: 'WORK_PM' | 'OVERTIME') => {
+  const prof = gameState.profession;
+  if (!prof) return;
+
+  // 防止一天触发多次
+  const today = formatDateCN(gameState.date);
+  // @ts-ignore
+  if (gameState.flags.lastJobEventDate === today) return;
+
+  // 从常量池取职业事件（兼容按 id 或按 name 做 key）
+  // @ts-ignore
+  const pool = JOB_EVENTS[prof.id] || JOB_EVENTS[prof.name] || [];
+  if (!Array.isArray(pool) || pool.length === 0) return;
+
+  // 基础概率：下班12%，加班18%
+  const chance = context === 'OVERTIME' ? 0.18 : 0.12;
+  if (Math.random() >= chance) return;
+
+  const ev = pool[getRandomInt(0, pool.length - 1)] || {};
+  const title = ev.title || `【${prof.name}】职业专属事件`;
+  const desc = ev.description || ev.desc || ev.text || "今天发生了一些离谱的职场事件。";
+  const effect = ev.effect || ev.effects || {};
+
+  showModal({
+    title,
+    description: desc,
+    type: 'WORK',
+    actions: [
+      {
+        label: "处理",
+        onClick: () => {
+          // 支持 money / physical / mental / satiety / debt
+          const delta: any = {};
+          if (typeof effect.money === 'number') delta.money = effect.money;
+          if (typeof effect.physical === 'number') delta.physical = effect.physical;
+          if (typeof effect.mental === 'number') delta.mental = effect.mental;
+          if (typeof effect.satiety === 'number') delta.satiety = effect.satiety;
+          if (typeof effect.debt === 'number') delta.debt = effect.debt;
+
+          if (Object.keys(delta).length > 0) {
+            updateStats(delta, `职业事件：${title}`);
+          } else {
+            addLog(`职业事件：${title}`, "info");
+          }
+
+          // 记录当天已触发
+          setGameState(prev => ({
+            ...prev,
+            flags: {
+              ...prev.flags,
+              // @ts-ignore
+              lastJobEventDate: today
+            }
+          }));
+
+          closeModal();
+        }
+      }
+    ]
+  });
+};
 const handleWork = () => {
       setGameState(prev => ({ ...prev, workRounds: 1 }));
       addLog("你坐在了工位上，感受着空气中弥漫的PUA气息，工作开始了。", "info");
