@@ -1207,110 +1207,98 @@ const acCost = (prev.flags.hasAC && prev.flags.isACOn) ? 15 : 0;
        return { ...prev, flags: { ...prev.flags, partner: { ...currentPartner, affection: newDisplay, realAffection: newReal } } };
      });
   };
-  // --- 职业专属事件触发器 ---
-const tryTriggerJobEvent = (context: 'WORK_PM' | 'OVERTIME') => {
-  const prof = gameState.profession;
-  if (!prof) return;
-
-  // 防止一天触发多次
-  const today = formatDateCN(gameState.date);
-  // @ts-ignore
-  if (gameState.flags.lastJobEventDate === today) return;
-
-  // 从常量池取职业事件（兼容按 id 或按 name 做 key）
-  // @ts-ignore
-  const pool = JOB_EVENTS[prof.id] || JOB_EVENTS[prof.name] || [];
-  if (!Array.isArray(pool) || pool.length === 0) return;
-
-  // 基础概率：下班12%，加班18%
-  const chance = context === 'OVERTIME' ? 0.18 : 0.12;
-  if (Math.random() >= chance) return;
-
-  const ev = pool[getRandomInt(0, pool.length - 1)] || {};
-  const title = ev.title || `【${prof.name}】职业专属事件`;
-  const desc = ev.description || ev.desc || ev.text || "今天发生了一些离谱的职场事件。";
-  const effect = ev.effect || ev.effects || {};
-
-  showModal({
-    title,
-    description: desc,
-    type: 'WORK',
-    actions: [
-      {
-        label: "处理",
-        onClick: () => {
-          // 支持 money / physical / mental / satiety / debt
-          const delta: any = {};
-          if (typeof effect.money === 'number') delta.money = effect.money;
-          if (typeof effect.physical === 'number') delta.physical = effect.physical;
-          if (typeof effect.mental === 'number') delta.mental = effect.mental;
-          if (typeof effect.satiety === 'number') delta.satiety = effect.satiety;
-          if (typeof effect.debt === 'number') delta.debt = effect.debt;
-
-          if (Object.keys(delta).length > 0) {
-            updateStats(delta, `职业事件：${title}`);
-          } else {
-            addLog(`职业事件：${title}`, "info");
-          }
-
-          // 记录当天已触发
-          setGameState(prev => ({
-            ...prev,
-            flags: {
-              ...prev.flags,
-              // @ts-ignore
-              lastJobEventDate: today
-            }
-          }));
-
-          closeModal();
-        }
-      }
-    ]
-  });
-};
 const handleWork = () => {
       setGameState(prev => ({ ...prev, workRounds: 1 }));
       addLog("你坐在了工位上，感受着空气中弥漫的PUA气息，工作开始了。", "info");
   };
-const handleWorkChoice = (type: 'SLACK' | 'HARD') => {
-    const isHard = type === 'HARD';
-    
-    // [数值优化]：内卷体力消耗 -12 -> -8，摸鱼体力消耗 0 -> +3
-    const pChange = isHard ? -8 : 3;
-    const mChange = isHard ? -8 : 8; // 摸鱼精神回更多
-    const sChange = -8; // 只要干活就饿
+  const triggerJobEventDuringWork = () => {
+  const profId = gameState.profession?.id as ProfessionType | undefined;
+  if (!profId) return;
 
-    // 1. 立即更新基础数值
-    updateStats({
-      physical: pChange,
-      mental: mChange,
-      satiety: sChange
-    }, isHard 
-       ? "你疯狂内卷，试图在老板面前表现，虽然腰椎隐隐作痛，但你觉得离升职又近了一步（其实并没有）。" 
-       : "你熟练地切换到桌面背景，开启带薪摸鱼模式，甚至在工位上偷偷做起了扩胸运动，精神得到了升华。");
+  // 只在工作中触发
+  if (!(gameState.phase === 'WORK_AM' || gameState.phase === 'WORK_PM')) return;
 
-    // 2. 更新表现和轮次
-    setGameState(prev => {
-      const newPerformance = (prev.workPerformance || 0) + (isHard ? 20 : -10);
-      const newRounds = (prev.workRounds || 0) + 1;
+  const pool = JOB_EVENTS[profId] || [];
+  if (!pool.length) return;
 
-      // 如果达到3轮，执行下班结算
-      if (newRounds >= 3) {
-        setTimeout(() => finishWorkBlock(newPerformance), 50);
-        return { 
-          ...prev, 
-          workRounds: 0, 
-          workPerformance: 0 
-        };
+  // 每次“工作选择”10%概率触发（一天两次选择，大约 19%）
+  const chancePerAction = 0.10;
+  if (Math.random() >= chancePerAction) return;
+
+  // 本班次只触发一次
+  const shiftTag = `${formatDateCN(gameState.date)}_${gameState.phase}`;
+  // @ts-ignore
+  if (gameState.flags.lastJobEventShift === shiftTag) return;
+
+  const ev = pool[getRandomInt(0, pool.length - 1)];
+  const returnPhase = gameState.phase;
+  const returnTime = gameState.time;
+
+  showModal({
+    title: ev.title,
+    description: ev.desc,
+    type: 'WORK',
+    actions: (ev.options || []).map((opt: any) => ({
+      label: opt.text,
+      onClick: () => {
+        const ch = opt.changes || {};
+
+        // 只把你现有 stats 支持的字段喂给 updateStats
+        updateStats({
+          money: ch.money || 0,
+          physical: ch.physical || 0,
+          mental: ch.mental || 0,
+          satiety: ch.satiety || 0,
+          debt: ch.debt || 0,
+        }, `职业事件：${ev.title} -> ${opt.text}`);
+
+        // 注意：不要用 closeModal（你的 closeModal 对 WORK 时段恢复不准确）
+        setGameState(prev => ({
+          ...prev,
+          phase: returnPhase,
+          time: returnTime,
+          flags: {
+            ...prev.flags,
+            // @ts-ignore
+            lastJobEventShift: shiftTag
+          },
+          modal: { ...prev.modal, isOpen: false }
+        }));
       }
+    }))
+  });
+};
+const handleWorkChoice = (type: 'SLACK' | 'HARD') => {
+  const isHard = type === 'HARD';
+  
+  const pChange = isHard ? -8 : 3;
+  const mChange = isHard ? -8 : 8;
+  const sChange = -8;
 
-      return { 
-        ...prev, 
-        workRounds: newRounds, 
-        workPerformance: newPerformance 
-      };
-    });
+  updateStats({
+    physical: pChange,
+    mental: mChange,
+    satiety: sChange
+  }, isHard 
+     ? "你疯狂内卷，试图在老板面前表现，虽然腰椎隐隐作痛，但你觉得离升职又近了一步（其实并没有）。" 
+     : "你熟练地切换到桌面背景，开启带薪摸鱼模式，甚至在工位上偷偷做起了扩胸运动，精神得到了升华。");
+
+  // 工作中触发职业事件：只在前两轮尝试，避免第三轮下班结算冲突
+  if ((gameState.workRounds || 0) < 2) {
+    triggerJobEventDuringWork();
+  }
+
+  setGameState(prev => {
+    const newPerformance = (prev.workPerformance || 0) + (isHard ? 20 : -10);
+    const newRounds = (prev.workRounds || 0) + 1;
+
+    if (newRounds >= 3) {
+      setTimeout(() => finishWorkBlock(newPerformance), 50);
+      return { ...prev, workRounds: 0, workPerformance: 0 };
+    }
+
+    return { ...prev, workRounds: newRounds, workPerformance: newPerformance };
+  });
 };
 const triggerMilkScandal = (childName: string) => {
     setGameState(prev => ({
