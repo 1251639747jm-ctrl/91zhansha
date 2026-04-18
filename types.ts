@@ -61,11 +61,12 @@ export interface Partner {
   fidelity: number;
 }
 
-export type GamePhase = 
-  | 'START' | 'MORNING' | 'WORK_AM' | 'REST_AM' 
-  | 'LUNCH' | 'WORK_PM' | 'REST_PM' 
+export type GamePhase =
+  | 'START' | 'MORNING' | 'WORK_AM' | 'REST_AM'
+  | 'LUNCH' | 'WORK_PM' | 'REST_PM'
   | 'DINNER' | 'FREE_TIME' | 'SLEEP'
-  | 'GAME_OVER' | 'EVENT_CNY' | 'MODAL_PAUSE';
+  | 'GAME_OVER' | 'EVENT_CNY' | 'MODAL_PAUSE'
+  | 'MORTUARY';
 
 export interface GameState {
   profession: Profession | null;
