@@ -1718,372 +1718,568 @@ if (!isAlreadySick && Math.random() < sickChance) {
 
   // --- UI: 开始界面 ---
   if (gameState.phase === 'START') {
-     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-950 font-sans">
-        <div className="max-w-5xl w-full bg-zinc-900/80 p-8 rounded-xl shadow-2xl border border-zinc-800 backdrop-blur">
-          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500 mb-6 text-center tracking-tighter">中国式社畜模拟器 <span className="text-sm font-mono text-zinc-600 block mt-2">ULTIMATE EDITION</span></h1>
-          
-          <div className="flex flex-col md:flex-row justify-center gap-6 mb-8">
-            <div className="bg-black/40 px-6 py-4 rounded-xl border border-zinc-700 flex flex-col items-center">
-                 <span className="text-zinc-500 text-xs uppercase mb-1">Initial Age</span>
-                 <div className="flex items-center gap-2">
-                     <span className="text-3xl font-bold text-white font-mono">{tempAge}</span>
-                     <button onClick={() => setTempAge(getRandomInt(18, 55))} className="p-1 hover:bg-zinc-700 rounded-full transition-colors"><RotateCcw className="w-4 h-4 text-zinc-500 hover:text-white"/></button>
-                 </div>
+    return (
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-red-500/10 blur-[120px]" />
+          <div className="absolute bottom-0 right-0 w-[520px] h-[520px] bg-yellow-500/10 blur-[150px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.04),transparent_30%)]" />
+        </div>
+        <div className="relative max-w-6xl w-full glass-card rounded-[32px] p-6 md:p-10 border border-white/10">
+          <div className="text-center mb-10">
+            <div className="inline-flex px-3 py-1 rounded-full border border-white/10 bg-white/[0.04] text-[10px] uppercase tracking-[0.35em] text-zinc-400 mb-4">
+              Life Simulation Terminal
             </div>
-            <div className="bg-black/40 px-6 py-4 rounded-xl border border-zinc-700 flex flex-col items-center min-w-[200px]">
-                 <span className="text-zinc-500 text-xs uppercase mb-1">Family Background</span>
-                 <div className="flex items-center gap-2">
-                     <span className="text-xl font-bold text-white">{tempBg.name}</span>
-                     <button onClick={() => setTempBg(FAMILY_BACKGROUNDS[getRandomInt(0, FAMILY_BACKGROUNDS.length - 1)])} className="p-1 hover:bg-zinc-700 rounded-full transition-colors"><RotateCcw className="w-4 h-4 text-zinc-500 hover:text-white"/></button>
-                 </div>
-                 <span className="text-xs text-zinc-500 mt-1">{tempBg.desc}</span>
-            </div>
+            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-orange-300 to-yellow-300">
+              中国式社畜模拟器
+            </h1>
+            <p className="text-zinc-400 mt-3 text-sm md:text-base">
+              在高压、低薪、家庭责任与随机暴击中，努力活过明天
+            </p>
           </div>
-          <div className="mb-8 max-w-xs mx-auto text-center">
-              <label className="text-zinc-500 text-[10px] block mb-2 uppercase tracking-widest font-bold">档案姓名 / Name</label>
-              <input 
-                  type="text" 
-                  value={playerName} 
-                  onChange={(e) => setPlayerName(e.target.value.slice(0, 8))} // 限制8个字
-                  placeholder="输入你的牛马编号"
-                  className="w-full bg-black border-2 border-zinc-700 p-3 text-center text-xl font-bold text-white focus:border-red-500 outline-none transition-all rounded-lg"
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+              <div className="panel-title mb-2">Initial Age</div>
+              <div className="flex items-center justify-between">
+                <div className="text-4xl font-black text-white">{tempAge}</div>
+                <button
+                  onClick={() => setTempAge(getRandomInt(18, 55))}
+                  className="w-10 h-10 rounded-2xl border border-white/10 bg-white/[0.04] flex items-center justify-center hover:bg-white/[0.08] transition-all"
+                >
+                  <RotateCcw className="w-4 h-4 text-zinc-300" />
+                </button>
+              </div>
+              <p className="text-xs text-zinc-500 mt-3">随机刷新开局年龄</p>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+              <div className="panel-title mb-2">Family Background</div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xl font-bold text-white">{tempBg.name}</div>
+                  <div className="text-xs text-zinc-500 mt-2 leading-relaxed">{tempBg.desc}</div>
+                </div>
+                <button
+                  onClick={() => setTempBg(FAMILY_BACKGROUNDS[getRandomInt(0, FAMILY_BACKGROUNDS.length - 1)])}
+                  className="w-10 h-10 shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] flex items-center justify-center hover:bg-white/[0.08] transition-all"
+                >
+                  <RotateCcw className="w-4 h-4 text-zinc-300" />
+                </button>
+              </div>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+              <div className="panel-title mb-2">Archive Name</div>
+              <input
+                type="text"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value.slice(0, 8))}
+                placeholder="输入你的牛马编号"
+                className="w-full mt-1 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white text-lg font-bold outline-none focus:border-red-400/40 focus:bg-black/40 transition-all"
               />
+              <p className="text-xs text-zinc-500 mt-3">最多 8 个字符</p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="panel-title">Profession Selection</div>
+              <h2 className="text-2xl font-black text-white mt-1">选择你的职业剧本</h2>
+            </div>
+            <div className="hidden md:flex items-center gap-2 text-xs text-zinc-500">
+              <Sparkles className="w-4 h-4" />
+              年龄不符合将无法选择
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {Object.values(PROFESSIONS).map((p: any) => {
               const isEligible = tempAge >= (p.minAge || 0) && tempAge <= (p.maxAge || 100);
               return (
-              <button key={p.id} onClick={() => isEligible && startGame(p.id as ProfessionType)} disabled={!isEligible}
-                className={`p-4 border rounded-lg text-left transition-all hover:scale-[1.02] relative overflow-hidden group h-32 flex flex-col justify-between ${isEligible ? 'bg-zinc-800/50 hover:bg-red-900/10 border-zinc-700 cursor-pointer' : 'opacity-30 grayscale cursor-not-allowed border-zinc-800'}`}>
-                <div>
-                    <div className="font-bold text-zinc-100 mb-1 flex justify-between items-center">
-                        {p.name}
-                        <span className="text-[10px] bg-zinc-900 px-2 py-0.5 rounded text-zinc-500">{p.schedule}</span>
+                <button
+                  key={p.id}
+                  onClick={() => isEligible && startGame(p.id as ProfessionType)}
+                  disabled={!isEligible}
+                  className={`p-5 rounded-2xl border text-left transition-all duration-200 h-40 flex flex-col justify-between relative overflow-hidden group
+                    ${isEligible
+                      ? 'bg-white/[0.04] border-white/10 hover:border-red-400/30 hover:bg-red-500/10 hover:scale-[1.02]'
+                      : 'bg-white/[0.02] border-white/5 opacity-30 grayscale cursor-not-allowed'
+                    }`}
+                >
+                  <div className="absolute -right-5 -top-5 w-20 h-20 rounded-full bg-white/5 blur-2xl" />
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <h3 className="text-lg font-bold text-white">{p.name}</h3>
+                      <span className="text-[10px] px-2 py-1 rounded-full bg-black/30 border border-white/10 text-zinc-400">
+                        {p.schedule}
+                      </span>
                     </div>
-                    <div className="text-xs text-zinc-500">{p.description}</div>
-                </div>
-                <div className="text-[10px] text-zinc-600 font-mono border-t border-zinc-700/50 pt-2 mt-2 flex justify-between">
-                    <span>底薪: ¥{p.salaryBase}</span>
-                    <span>{p.minAge}-{p.maxAge}岁</span>
-                </div>
-              </button>
-            )})}
+                    <p className="text-sm text-zinc-400 leading-relaxed">{p.description}</p>
+                  </div>
+                  <div className="relative z-10 flex items-center justify-between text-xs text-zinc-500 border-t border-white/10 pt-3">
+                    <span>底薪 ¥{p.salaryBase}</span>
+                    <span>{p.minAge || 0}-{p.maxAge || 100} 岁</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
-     );
+    );
   }
-
   // --- UI: 游戏结束 ---
   if (gameState.phase === 'GAME_OVER') {
-  return (
-    <div className="min-h-screen bg-red-900/40 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="text-center animate-in zoom-in duration-300">
-        <h1 className="text-8xl font-black text-red-600 mb-8 drop-shadow-[0_5px_5px_rgba(0,0,0,1)] tracking-tighter shadow-black">
-          你死了！
-        </h1>
-        <div className="bg-black/80 p-8 border-4 border-zinc-700 max-w-lg mx-auto text-left font-mono">
-          <p className="text-yellow-400 mb-2">【 档案编号：#00{gameState.deathHistory.length} 】</p>
-          <p className="text-white text-xl mb-1">姓名：{gameState.playerName}</p>
-          <p className="text-white text-xl mb-1">职业：{gameState.profession?.name}</p>
-          <p className="text-white text-xl mb-1">生存至：{gameState.stats.age} 岁</p>
-          <p className="text-red-400 text-lg mt-4 font-bold">原因：{gameState.gameOverReason}</p>
-        </div>
-        <div className="mt-10 space-y-4">
-          <button onClick={() => window.location.reload()} className="w-64 py-3 bg-zinc-800 border-2 border-zinc-600 text-white hover:bg-zinc-700 transition-all font-bold">
+    return (
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-gradient-to-b from-red-950/30 via-black to-black" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-red-500/10 blur-[140px]" />
+        <div className="relative max-w-2xl w-full text-center">
+          <div className="mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-red-500/20 bg-red-500/10 text-red-300 text-xs uppercase tracking-[0.28em]">
+              <Skull className="w-3 h-3" />
+              Game Over
+            </div>
+            <h1 className="mt-5 text-6xl md:text-8xl font-black text-red-500 tracking-tight drop-shadow-[0_8px_30px_rgba(255,0,0,.2)]">
+              你死了
+            </h1>
+            <p className="text-zinc-500 mt-3">这个城市又吞掉了一名普通打工人</p>
+          </div>
+          <div className="glass-card rounded-[28px] border border-red-500/20 p-6 md:p-8 text-left">
+            <div className="panel-title mb-4">Death Archive</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+              <InfoCard label="姓名" value={gameState.playerName} />
+              <InfoCard label="职业" value={gameState.profession?.name || '未知'} />
+              <InfoCard label="生存年龄" value={`${gameState.stats.age} 岁`} />
+              <InfoCard label="档案编号" value={`#00${gameState.deathHistory.length}`} />
+            </div>
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+              <div className="text-xs uppercase tracking-[0.24em] text-red-300 mb-2">Cause of death</div>
+              <p className="text-red-100 leading-7">{gameState.gameOverReason}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-8 px-8 py-4 rounded-2xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] text-white font-bold transition-all"
+          >
             回到主菜单
           </button>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 // --- UI: 停尸间界面 (移出 JSX 内部以修复 Unexpected return 错误) ---
   // --- UI: 停尸间/生物资产回收站 (替换原来的旧版本) ---
-  if (gameState.phase === 'MORTUARY') {
+if (gameState.phase === 'MORTUARY') {
     return (
-      <div className="fixed inset-0 z-50 bg-zinc-950 overflow-y-auto font-sans text-zinc-300 p-4 md:p-10">
-        <div className="max-w-4xl mx-auto">
-          {/* 标题区 */}
-          <div className="flex flex-col md:flex-row justify-between items-center mb-10 border-b border-red-900/50 pb-6 gap-4">
-            <div>
-              <h1 className="text-4xl font-black text-white tracking-tighter flex items-center gap-3">
-                <Skull className="text-red-600 w-10 h-10" /> 
-                生物资产回收档案库
-              </h1>
-              <p className="text-zinc-500 mt-2 font-mono text-sm uppercase tracking-widest">Biological Asset Recycling Archives</p>
+      <div className="min-h-screen relative overflow-hidden p-4 md:p-8">
+        <div className="absolute inset-0 bg-black" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-red-600/10 blur-[120px]" />
+        <div className="relative max-w-6xl mx-auto">
+          <div className="glass-card rounded-[28px] p-6 md:p-8 border border-white/10 mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+              <div>
+                <div className="panel-title">Biological Asset Recycling Archives</div>
+                <h1 className="text-3xl md:text-5xl font-black text-white mt-2 flex items-center gap-3">
+                  <Skull className="w-9 h-9 text-red-500" />
+                  生物资产回收档案库
+                </h1>
+                <p className="text-zinc-500 mt-3">记录那些被城市消化掉的人生残片</p>
+              </div>
+              <button
+                onClick={() => setGameState(p => ({ ...p, phase: 'FREE_TIME' } as any))}
+                className="px-6 py-3 rounded-2xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-300 font-semibold transition-all"
+              >
+                返回阳间
+              </button>
             </div>
-            <button 
-              onClick={() => setGameState(p => ({...p, phase: 'FREE_TIME'}))}
-              className="px-8 py-3 bg-red-950/20 hover:bg-red-900/40 border border-red-900/50 text-red-500 font-bold rounded-lg transition-all flex items-center gap-2"
-            >
-              <RotateCcw className="w-4 h-4" /> 返回阳间
-            </button>
           </div>
-
-          {/* 档案列表 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {(gameState.deathHistory || []).length > 0 ? (
               gameState.deathHistory.map((d: any, i: number) => (
-                <div key={i} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl relative overflow-hidden group hover:border-red-900/50 transition-all">
-                  {/* 背景编号水印 */}
-                  <div className="absolute -right-4 -bottom-4 text-8xl font-black text-white/[0.03] italic">
+                <div
+                  key={i}
+                  className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] p-6 hover:border-red-500/20 transition-all"
+                >
+                  <div className="absolute -right-4 -bottom-5 text-8xl font-black text-white/[0.03] italic">
                     #{String(i + 1).padStart(3, '0')}
                   </div>
-                  
                   <div className="relative z-10">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-xl font-bold text-zinc-100">{d.name}</h3>
-                      <span className="bg-red-900/30 text-red-500 text-[10px] px-2 py-1 rounded font-mono border border-red-900/20">
+                    <div className="flex items-start justify-between gap-3 mb-5">
+                      <div>
+                        <h3 className="text-2xl font-bold text-white">{d.name}</h3>
+                        <p className="text-sm text-zinc-500 mt-1">{d.profession}</p>
+                      </div>
+                      <span className="text-[10px] px-3 py-1 rounded-full border border-red-500/20 bg-red-500/10 text-red-300">
                         {d.date}
                       </span>
                     </div>
-
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-zinc-500">曾任职业：</span>
-                        <span className="text-zinc-300">{d.profession}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-zinc-500">销户年龄：</span>
-                        <span className="text-zinc-300 font-mono">{d.age} 岁</span>
-                      </div>
-                      <div className="mt-4 pt-4 border-t border-zinc-800/50">
-                        <span className="text-red-400/80 text-xs font-bold uppercase block mb-1">死亡鉴定结论：</span>
-                        <p className="text-zinc-400 italic leading-relaxed text-xs">
-                          {d.reason}
-                        </p>
-                      </div>
+                    <div className="grid grid-cols-2 gap-3 mb-5">
+                      <InfoCard label="销户年龄" value={`${d.age} 岁`} />
+                      <InfoCard label="记录编号" value={`#${String(i + 1).padStart(3, '0')}`} />
+                    </div>
+                    <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+                      <div className="text-xs uppercase tracking-[0.24em] text-red-300 mb-2">死亡鉴定结论</div>
+                      <p className="text-sm text-zinc-300 leading-7">{d.reason}</p>
                     </div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="col-span-full py-20 text-center border-2 border-dashed border-zinc-800 rounded-2xl">
-                <p className="text-zinc-600 font-bold">暂无生物资产回收记录</p>
-                <p className="text-zinc-700 text-xs mt-1">看来你还没在这个城市留下血泪史</p>
+              <div className="col-span-full rounded-3xl border border-dashed border-white/10 bg-white/[0.03] py-20 text-center">
+                <p className="text-zinc-500 text-lg font-semibold">暂无生物资产回收记录</p>
+                <p className="text-zinc-600 text-sm mt-2">看来你还没在这座城市留下足够惨烈的血泪史</p>
               </div>
             )}
           </div>
-
-          {/* 底部声明 */}
-          <p className="text-center mt-12 text-[10px] text-zinc-700 font-mono">
-            CONFIDENTIAL DOCUMENT: PROPERTY OF CITY MUNICIPAL HEALTH BUREAU
-          </p>
         </div>
       </div>
     );
   }
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans pb-10 selection:bg-red-500/30">
+    <div className="min-h-screen relative overflow-hidden text-zinc-200 font-sans selection:bg-fuchsia-500/20">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-fuchsia-600/10 blur-[140px]" />
+        <div className="absolute right-0 top-1/4 w-[400px] h-[400px] bg-cyan-500/10 blur-[120px]" />
+        <div className="absolute left-0 bottom-0 w-[500px] h-[400px] bg-indigo-500/10 blur-[130px]" />
+      </div>
       <EventModal config={gameState.modal} />
-      <RelationshipModal 
-        isOpen={gameState.showRelationshipPanel} 
-        onClose={() => setGameState(prev => ({ ...prev, showRelationshipPanel: false }))} 
+      <RelationshipModal
+        isOpen={gameState.showRelationshipPanel}
+        onClose={() => setGameState(prev => ({ ...prev, showRelationshipPanel: false } as any))}
         partner={gameState.flags.partner}
         childrenList={gameState.flags.children}
-        flags={gameState.flags}
+        flags={gameState.flags as any}
         money={gameState.stats.money}
         debt={gameState.stats.debt}
-        actions={{...relActions,      // 基础情感动作
-   propose: marriageActions.propose, // 确保这个是修正后的版本
-  deposit: bankActions.deposit,...bankActions,     // 银行动作
-  ...marriageActions}}
+        actions={{
+          ...relActions,
+          ...bankActions,
+          ...marriageActions,
+          deposit: bankActions.deposit
+        } as any}
       />
-      
-      <StatBar stats={gameState.stats} profession={gameState.profession} time={gameState.time} isDepressed={gameState.flags.isDepressed} date={gameState.date} season={gameState.season} weatherTemp={gameState.weatherTemp} bodyTemp={gameState.flags.bodyTemp}/>
-      
-      <main className="max-w-5xl mx-auto p-4 flex flex-col gap-6">
+      <StatBar
+        stats={gameState.stats}
+        profession={gameState.profession}
+        time={gameState.time}
+        isDepressed={gameState.flags.isDepressed}
+        date={gameState.date}
+        season={gameState.season}
+        weatherTemp={gameState.weatherTemp}
+        bodyTemp={gameState.flags.bodyTemp}
+      />
+      <main className="relative max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6">
         <GameLog logs={gameState.log} />
-        
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* 左侧状态板 */}
-            <div className="lg:col-span-1 bg-zinc-900/80 p-5 rounded-xl border border-zinc-800 h-fit shadow-xl">
-                <div className="flex justify-between items-center mb-4 border-b border-zinc-800 pb-2">
-                    <span className="text-zinc-500 text-xs font-mono uppercase tracking-widest">Status</span>
-                    <span className="text-white font-bold">{gameState.stats.age} 岁</span>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* 左侧面板 */}
+          <aside className="xl:col-span-4 space-y-6">
+            <div className="glass-card rounded-3xl p-5 md:p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <div className="panel-title">Character Overview</div>
+                  <h3 className="text-2xl font-black text-white mt-1">{gameState.playerName}</h3>
                 </div>
-                
-                <div className="space-y-3">
-                    <button onClick={() => setGameState(prev => ({ ...prev, showRelationshipPanel: true }))} className="w-full bg-pink-900/10 text-pink-300 py-3 rounded-lg border border-pink-900/30 flex items-center justify-center hover:bg-pink-900/30 transition-all group">
-                        <Heart className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform"/> 
-                        <span className="text-xs font-bold">家庭 / 情感 / 资产</span>
-                    </button>
-
-                    {gameState.flags.hospitalDays > 0 && (
-                         <div className="bg-red-900/20 text-red-400 p-3 rounded-lg text-sm text-center border border-red-900/50 animate-pulse font-bold flex flex-col items-center">
-                            <Activity className="w-5 h-5 mb-1"/>
-                            住院治疗中 ({gameState.flags.hospitalDays}天)
-                         </div>
-                    )}
-                    
-                    {gameState.flags.blackVanRisk > 0 && (
-                        <div className="bg-amber-900/10 text-amber-500 text-[10px] p-2 rounded border border-amber-900/30 text-center animate-pulse flex flex-col items-center mt-2">
-                            <Skull className="w-4 h-4 mb-1"/>
-                            <span>⚠ 已被暗中观察 (风险: {gameState.flags.blackVanRisk}%)</span>
-                        </div>
-                    )}
+                <div className="px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-sm text-zinc-300">
+                  {gameState.stats.age} 岁
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <InfoCard label="职业" value={gameState.profession?.name || '未知'} />
+                <InfoCard label="背景" value={gameState.background?.name || '未知'} />
+                <InfoCard label="生存天数" value={`${gameState.stats.daysSurvived} 天`} />
+                <InfoCard label="负债" value={`¥${gameState.stats.debt.toLocaleString()}`} danger={gameState.stats.debt > 0} />
+              </div>
+              <div className="space-y-3 mb-5">
+                <MiniBar label="体力" value={gameState.stats.physical} max={200} color="bg-gradient-to-r from-red-500 to-orange-400" />
+                <MiniBar label="精神" value={gameState.stats.mental} max={100} color="bg-gradient-to-r from-blue-500 to-cyan-400" />
+                <MiniBar label="饱食" value={gameState.stats.satiety} max={100} color="bg-gradient-to-r from-yellow-500 to-orange-400" />
+              </div>
+              <button
+                onClick={() => setGameState(prev => ({ ...prev, showRelationshipPanel: true } as any))}
+                className="w-full rounded-2xl border border-pink-400/20 bg-pink-500/10 hover:bg-pink-500/20 text-pink-200 px-4 py-4 transition-all flex items-center justify-center gap-2 font-semibold"
+              >
+                <Heart className="w-4 h-4" />
+                打开家庭 / 情感 / 资产中心
+              </button>
             </div>
-
-            {/* 右侧操作板：使用 grid 布局容纳所有按钮 */}
-            <div className="lg:col-span-3 bg-zinc-900/80 p-5 rounded-xl border border-zinc-800 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {gameState.flags.hospitalDays > 0 ? (
-                     <button onClick={handleSleep} className="col-span-full bg-red-950/40 py-16 rounded-xl text-red-200 border border-red-900/30 hover:bg-red-900/30 transition-all flex flex-col items-center justify-center group cursor-pointer">
-                         <div className="bg-red-900/50 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
-                             <Activity className="w-8 h-8" />
-                         </div>
-                         <span className="text-xl font-bold mb-2">接受治疗</span>
-                         <span className="text-sm opacity-70 font-mono bg-black/30 px-3 py-1 rounded">点击度过这一天 (-¥{gameState.flags.hospitalDailyCost})</span>
-                     </button>
-                ) : (
-                    <>
-                       {/* 1. 工作按钮 */}
-{gameState.phase.includes('WORK') && (
-    <div className="col-span-full">
-        {/* 修改点：只有在数值不存在或者为 0 的时候才显示“进入工位” */}
-        {(!gameState.workRounds || gameState.workRounds === 0) ? (
-            <button 
-                onClick={handleWork} 
-                className="w-full py-12 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white rounded-xl transition-all group flex flex-col items-center justify-center gap-2"
-            >
-                <Briefcase className="w-8 h-8 text-zinc-400 group-hover:text-white" />
-                <span className="text-xl font-bold tracking-[0.2em] uppercase">我是牛马 (进入工位)</span>
-            </button>
-        ) : (
-            /* 只要 workRounds > 0，就显示选项，不消失 */
-            <div className="grid grid-cols-2 gap-4 bg-zinc-900/90 p-6 rounded-xl border-2 border-yellow-600/50 mt-2 animate-in fade-in slide-in-from-bottom-4">
-                <div className="col-span-full text-center mb-2 font-bold text-yellow-500 flex justify-between px-2">
-                    <span>当前任务: 搬砖中</span>
-                    <span>进度: {gameState.workRounds} / 3 阶段</span>
-                </div>
-                <button 
-    onClick={() => handleWorkChoice('HARD')} 
-    // --- 新增逻辑：体力小于 15 时禁用按钮 ---
-    disabled={gameState.stats.physical < 15} 
-    className={`py-8 rounded-lg transition-all active:scale-95 border ${
-        gameState.stats.physical < 15 
-        ? 'bg-zinc-800 text-zinc-600 border-zinc-700 cursor-not-allowed opacity-50' 
-        : 'bg-red-900/40 border-red-500 text-white hover:bg-red-800/60'
-    }`}
->
-    <p className="font-bold">{gameState.stats.physical < 15 ? '体力透支' : '疯狂内卷'}</p>
-    <p className="text-[10px] opacity-60">
-        {gameState.stats.physical < 15 ? '无法进行高强度劳动' : '表现+20 | 体力-15'}
-    </p>
-</button>
-                <button onClick={() => handleWorkChoice('SLACK')} className="py-8 bg-green-900/40 border border-green-500 text-white rounded-lg hover:bg-green-800/60 transition-all active:scale-95">
-                    <p className="font-bold">带薪摸鱼</p>
-                    <p className="text-[10px] opacity-60">表现-10 | 精神+5</p>
-                </button>
-            </div>
-        )}
-    </div>
-)}
-                        
-                        {/* 2. 饮食按钮 */}
-                        {(gameState.phase === 'MORNING' || gameState.phase === 'LUNCH' || gameState.phase === 'DINNER') && (
-                            <>
-                                <ActionBtn label="拼好饭" icon={<ShoppingBag/>} onClick={() => handleEat('TAKEOUT')} color="orange" sub="-¥10 | 也是吃上饭了" />
-                                <ActionBtn label="小当家模式" icon={<Utensils/>} onClick={() => handleEat('COOK_MENU')} color="green" sub="科技与狠活" />
-                                <ActionBtn label="修仙(不吃)" icon={<XCircle/>} onClick={() => handleEat('SKIP')} color="red" sub="光合作用" />
-                            </>
-                        )}
-                        
-                        {/* 3. 自由时间/周末按钮 - 赛博社畜热梗版 */}
-                        {(gameState.phase === 'FREE_TIME' || gameState.phase.includes('REST')) && (
-                            <>
-                                {/* App 18: 医院体检 - 销金窟文案 */}
-                                <ActionBtn 
-    label="去医院修仙" 
-    icon={<Activity/>} 
-    onClick={handleHospitalVisit} 
-    color="teal" 
-    sub="查看体检与停尸间" 
-/>
-                               {/* 4. 周末/休息日专属操作面板 */}
-                        {gameState.phase.includes('REST') && (
-                            <>
-                                {/* 上午特有选项 */}
-                                {gameState.phase === 'REST_AM' && (
-                                    <>
-                                        <ActionBtn label="睡死过去" icon={<Moon/>} onClick={() => handleRestDayActivity('SLEEP_IN')} color="indigo" sub="回血/回神" />
-                                        <ActionBtn label="早市捡漏" icon={<ShoppingBag/>} onClick={() => handleRestDayActivity('MARKET')} color="green" sub="省钱/健康" />
-                                    </>
-                                )}
-
-                                {/* 下午特有选项 */}
-                                {gameState.phase === 'REST_PM' && (
-                                    <>
-                                        <ActionBtn label="去图书馆卷" icon={<Users/>} onClick={() => handleRestDayActivity('LIBRARY')} color="teal" sub="考公/考证" />
-                                        <ActionBtn label="周末兼职" icon={<Briefcase/>} onClick={() => handleRestDayActivity('PART_TIME')} color="orange" sub="赚外快" />
-                                    </>
-                                )}
-
-                                {/* 通用周末选项 */}
-                                <ActionBtn label="相亲角受辱" icon={<Heart/>} onClick={() => handleRestDayActivity('BLIND_DATE')} color="pink" sub="-¥200/500" />
-                                <ActionBtn 
-  label="去医院修仙" 
-  icon={<Activity/>} 
-  onClick={handleHospitalVisit} // 统一调用函数，不要在这里写 config
-  color="teal" 
-  sub="查看体检与档案" 
-/>
-                                <ActionBtn label="打开家庭中心" icon={<Home/>} onClick={() => setGameState(p => ({...p, showRelationshipPanel: true}))} color="zinc" sub="看娃/理财" />
-                                <ActionBtn label="做顿好的" icon={<Utensils/>} onClick={() => handleEat('COOK_MENU')} color="green" sub="大厨模式" />
-                            </>
-                        )}
-                                {/* App 17: 魔改娱乐项目 */}
-                                <ActionBtn label="金帝皇洗脚城" icon={<Footprints/>} onClick={() => handleFreeTime('SPA')} color="pink" sub="-¥1288 | 帝王套" />
-                                <ActionBtn label="守护最好的Gigi" icon={<Heart/>} onClick={() => handleFreeTime('STREAMER')} color="purple" sub="-¥1000 | 沸羊羊" />
-                                <ActionBtn label="海克斯科技烧烤" icon={<Beer/>} onClick={() => handleFreeTime('BBQ')} color="orange" sub="-¥100 | 喷射战士" />
-                                <ActionBtn label="三和挂壁网吧" icon={<MonitorPlay/>} onClick={() => handleFreeTime('INTERNET_CAFE')} color="indigo" sub="-¥20 | 大神" />
-                                <ActionBtn label="私人影院" icon={<Users/>} onClick={() => handleFreeTime('MOVIE')} color="zinc" sub="-¥50 | 懂的都懂" />
-                                <ActionBtn label="混入广场舞" icon={<Dumbbell/>} onClick={() => handleFreeTime('SQUARE_DANCE')} color="zinc" sub="寻找富婆" />
-                                <ActionBtn label="Gai溜子" icon={<Footprints/>} onClick={() => handleFreeTime('WALK')} color="zinc" sub="City Walk" />
-                                <ActionBtn label="家里蹲" icon={<Home/>} onClick={() => handleFreeTime('HOME')} color="zinc" sub="彻底摆烂" />
-                            </>
-                        )}
-                        {/* 4. 睡觉按钮 */}
-                        {gameState.phase === 'SLEEP' && (
-                            <button onClick={handleSleep} className="col-span-full bg-indigo-950/50 border border-indigo-900 py-10 rounded-xl text-indigo-200 font-bold hover:bg-indigo-900/50 transition-all flex flex-col items-center justify-center group">
-                                <Moon className="w-8 h-8 mb-2 group-hover:text-yellow-200 transition-colors" />
-                                <span className="text-lg">结束这一天</span>
-                                <span className="text-xs opacity-50 font-mono mt-1">PROCEED TO NEXT DAY</span>
-                            </button>
-                        )}
-                    </>
+            <div className="glass-card rounded-3xl p-5 md:p-6">
+              <div className="panel-title mb-4">Environment & Risk</div>
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <EnvCard icon={<CalendarDays className="w-4 h-4 text-red-400" />} label="日期" value={formatDateCN(gameState.date)} />
+                <EnvCard icon={<Wallet className="w-4 h-4 text-emerald-400" />} label="现金" value={`¥${gameState.stats.money.toLocaleString()}`} />
+                <EnvCard icon={<Thermometer className="w-4 h-4 text-orange-400" />} label="体温" value={`${gameState.flags.bodyTemp}℃`} />
+                <EnvCard icon={<ShieldAlert className="w-4 h-4 text-cyan-400" />} label="季节" value={`${gameState.season} / ${gameState.weatherTemp}℃`} />
+              </div>
+              <div className="space-y-3">
+                {gameState.flags.hospitalDays > 0 && (
+                  <StatusAlert
+                    color="red"
+                    title={`住院治疗中 · 剩余 ${gameState.flags.hospitalDays} 天`}
+                    desc={`每日花费 ¥${gameState.flags.hospitalDailyCost}`}
+                    icon={<Activity className="w-4 h-4" />}
+                  />
                 )}
+                {gameState.flags.blackVanRisk > 0 && (
+                  <StatusAlert
+                    color="amber"
+                    title={`生物资产风险 ${gameState.flags.blackVanRisk}%`}
+                    desc="你已进入高价值健康目标观察名单"
+                    icon={<Skull className="w-4 h-4" />}
+                  />
+                )}
+                {gameState.flags.disease && (
+                  <StatusAlert
+                    color="purple"
+                    title={`当前疾病：${gameState.flags.disease}`}
+                    desc="身体处于异常状态，属性恢复将受影响"
+                    icon={<AlertOctagon className="w-4 h-4" />}
+                  />
+                )}
+                {!gameState.flags.hospitalDays && !gameState.flags.blackVanRisk && !gameState.flags.disease && (
+                  <div className="rounded-2xl border border-emerald-400/10 bg-emerald-500/10 px-4 py-4 text-emerald-200 text-sm">
+                    当前暂无高危事件，恭喜你暂时还活着。
+                  </div>
+                )}
+              </div>
             </div>
+          </aside>
+          {/* 右侧操作中心 */}
+          <section className="xl:col-span-8 glass-card rounded-3xl p-5 md:p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <div className="panel-title">Action Center</div>
+                <h3 className="text-2xl font-black text-white mt-1">今日行动面板</h3>
+              </div>
+              <div className="text-xs text-zinc-500 font-mono">
+                PHASE: {gameState.phase}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              {gameState.flags.hospitalDays > 0 ? (
+                <button
+                  onClick={handleSleep}
+                  className="col-span-full rounded-3xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/15 p-10 text-red-100 transition-all"
+                >
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
+                      <Activity className="w-8 h-8" />
+                    </div>
+                    <div className="text-2xl font-black mb-2">接受治疗</div>
+                    <div className="text-sm text-red-200/70">
+                      点击度过这一天 · -¥{gameState.flags.hospitalDailyCost}
+                    </div>
+                  </div>
+                </button>
+              ) : (
+                <>
+                  {gameState.phase.includes('WORK') && (
+                    <div className="col-span-full">
+                      {(!gameState.workRounds || gameState.workRounds === 0) ? (
+                        <button
+                          onClick={handleWork}
+                          className="w-full rounded-3xl border border-cyan-400/20 bg-cyan-500/10 hover:bg-cyan-500/15 p-8 transition-all"
+                        >
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-4">
+                              <Briefcase className="w-8 h-8 text-cyan-300" />
+                            </div>
+                            <div className="text-2xl font-black text-white">进入工位</div>
+                            <div className="text-sm text-cyan-200/70 mt-1">
+                              感受空气中弥漫的 PUA 气息
+                            </div>
+                          </div>
+                        </button>
+                      ) : (
+                        <div className="rounded-3xl border border-amber-500/20 bg-amber-500/10 p-5">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="text-lg font-bold text-amber-200">搬砖进行中</div>
+                            <div className="text-sm text-amber-300/80">进度 {gameState.workRounds} / 3</div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <button
+                              onClick={() => handleWorkChoice('HARD')}
+                              disabled={gameState.stats.physical < 15}
+                              className={`rounded-2xl p-6 border transition-all ${
+                                gameState.stats.physical < 15
+                                  ? 'bg-zinc-800/60 border-white/10 text-zinc-500 cursor-not-allowed'
+                                  : 'bg-red-500/10 border-red-500/20 text-red-100 hover:bg-red-500/20'
+                              }`}
+                            >
+                              <div className="text-lg font-bold">
+                                {gameState.stats.physical < 15 ? '体力透支' : '疯狂内卷'}
+                              </div>
+                              <div className="text-xs opacity-70 mt-1">
+                                {gameState.stats.physical < 15 ? '无法执行高强度劳动' : '表现 +20 · 体力消耗'}
+                              </div>
+                            </button>
+                            <button
+                              onClick={() => handleWorkChoice('SLACK')}
+                              className="rounded-2xl p-6 border border-emerald-500/20 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20 transition-all"
+                            >
+                              <div className="text-lg font-bold">带薪摸鱼</div>
+                              <div className="text-xs opacity-70 mt-1">表现 -10 · 精神恢复</div>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {(gameState.phase === 'MORNING' || gameState.phase === 'LUNCH' || gameState.phase === 'DINNER') && (
+                    <>
+                      <ActionBtn label="拼好饭" icon={<ShoppingBag />} onClick={() => handleEat('TAKEOUT')} color="orange" sub="-¥10 · 临时续命" />
+                      <ActionBtn label="下厨做饭" icon={<Utensils />} onClick={() => handleEat('COOK_MENU')} color="green" sub="更高恢复收益" />
+                      <ActionBtn label="跳过用餐" icon={<XCircle />} onClick={() => handleEat('SKIP')} color="red" sub="修仙但掉状态" />
+                    </>
+                  )}
+                  {(gameState.phase === 'FREE_TIME' || gameState.phase.includes('REST')) && (
+                    <>
+                      <ActionBtn label="医院 / 体检" icon={<Activity />} onClick={handleHospitalVisit} color="teal" sub="健康检查与治疗" />
+                      <ActionBtn label="家庭中心" icon={<Home />} onClick={() => setGameState(p => ({ ...p, showRelationshipPanel: true } as any))} color="pink" sub="伴侣 / 孩子 / 资产" />
+                      <ActionBtn label="做顿好的" icon={<Utensils />} onClick={() => handleEat('COOK_MENU')} color="green" sub="厨房模式" />
+                      <ActionBtn label="金帝皇洗脚城" icon={<Footprints />} onClick={() => handleFreeTime('SPA')} color="pink" sub="-¥1288 · 帝王套" />
+                      <ActionBtn label="守护女主播" icon={<Heart />} onClick={() => handleFreeTime('STREAMER')} color="purple" sub="-¥1000 · 嘉年华" />
+                      <ActionBtn label="海克斯烧烤" icon={<Beer />} onClick={() => handleFreeTime('BBQ')} color="orange" sub="-¥100 · 碳水快乐" />
+                      <ActionBtn label="网吧通宵" icon={<MonitorPlay />} onClick={() => handleFreeTime('INTERNET_CAFE')} color="indigo" sub="-¥20 · 回到青春" />
+                      <ActionBtn label="私人影院" icon={<Users />} onClick={() => handleFreeTime('MOVIE')} color="zinc" sub="-¥50 · 夜间娱乐" />
+                      <ActionBtn label="广场舞混子" icon={<Dumbbell />} onClick={() => handleFreeTime('SQUARE_DANCE')} color="zinc" sub="寻找富婆未果" />
+                      <ActionBtn label="City Walk" icon={<Footprints />} onClick={() => handleFreeTime('WALK')} color="zinc" sub="散步降压" />
+                      <ActionBtn label="在家躺平" icon={<Home />} onClick={() => handleFreeTime('HOME')} color="zinc" sub="低成本回血" />
+                    </>
+                  )}
+                  {gameState.phase === 'SLEEP' && (
+                    <button
+                      onClick={handleSleep}
+                      className="col-span-full rounded-3xl border border-indigo-400/20 bg-indigo-500/10 hover:bg-indigo-500/15 p-10 transition-all"
+                    >
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
+                          <Moon className="w-8 h-8 text-indigo-300" />
+                        </div>
+                        <div className="text-2xl font-black text-white">结束这一天</div>
+                        <div className="text-sm text-indigo-200/70 mt-1">Proceed to next day</div>
+                      </div>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
         </div>
       </main>
     </div>
   );
 };
 // --- UI 组件：操作按钮 ---
-const ActionBtn = ({ label, icon, onClick, color, sub }: any) => {
-    const colors: any = {
-        zinc: 'text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border-zinc-700',
-        orange: 'text-orange-300 bg-orange-900/20 hover:bg-orange-900/40 border-orange-900/50',
-        green: 'text-emerald-300 bg-emerald-900/20 hover:bg-emerald-900/40 border-emerald-900/50',
-        red: 'text-red-300 bg-red-900/20 hover:bg-red-900/40 border-red-900/50',
-        teal: 'text-teal-300 bg-teal-900/20 hover:bg-teal-900/40 border-teal-900/50',
-        purple: 'text-purple-300 bg-purple-900/20 hover:bg-purple-900/40 border-purple-900/50',
-        indigo: 'text-indigo-300 bg-indigo-900/20 hover:bg-indigo-900/40 border-indigo-900/50',
-        pink: 'text-pink-300 bg-pink-900/20 hover:bg-pink-900/40 border-pink-900/50',
-    };
-    
-    return (
-        <button onClick={onClick} className={`${colors[color] || colors.zinc} p-4 rounded-xl border transition-all flex flex-col items-center justify-center active:scale-95 group h-28 relative overflow-hidden`}>
-            <div className="absolute top-0 right-0 p-1 opacity-20">
-                {React.cloneElement(icon, { size: 40 })}
-            </div>
-            {React.cloneElement(icon, { className: `mb-2 w-6 h-6 group-hover:scale-110 transition-transform z-10` })}
-            <span className="font-bold text-sm z-10">{label}</span>
-            <span className="text-[10px] opacity-60 mt-1 font-mono z-10">{sub}</span>
-        </button>
-    );
+const InfoCard = ({
+  label,
+  value,
+  danger = false,
+}: {
+  label: string;
+  value: string;
+  danger?: boolean;
+}) => (
+  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+    <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{label}</div>
+    <div className={`mt-1 text-sm font-bold ${danger ? 'text-red-300' : 'text-white'}`}>
+      {value}
+    </div>
+  </div>
+);
+const EnvCard = ({
+  icon,
+  label,
+  value
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) => (
+  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+    <div className="flex items-center gap-2 mb-2">
+      {icon}
+      <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{label}</span>
+    </div>
+    <div className="text-sm font-semibold text-white break-words">{value}</div>
+  </div>
+);
+const MiniBar = ({
+  label,
+  value,
+  max,
+  color
+}: {
+  label: string;
+  value: number;
+  max: number;
+  color: string;
+}) => (
+  <div>
+    <div className="flex justify-between text-xs text-zinc-400 mb-1">
+      <span>{label}</span>
+      <span>{value}/{max}</span>
+    </div>
+    <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+      <div className={`h-full ${color}`} style={{ width: `${Math.min(100, (value / max) * 100)}%` }} />
+    </div>
+  </div>
+);
+const StatusAlert = ({
+  color,
+  title,
+  desc,
+  icon,
+}: {
+  color: 'red' | 'amber' | 'purple';
+  title: string;
+  desc: string;
+  icon: React.ReactNode;
+}) => {
+  const map = {
+    red: 'border-red-500/20 bg-red-500/10 text-red-200',
+    amber: 'border-amber-500/20 bg-amber-500/10 text-amber-200',
+    purple: 'border-purple-500/20 bg-purple-500/10 text-purple-200',
+  };
+  return (
+    <div className={`rounded-2xl border px-4 py-4 ${map[color]}`}>
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-xl bg-black/20 flex items-center justify-center shrink-0">
+          {icon}
+        </div>
+        <div>
+          <div className="font-semibold">{title}</div>
+          <div className="text-sm opacity-75 mt-1">{desc}</div>
+        </div>
+      </div>
+    </div>
+  );
 };
-
+const ActionBtn = ({ label, icon, onClick, color, sub }: any) => {
+  const colors: any = {
+    zinc: 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200',
+    orange: 'border-orange-400/20 bg-orange-500/10 hover:bg-orange-500/20 text-orange-200',
+    green: 'border-emerald-400/20 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-200',
+    red: 'border-red-400/20 bg-red-500/10 hover:bg-red-500/20 text-red-200',
+    teal: 'border-teal-400/20 bg-teal-500/10 hover:bg-teal-500/20 text-teal-200',
+    purple: 'border-purple-400/20 bg-purple-500/10 hover:bg-purple-500/20 text-purple-200',
+    indigo: 'border-indigo-400/20 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200',
+    pink: 'border-pink-400/20 bg-pink-500/10 hover:bg-pink-500/20 text-pink-200',
+  };
+  return (
+    <button
+      onClick={onClick}
+      className={`${colors[color] || colors.zinc} group relative overflow-hidden rounded-3xl border p-4 min-h-[130px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-left`}
+    >
+      <div className="absolute -right-3 -top-3 opacity-10 group-hover:opacity-20 transition-all">
+        {React.cloneElement(icon, { size: 64 })}
+      </div>
+      <div className="relative z-10 flex flex-col justify-between h-full">
+        <div className="w-11 h-11 rounded-2xl bg-black/20 border border-white/10 flex items-center justify-center mb-4">
+          {React.cloneElement(icon, { className: 'w-5 h-5 group-hover:scale-110 transition-transform' })}
+        </div>
+        <div>
+          <div className="font-bold text-base">{label}</div>
+          <div className="text-xs opacity-70 mt-1">{sub}</div>
+        </div>
+      </div>
+    </button>
+  );
+};
 export default App;
