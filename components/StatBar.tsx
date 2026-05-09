@@ -1,7 +1,16 @@
 import React from 'react';
 import { PlayerStats, Profession } from '../types';
 import { formatCurrency, getHealthColor, getMentalColor, formatDateCN } from '../utils';
-import { Heart, Brain, DollarSign, Utensils, Clock3, User, CalendarDays, ThermometerSun, CloudSun } from 'lucide-react';
+import {
+  Heart,
+  Brain,
+  DollarSign,
+  Utensils,
+  Clock3,
+  User,
+  CloudSun,
+  ThermometerSun,
+} from 'lucide-react';
 import { Season, getSeasonName } from './weather';
 
 interface Props {
@@ -15,27 +24,45 @@ interface Props {
   bodyTemp: number;
 }
 
-const StatPill = ({
-  icon,
-  label,
-  value,
-  valueClass,
-  extra,
-}: {
+/**
+ * 紧凑型数据卡：一图 + 一标题 + 一数值 + 可选副值
+ */
+const InfoBlock: React.FC<{
+  icon: React.ReactNode;
+  iconWrap: string; // eg. 'bg-red-500/10 border-red-500/20'
+  label: string;
+  value: React.ReactNode;
+  sub?: React.ReactNode;
+  valueClass?: string;
+}> = ({ icon, iconWrap, label, value, sub, valueClass }) => (
+  <div className="glass-card rounded-2xl px-3.5 py-2.5 flex items-center gap-3 min-w-0">
+    <div className={`w-9 h-9 shrink-0 rounded-xl border flex items-center justify-center ${iconWrap}`}>
+      {icon}
+    </div>
+    <div className="leading-tight min-w-0">
+      <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 truncate">{label}</div>
+      <div className={`text-sm font-bold truncate ${valueClass || 'text-white'}`}>{value}</div>
+      {sub && <div className="text-[10px] text-zinc-500 mt-0.5 truncate">{sub}</div>}
+    </div>
+  </div>
+);
+
+/**
+ * 状态指标（大数字展示）
+ */
+const StatPill: React.FC<{
   icon: React.ReactNode;
   label: string;
   value: React.ReactNode;
   valueClass?: string;
-  extra?: React.ReactNode;
-}) => (
-  <div className="glass-card rounded-2xl px-3 py-2 min-w-[88px] flex items-center gap-3 hover:scale-[1.02] transition-all duration-200">
-    <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+}> = ({ icon, label, value, valueClass }) => (
+  <div className="glass-card rounded-2xl px-3 py-2 flex items-center gap-2.5 min-w-[96px]">
+    <div className="w-8 h-8 shrink-0 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
       {icon}
     </div>
-    <div className="leading-tight">
+    <div className="leading-tight min-w-0">
       <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{label}</div>
       <div className={`text-sm font-bold ${valueClass || 'text-white'}`}>{value}</div>
-      {extra}
     </div>
   </div>
 );
@@ -48,7 +75,7 @@ const StatBar: React.FC<Props> = ({
   date,
   season,
   weatherTemp,
-  bodyTemp
+  bodyTemp,
 }) => {
   const bodyTempClass =
     bodyTemp >= 39 ? 'text-red-400' :
@@ -56,76 +83,50 @@ const StatBar: React.FC<Props> = ({
     'text-emerald-400';
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-black/35 backdrop-blur-2xl">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-black/40 backdrop-blur-2xl">
       <div className="max-w-7xl mx-auto px-4 py-3">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-          
-          {/* 左侧信息 */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-                <CalendarDays className="w-5 h-5 text-red-400" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Date</div>
-                <div className="text-sm font-semibold text-zinc-100">{formatDateCN(date)}</div>
-              </div>
-            </div>
+        {/* 两行式布局：上行=身份与环境；下行=状态指标 */}
+        <div className="flex flex-col gap-2.5">
 
-            <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                <Clock3 className="w-5 h-5 text-cyan-400" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Time</div>
-                <div className="text-lg font-black text-white tracking-wide">{time}</div>
-              </div>
-            </div>
+          {/* ============== 上行：身份 + 环境 ============== */}
+          <div className="flex flex-wrap items-stretch gap-2.5">
+            {/* 日期 + 时间 合并 */}
+            <InfoBlock
+              icon={<Clock3 className="w-5 h-5 text-cyan-400" />}
+              iconWrap="bg-cyan-500/10 border-cyan-500/20"
+              label="Date / Time"
+              value={<span className="tabular-nums">{time}</span>}
+              sub={formatDateCN(date)}
+            />
 
-            <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                <CloudSun className="w-5 h-5 text-amber-400" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Weather</div>
-                <div className="text-sm font-semibold text-zinc-100">
-                  {getSeasonName(season)} · {weatherTemp}℃
-                </div>
-              </div>
-            </div>
+            {/* 天气 + 体温 合并 */}
+            <InfoBlock
+              icon={<CloudSun className="w-5 h-5 text-amber-400" />}
+              iconWrap="bg-amber-500/10 border-amber-500/20"
+              label="Weather"
+              value={<span>{getSeasonName(season)} · {weatherTemp}℃</span>}
+              sub={
+                <span className="inline-flex items-center gap-1">
+                  <ThermometerSun className={`w-3 h-3 ${bodyTempClass}`} />
+                  <span className={bodyTempClass}>体温 {bodyTemp}℃</span>
+                </span>
+              }
+            />
 
-            <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center">
-                <ThermometerSun className={`w-5 h-5 ${bodyTempClass}`} />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Body Temp</div>
-                <div className={`text-sm font-bold ${bodyTempClass}`}>
-                  {bodyTemp}℃
-                </div>
-              </div>
-            </div>
+            {/* 职业 */}
+            <InfoBlock
+              icon={<User className="w-5 h-5 text-indigo-400" />}
+              iconWrap="bg-indigo-500/10 border-indigo-500/20"
+              label="Profession"
+              value={profession?.name || '无业游民'}
+              sub={profession?.schedule ? `班次 · ${profession.schedule}` : '自由身'}
+            />
+
+            {/* 占位，让右侧内容在大屏下靠右 */}
+            <div className="flex-1 hidden xl:block" />
           </div>
 
-          {/* 中间职业 */}
-          <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3 self-start xl:self-auto">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-              <User className="w-5 h-5 text-indigo-400" />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Profession</div>
-              <div className="text-sm font-bold text-white">
-                {profession?.name || '无业游民'}
-                {profession?.schedule && (
-                  <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-400">
-                    {profession.schedule}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 右侧状态 */}
+          {/* ============== 下行：核心状态指标 ============== */}
           <div className="flex flex-wrap items-center gap-2">
             <StatPill
               icon={<Heart className={`w-4 h-4 ${getHealthColor(stats.physical)}`} />}

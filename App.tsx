@@ -16,9 +16,7 @@ import {
   Play, RotateCcw, Utensils, Briefcase, Moon, 
   ShoppingBag, Beer, Dumbbell, Footprints, 
   MonitorPlay, Heart, Skull, AlertOctagon,
-  XCircle, Users, Activity, Baby, Home,CalendarDays,
-  Wallet,
-  Thermometer,
+  XCircle, Users, Activity, Baby, Home,
   ShieldAlert,
   Sparkles,
 } from 'lucide-react';
@@ -2026,49 +2024,51 @@ if (!isAlreadySick && Math.random() < sickChance) {
         weatherTemp={gameState.weatherTemp}
         bodyTemp={gameState.flags.bodyTemp}
       />
-      <main className="relative max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6">
-        <GameLog logs={gameState.log} />
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          {/* 左侧面板 */}
-          <aside className="xl:col-span-4 space-y-6">
-            <div className="glass-card rounded-3xl p-5 md:p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <div className="panel-title">Character Overview</div>
-                  <h3 className="text-2xl font-black text-white mt-1">{gameState.playerName}</h3>
+      <main className="relative max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+          {/* 左侧：角色概览 + 风险提示 */}
+          <aside className="xl:col-span-3 space-y-5">
+            <div className="glass-card rounded-3xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="min-w-0">
+                  <div className="panel-title">Character</div>
+                  <h3 className="text-xl font-black text-white mt-1 truncate">{gameState.playerName}</h3>
                 </div>
-                <div className="px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-sm text-zinc-300">
+                <div className="shrink-0 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-xs text-zinc-300">
                   {gameState.stats.age} 岁
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 mb-5">
+              <div className="grid grid-cols-2 gap-2.5 mb-4">
                 <InfoCard label="职业" value={gameState.profession?.name || '未知'} />
                 <InfoCard label="背景" value={gameState.background?.name || '未知'} />
-                <InfoCard label="生存天数" value={`${gameState.stats.daysSurvived} 天`} />
-                <InfoCard label="负债" value={`¥${gameState.stats.debt.toLocaleString()}`} danger={gameState.stats.debt > 0} />
+                <InfoCard label="生存" value={`${gameState.stats.daysSurvived} 天`} />
+                <InfoCard
+                  label="负债"
+                  value={`¥${gameState.stats.debt.toLocaleString()}`}
+                  danger={gameState.stats.debt > 0}
+                />
               </div>
-              <div className="space-y-3 mb-5">
+              <div className="space-y-2.5 mb-4">
                 <MiniBar label="体力" value={gameState.stats.physical} max={200} color="bg-gradient-to-r from-red-500 to-orange-400" />
                 <MiniBar label="精神" value={gameState.stats.mental} max={100} color="bg-gradient-to-r from-blue-500 to-cyan-400" />
                 <MiniBar label="饱食" value={gameState.stats.satiety} max={100} color="bg-gradient-to-r from-yellow-500 to-orange-400" />
               </div>
               <button
                 onClick={() => setGameState(prev => ({ ...prev, showRelationshipPanel: true } as any))}
-                className="w-full rounded-2xl border border-pink-400/20 bg-pink-500/10 hover:bg-pink-500/20 text-pink-200 px-4 py-4 transition-all flex items-center justify-center gap-2 font-semibold"
+                className="w-full rounded-2xl border border-pink-400/20 bg-pink-500/10 hover:bg-pink-500/20 text-pink-200 px-4 py-3 transition-all flex items-center justify-center gap-2 font-semibold text-sm"
               >
                 <Heart className="w-4 h-4" />
-                打开家庭 / 情感 / 资产中心
+                家庭 / 情感 / 资产
               </button>
             </div>
-            <div className="glass-card rounded-3xl p-5 md:p-6">
-              <div className="panel-title mb-4">Environment & Risk</div>
-              <div className="grid grid-cols-2 gap-3 mb-5">
-                <EnvCard icon={<CalendarDays className="w-4 h-4 text-red-400" />} label="日期" value={formatDateCN(gameState.date)} />
-                <EnvCard icon={<Wallet className="w-4 h-4 text-emerald-400" />} label="现金" value={`¥${gameState.stats.money.toLocaleString()}`} />
-                <EnvCard icon={<Thermometer className="w-4 h-4 text-orange-400" />} label="体温" value={`${gameState.flags.bodyTemp}℃`} />
-                <EnvCard icon={<ShieldAlert className="w-4 h-4 text-cyan-400" />} label="季节" value={`${gameState.season} / ${gameState.weatherTemp}℃`} />
+
+            {/* 风险提示面板（去除和顶部 StatBar 重复的日期/现金/体温/季节） */}
+            <div className="glass-card rounded-3xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="panel-title">Risk Alerts</div>
+                <ShieldAlert className="w-4 h-4 text-zinc-500" />
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {gameState.flags.hospitalDays > 0 && (
                   <StatusAlert
                     color="red"
@@ -2094,15 +2094,16 @@ if (!isAlreadySick && Math.random() < sickChance) {
                   />
                 )}
                 {!gameState.flags.hospitalDays && !gameState.flags.blackVanRisk && !gameState.flags.disease && (
-                  <div className="rounded-2xl border border-emerald-400/10 bg-emerald-500/10 px-4 py-4 text-emerald-200 text-sm">
+                  <div className="rounded-2xl border border-emerald-400/10 bg-emerald-500/10 px-4 py-3 text-emerald-200 text-xs leading-relaxed">
                     当前暂无高危事件，恭喜你暂时还活着。
                   </div>
                 )}
               </div>
             </div>
           </aside>
-          {/* 右侧操作中心 */}
-          <section className="xl:col-span-8 glass-card rounded-3xl p-5 md:p-6">
+
+          {/* 中间：行动中心 */}
+          <section className="xl:col-span-6 glass-card rounded-3xl p-5 md:p-6">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <div className="panel-title">Action Center</div>
@@ -2112,7 +2113,7 @@ if (!isAlreadySick && Math.random() < sickChance) {
                 PHASE: {gameState.phase}
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5">
               {gameState.flags.hospitalDays > 0 ? (
                 <button
                   onClick={handleSleep}
@@ -2222,6 +2223,13 @@ if (!isAlreadySick && Math.random() < sickChance) {
               )}
             </div>
           </section>
+
+          {/* 右侧：系统日志（桌面端粘性，移动端正常流） */}
+          <aside className="xl:col-span-3">
+            <div className="xl:sticky xl:top-[160px] xl:h-[calc(100vh-180px)] h-[420px]">
+              <GameLog logs={gameState.log} heightMode="flex" />
+            </div>
+          </aside>
         </div>
       </main>
     </div>
@@ -2242,23 +2250,6 @@ const InfoCard = ({
     <div className={`mt-1 text-sm font-bold ${danger ? 'text-red-300' : 'text-white'}`}>
       {value}
     </div>
-  </div>
-);
-const EnvCard = ({
-  icon,
-  label,
-  value
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) => (
-  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-    <div className="flex items-center gap-2 mb-2">
-      {icon}
-      <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{label}</span>
-    </div>
-    <div className="text-sm font-semibold text-white break-words">{value}</div>
   </div>
 );
 const MiniBar = ({

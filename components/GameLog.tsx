@@ -4,9 +4,15 @@ import { TerminalSquare } from 'lucide-react';
 
 interface Props {
   logs: LogEntry[];
+  /**
+   * 日志列表区域高度控制
+   * - 'fixed' 旧行为：固定 h-64 / md:h-72
+   * - 'flex'  新行为：自适应父容器，给主游戏页的侧栏使用
+   */
+  heightMode?: 'fixed' | 'flex';
 }
 
-const GameLog: React.FC<Props> = ({ logs }) => {
+const GameLog: React.FC<Props> = ({ logs, heightMode = 'fixed' }) => {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,8 +35,8 @@ const GameLog: React.FC<Props> = ({ logs }) => {
   };
 
   return (
-    <section className="glass-card rounded-3xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+    <section className={`glass-card rounded-3xl overflow-hidden flex flex-col ${heightMode === 'flex' ? 'h-full' : ''}`}>
+      <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02] shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
             <TerminalSquare className="w-5 h-5 text-indigo-400" />
@@ -45,7 +51,11 @@ const GameLog: React.FC<Props> = ({ logs }) => {
         </div>
       </div>
 
-      <div className="h-64 md:h-72 overflow-y-auto px-4 py-4 space-y-2 font-mono text-sm">
+      <div
+        className={`${
+          heightMode === 'flex' ? 'flex-1 min-h-0' : 'h-64 md:h-72'
+        } overflow-y-auto px-4 py-4 space-y-2 font-mono text-sm`}
+      >
         {logs.length === 0 && (
           <div className="text-zinc-600 text-center mt-16">
             &gt;&gt;&gt; 系统初始化完成...
