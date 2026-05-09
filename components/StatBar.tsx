@@ -1,15 +1,16 @@
 import React from 'react';
 import { PlayerStats, Profession } from '../types';
-import { formatCurrency, getHealthColor, getMentalColor, formatDateCN } from '../utils';
+import { formatCurrency, formatDateCN } from '../utils';
 import {
   Heart,
   Brain,
-  DollarSign,
   Utensils,
+  Coins,
   Clock3,
-  User,
+  Briefcase,
   CloudSun,
   ThermometerSun,
+  CalendarDays,
 } from 'lucide-react';
 import { Season, getSeasonName } from './weather';
 
@@ -25,44 +26,63 @@ interface Props {
 }
 
 /**
- * 紧凑型数据卡：一图 + 一标题 + 一数值 + 可选副值
+ * 单条状态指示器：小图标 + 标签 + 数值 + 进度条
  */
-const InfoBlock: React.FC<{
+const StatMeter: React.FC<{
   icon: React.ReactNode;
-  iconWrap: string; // eg. 'bg-red-500/10 border-red-500/20'
+  label: string;
+  value: number;
+  max: number;
+  gradient: string; // eg. 'from-rose-500 to-orange-400'
+  critical?: boolean;
+  pulseDot?: boolean;
+}> = ({ icon, label, value, max, gradient, critical, pulseDot }) => {
+  const pct = Math.max(0, Math.min(100, (value / max) * 100));
+  return (
+    <div className="flex-1 min-w-[120px]">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5 text-[10px] tracking-[0.22em] uppercase text-zinc-400 font-semibold">
+          <span className="w-4 h-4 flex items-center justify-center">{icon}</span>
+          <span>{label}</span>
+          {pulseDot && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+        </div>
+        <div className={`text-xs font-bold tabular-nums ${critical ? 'text-red-300' : 'text-white'}`}>
+          {value}
+          <span className="text-zinc-500 font-normal">/{max}</span>
+        </div>
+      </div>
+      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden border border-white/[0.04]">
+        <div
+          className={`h-full bg-gradient-to-r ${gradient} transition-all duration-500`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
+/**
+ * 信息小块：icon + 标签 + 主值
+ */
+const InfoCell: React.FC<{
+  icon: React.ReactNode;
+  iconWrap?: string;
   label: string;
   value: React.ReactNode;
   sub?: React.ReactNode;
-  valueClass?: string;
-}> = ({ icon, iconWrap, label, value, sub, valueClass }) => (
-  <div className="glass-card rounded-2xl px-3.5 py-2.5 flex items-center gap-3 min-w-0">
-    <div className={`w-9 h-9 shrink-0 rounded-xl border flex items-center justify-center ${iconWrap}`}>
+}> = ({ icon, iconWrap, label, value, sub }) => (
+  <div className="flex items-center gap-2.5 min-w-0">
+    <div
+      className={`w-8 h-8 shrink-0 rounded-lg border flex items-center justify-center ${
+        iconWrap || 'bg-white/[0.04] border-white/[0.08]'
+      }`}
+    >
       {icon}
     </div>
     <div className="leading-tight min-w-0">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 truncate">{label}</div>
-      <div className={`text-sm font-bold truncate ${valueClass || 'text-white'}`}>{value}</div>
-      {sub && <div className="text-[10px] text-zinc-500 mt-0.5 truncate">{sub}</div>}
-    </div>
-  </div>
-);
-
-/**
- * 状态指标（大数字展示）
- */
-const StatPill: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  value: React.ReactNode;
-  valueClass?: string;
-}> = ({ icon, label, value, valueClass }) => (
-  <div className="glass-card rounded-2xl px-3 py-2 flex items-center gap-2.5 min-w-[96px]">
-    <div className="w-8 h-8 shrink-0 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-      {icon}
-    </div>
-    <div className="leading-tight min-w-0">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{label}</div>
-      <div className={`text-sm font-bold ${valueClass || 'text-white'}`}>{value}</div>
+      <div className="text-[9px] uppercase tracking-[0.24em] text-zinc-500">{label}</div>
+      <div className="text-sm font-bold text-white truncate">{value}</div>
+      {sub && <div className="text-[10px] text-zinc-500 truncate">{sub}</div>}
     </div>
   </div>
 );
@@ -82,82 +102,112 @@ const StatBar: React.FC<Props> = ({
     bodyTemp >= 37.5 ? 'text-orange-400' :
     'text-emerald-400';
 
+  const moneyNeg = stats.money < 0;
+
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-black/40 backdrop-blur-2xl">
-      <div className="max-w-7xl mx-auto px-4 py-3">
-        {/* 两行式布局：上行=身份与环境；下行=状态指标 */}
-        <div className="flex flex-col gap-2.5">
+    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-black/30 backdrop-blur-2xl">
+      {/* 顶边渐变条，增加层级感 */}
+      <div className="h-[2px] bg-gradient-to-r from-rose-500/50 via-amber-400/60 to-indigo-500/50" />
 
-          {/* ============== 上行：身份 + 环境 ============== */}
-          <div className="flex flex-wrap items-stretch gap-2.5">
-            {/* 日期 + 时间 合并 */}
-            <InfoBlock
-              icon={<Clock3 className="w-5 h-5 text-cyan-400" />}
-              iconWrap="bg-cyan-500/10 border-cyan-500/20"
-              label="Date / Time"
-              value={<span className="tabular-nums">{time}</span>}
-              sub={formatDateCN(date)}
-            />
+      <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-3">
+        {/* 上行：时间/日期/天气/职业 + 金钱 */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <InfoCell
+            icon={<Clock3 className="w-4 h-4 text-rose-300" />}
+            iconWrap="bg-rose-500/10 border-rose-400/20"
+            label="TIME"
+            value={<span className="tabular-nums tracking-wide">{time}</span>}
+            sub={
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays className="w-3 h-3 opacity-60" />
+                {formatDateCN(date)}
+              </span>
+            }
+          />
 
-            {/* 天气 + 体温 合并 */}
-            <InfoBlock
-              icon={<CloudSun className="w-5 h-5 text-amber-400" />}
-              iconWrap="bg-amber-500/10 border-amber-500/20"
-              label="Weather"
-              value={<span>{getSeasonName(season)} · {weatherTemp}℃</span>}
-              sub={
-                <span className="inline-flex items-center gap-1">
-                  <ThermometerSun className={`w-3 h-3 ${bodyTempClass}`} />
-                  <span className={bodyTempClass}>体温 {bodyTemp}℃</span>
-                </span>
-              }
-            />
+          <div className="h-8 w-px bg-white/[0.06] hidden md:block" />
 
-            {/* 职业 */}
-            <InfoBlock
-              icon={<User className="w-5 h-5 text-indigo-400" />}
-              iconWrap="bg-indigo-500/10 border-indigo-500/20"
-              label="Profession"
-              value={profession?.name || '无业游民'}
-              sub={profession?.schedule ? `班次 · ${profession.schedule}` : '自由身'}
-            />
+          <InfoCell
+            icon={<CloudSun className="w-4 h-4 text-amber-300" />}
+            iconWrap="bg-amber-500/10 border-amber-400/20"
+            label="WEATHER"
+            value={<span>{getSeasonName(season)} · {weatherTemp}℃</span>}
+            sub={
+              <span className={`inline-flex items-center gap-1 ${bodyTempClass}`}>
+                <ThermometerSun className="w-3 h-3" />
+                体温 {bodyTemp}℃
+              </span>
+            }
+          />
 
-            {/* 占位，让右侧内容在大屏下靠右 */}
-            <div className="flex-1 hidden xl:block" />
+          <div className="h-8 w-px bg-white/[0.06] hidden md:block" />
+
+          <InfoCell
+            icon={<Briefcase className="w-4 h-4 text-indigo-300" />}
+            iconWrap="bg-indigo-500/10 border-indigo-400/20"
+            label="PROFESSION"
+            value={profession?.name || '无业游民'}
+            sub={profession?.schedule ? `班次 · ${profession.schedule}` : '自由身'}
+          />
+
+          <div className="flex-1 hidden md:block" />
+
+          {/* 金钱：放右端做强调 */}
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-9 h-9 rounded-xl border flex items-center justify-center ${
+                moneyNeg
+                  ? 'bg-red-500/10 border-red-400/30'
+                  : 'bg-emerald-500/10 border-emerald-400/25'
+              }`}
+            >
+              <Coins className={`w-4 h-4 ${moneyNeg ? 'text-red-300' : 'text-emerald-300'}`} />
+            </div>
+            <div className="leading-tight">
+              <div className="text-[9px] uppercase tracking-[0.24em] text-zinc-500">Balance</div>
+              <div
+                className={`text-lg font-black tabular-nums ${
+                  moneyNeg ? 'text-red-300' : 'text-emerald-200'
+                }`}
+              >
+                {formatCurrency(stats.money)}
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* ============== 下行：核心状态指标 ============== */}
-          <div className="flex flex-wrap items-center gap-2">
-            <StatPill
-              icon={<Heart className={`w-4 h-4 ${getHealthColor(stats.physical)}`} />}
-              label="Physical"
-              value={stats.physical}
-              valueClass={getHealthColor(stats.physical)}
-            />
-            <StatPill
-              icon={<Brain className={`w-4 h-4 ${getMentalColor(stats.mental)}`} />}
-              label="Mental"
-              value={
-                <span className="inline-flex items-center gap-1">
-                  {stats.mental}
-                  {isDepressed && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
-                </span>
-              }
-              valueClass={getMentalColor(stats.mental)}
-            />
-            <StatPill
-              icon={<Utensils className={`w-4 h-4 ${stats.satiety < 20 ? 'text-red-400' : 'text-orange-300'}`} />}
-              label="Satiety"
-              value={stats.satiety}
-              valueClass={stats.satiety < 20 ? 'text-red-400' : 'text-orange-300'}
-            />
-            <StatPill
-              icon={<DollarSign className={`w-4 h-4 ${stats.money < 0 ? 'text-red-400' : 'text-emerald-400'}`} />}
-              label="Money"
-              value={formatCurrency(stats.money)}
-              valueClass={stats.money < 0 ? 'text-red-400' : 'text-emerald-400'}
-            />
-          </div>
+        {/* 分隔 */}
+        <div className="accent-divider" />
+
+        {/* 下行：三条状态进度条 */}
+        <div className="flex flex-wrap items-stretch gap-5">
+          <StatMeter
+            icon={<Heart className="w-3.5 h-3.5 text-rose-400" />}
+            label="Physical"
+            value={stats.physical}
+            max={200}
+            gradient="from-rose-500 via-orange-400 to-amber-300"
+            critical={stats.physical < 40}
+            pulseDot={stats.physical < 40}
+          />
+          <StatMeter
+            icon={<Brain className="w-3.5 h-3.5 text-sky-400" />}
+            label="Mental"
+            value={stats.mental}
+            max={100}
+            gradient="from-sky-500 via-blue-400 to-cyan-300"
+            critical={stats.mental < 30}
+            pulseDot={isDepressed}
+          />
+          <StatMeter
+            icon={<Utensils className="w-3.5 h-3.5 text-orange-300" />}
+            label="Satiety"
+            value={stats.satiety}
+            max={100}
+            gradient="from-yellow-400 via-orange-400 to-red-400"
+            critical={stats.satiety < 25}
+            pulseDot={stats.satiety < 25}
+          />
         </div>
       </div>
     </header>

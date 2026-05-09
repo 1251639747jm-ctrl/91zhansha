@@ -2,53 +2,146 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ======================================================
+   设计基调：暖色赛博 + 流动极光 + 细噪点
+   ====================================================== */
+
 html, body, #root {
   height: 100%;
-  background:
-    radial-gradient(circle at top, rgba(120, 40, 255, 0.12), transparent 30%),
-    radial-gradient(circle at right, rgba(0, 180, 255, 0.10), transparent 25%),
-    linear-gradient(180deg, #09090b 0%, #111827 100%);
+  min-height: 100%;
+}
+
+html {
+  background-color: #060510;
 }
 
 body {
+  position: relative;
   color: #e5e7eb;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: 'Noto Sans SC', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(1200px 800px at 12% -10%, rgba(255, 80, 120, 0.18), transparent 55%),
+    radial-gradient(900px 700px at 110% 10%, rgba(255, 180, 80, 0.14), transparent 50%),
+    radial-gradient(1000px 800px at 100% 110%, rgba(80, 120, 255, 0.18), transparent 55%),
+    radial-gradient(800px 600px at -10% 100%, rgba(180, 80, 255, 0.16), transparent 55%),
+    linear-gradient(180deg, #0a0814 0%, #050410 45%, #06050f 100%);
+  background-attachment: fixed;
 }
 
+/* 流动的极光层 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -10% -10% -10% -10%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(600px 400px at 30% 30%, rgba(236, 72, 153, 0.12), transparent 60%),
+    radial-gradient(500px 500px at 70% 60%, rgba(99, 102, 241, 0.10), transparent 65%),
+    radial-gradient(450px 450px at 50% 80%, rgba(56, 189, 248, 0.08), transparent 70%);
+  filter: blur(6px);
+  animation: aurora 24s ease-in-out infinite alternate;
+}
+
+/* 细腻噪点层（增加质感，不抢焦点） */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes aurora {
+  0%   { transform: translate3d(0,0,0) scale(1); }
+  50%  { transform: translate3d(2%, -3%, 0) scale(1.04); }
+  100% { transform: translate3d(-3%, 4%, 0) scale(1.02); }
+}
+
+/* ======================================================
+   Scrollbar
+   ====================================================== */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(113, 113, 122, .7) transparent;
+  scrollbar-color: rgba(161, 161, 170, 0.45) transparent;
 }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-thumb { background: rgba(161, 161, 170, 0.4); border-radius: 999px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(244, 114, 182, 0.55); }
+*::-webkit-scrollbar-track { background: transparent; }
 
-*::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-*::-webkit-scrollbar-thumb {
-  background: rgba(113, 113, 122, .7);
-  border-radius: 999px;
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+/* ======================================================
+   组件原子
+   ====================================================== */
 @layer components {
   .glass-card {
-    @apply bg-white/[0.04] backdrop-blur-xl border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,.35)];
+    @apply bg-white/[0.035] backdrop-blur-2xl border border-white/[0.08];
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.05) inset,
+      0 20px 60px -20px rgba(0,0,0,0.8),
+      0 0 0 1px rgba(255,255,255,0.03);
+  }
+
+  .lift-card {
+    @apply bg-white/[0.05] backdrop-blur-xl border border-white/[0.08];
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.06) inset,
+      0 8px 24px -12px rgba(0,0,0,0.6);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+  }
+  .lift-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.18);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.1) inset,
+      0 16px 40px -16px rgba(0,0,0,0.7);
   }
 
   .panel-title {
-    @apply text-xs uppercase tracking-[0.28em] text-zinc-400 font-semibold;
+    @apply text-[10px] uppercase tracking-[0.32em] text-zinc-400 font-semibold;
   }
 
-  .soft-border {
-    @apply border border-white/10;
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide
+           border border-white/[0.08] bg-white/[0.04] text-zinc-300;
   }
 
-  .neon-ring {
-    box-shadow:
-      0 0 0 1px rgba(255,255,255,.06),
-      0 0 30px rgba(99,102,241,.15),
-      inset 0 1px 0 rgba(255,255,255,.06);
+  /* 渐变发光边框（给突出按钮用） */
+  .glow-ring {
+    position: relative;
+  }
+  .glow-ring::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(244,114,182,.6), rgba(251,146,60,.4), rgba(59,130,246,.6));
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+    opacity: .55;
+  }
+
+  /* 原生 details 去掉默认三角 */
+  details.pill > summary { list-style: none; cursor: pointer; }
+  details.pill > summary::-webkit-details-marker { display: none; }
+
+  .accent-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent);
   }
 }
+
+.tabular-nums { font-variant-numeric: tabular-nums; }

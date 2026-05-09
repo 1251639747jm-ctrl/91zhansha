@@ -12,12 +12,12 @@ import StatBar from './components/StatBar';
 import GameLog from './components/GameLog';
 import EventModal, { ModalConfig } from './components/EventModal';
 import RelationshipModal from './components/RelationshipModal';
+import CollapsibleGroup from './components/CollapsibleGroup';
 import { 
   Play, RotateCcw, Utensils, Briefcase, Moon, 
   ShoppingBag, Beer, Dumbbell, Footprints, 
   MonitorPlay, Heart, Skull, AlertOctagon,
   XCircle, Users, Activity, Baby, Home,
-  ShieldAlert,
   Sparkles,
 } from 'lucide-react';
 
@@ -1989,15 +1989,25 @@ if (!isAlreadySick && Math.random() < sickChance) {
     );
   }
   // ===============================
-  // 主游戏界面
+  // 主游戏界面（重绘版）
   // ===============================
+  const isMealPhase = gameState.phase === 'MORNING' || gameState.phase === 'LUNCH' || gameState.phase === 'DINNER';
+  const isFreePhase = gameState.phase === 'FREE_TIME' || gameState.phase.includes('REST');
+  const isWorkPhase = gameState.phase.includes('WORK');
+  const phaseLabel =
+    gameState.phase === 'MORNING' ? '清晨 · 早餐' :
+    gameState.phase === 'LUNCH' ? '中午 · 午餐' :
+    gameState.phase === 'DINNER' ? '傍晚 · 晚餐' :
+    gameState.phase === 'WORK_AM' ? '上午 · 工作' :
+    gameState.phase === 'WORK_PM' ? '下午 · 工作' :
+    gameState.phase === 'REST_AM' ? '上午 · 休息日' :
+    gameState.phase === 'REST_PM' ? '下午 · 休息日' :
+    gameState.phase === 'FREE_TIME' ? '晚间 · 自由时间' :
+    gameState.phase === 'SLEEP' ? '深夜 · 睡眠' :
+    '当前阶段';
+
   return (
-    <div className="min-h-screen relative overflow-hidden text-zinc-200 font-sans selection:bg-fuchsia-500/20">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-fuchsia-600/10 blur-[140px]" />
-        <div className="absolute right-0 top-1/4 w-[400px] h-[400px] bg-cyan-500/10 blur-[120px]" />
-        <div className="absolute left-0 bottom-0 w-[500px] h-[400px] bg-indigo-500/10 blur-[130px]" />
-      </div>
+    <div className="min-h-screen relative text-zinc-200 selection:bg-fuchsia-500/20">
       <EventModal config={gameState.modal} />
       <RelationshipModal
         isOpen={gameState.showRelationshipPanel}
@@ -2014,6 +2024,7 @@ if (!isAlreadySick && Math.random() < sickChance) {
           deposit: bankActions.deposit
         } as any}
       />
+
       <StatBar
         stats={gameState.stats}
         profession={gameState.profession}
@@ -2024,218 +2035,219 @@ if (!isAlreadySick && Math.random() < sickChance) {
         weatherTemp={gameState.weatherTemp}
         bodyTemp={gameState.flags.bodyTemp}
       />
-      <main className="relative max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6">
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-          {/* 左侧：角色概览 + 风险提示 */}
-          <aside className="xl:col-span-3 space-y-5">
-            <div className="glass-card rounded-3xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="min-w-0">
-                  <div className="panel-title">Character</div>
-                  <h3 className="text-xl font-black text-white mt-1 truncate">{gameState.playerName}</h3>
-                </div>
-                <div className="shrink-0 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-xs text-zinc-300">
-                  {gameState.stats.age} 岁
-                </div>
+
+      <main className="relative max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-7 space-y-5">
+        {/* 头条：阶段 + 角色摘要（玻璃板+渐变光） */}
+        <section className="relative overflow-hidden glass-card rounded-[28px] p-5 md:p-6">
+          <div className="absolute inset-0 pointer-events-none opacity-80">
+            <div className="absolute -top-24 left-10 w-[360px] h-[360px] rounded-full bg-rose-500/10 blur-3xl" />
+            <div className="absolute -bottom-24 right-0 w-[360px] h-[360px] rounded-full bg-indigo-500/10 blur-3xl" />
+          </div>
+
+          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="chip text-rose-200 border-rose-400/20 bg-rose-500/10">
+                  <Sparkles className="w-3 h-3" />
+                  {phaseLabel}
+                </span>
+                <span className="chip">PHASE · {gameState.phase}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2.5 mb-4">
-                <InfoCard label="职业" value={gameState.profession?.name || '未知'} />
-                <InfoCard label="背景" value={gameState.background?.name || '未知'} />
-                <InfoCard label="生存" value={`${gameState.stats.daysSurvived} 天`} />
-                <InfoCard
-                  label="负债"
-                  value={`¥${gameState.stats.debt.toLocaleString()}`}
-                  danger={gameState.stats.debt > 0}
-                />
+              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-2">
+                {gameState.playerName}
+                <span className="text-sm font-normal text-zinc-400">· {gameState.stats.age} 岁</span>
+              </h1>
+              <div className="text-sm text-zinc-400 mt-1">
+                {gameState.profession?.name || '无业游民'} · {gameState.background?.name || '未知背景'} ·
+                已在这座城市挣扎 <span className="text-white font-semibold">{gameState.stats.daysSurvived}</span> 天
               </div>
-              <div className="space-y-2.5 mb-4">
-                <MiniBar label="体力" value={gameState.stats.physical} max={200} color="bg-gradient-to-r from-red-500 to-orange-400" />
-                <MiniBar label="精神" value={gameState.stats.mental} max={100} color="bg-gradient-to-r from-blue-500 to-cyan-400" />
-                <MiniBar label="饱食" value={gameState.stats.satiety} max={100} color="bg-gradient-to-r from-yellow-500 to-orange-400" />
-              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {gameState.stats.debt > 0 && (
+                <span className="chip text-red-200 border-red-400/30 bg-red-500/15">
+                  负债 ¥{gameState.stats.debt.toLocaleString()}
+                </span>
+              )}
               <button
                 onClick={() => setGameState(prev => ({ ...prev, showRelationshipPanel: true } as any))}
-                className="w-full rounded-2xl border border-pink-400/20 bg-pink-500/10 hover:bg-pink-500/20 text-pink-200 px-4 py-3 transition-all flex items-center justify-center gap-2 font-semibold text-sm"
+                className="relative glow-ring rounded-2xl px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-br from-rose-500/25 via-pink-500/20 to-purple-500/25 hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <Heart className="w-4 h-4" />
+                <Heart className="w-4 h-4 text-rose-200" />
                 家庭 / 情感 / 资产
               </button>
             </div>
+          </div>
 
-            {/* 风险提示面板（去除和顶部 StatBar 重复的日期/现金/体温/季节） */}
-            <div className="glass-card rounded-3xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="panel-title">Risk Alerts</div>
-                <ShieldAlert className="w-4 h-4 text-zinc-500" />
-              </div>
-              <div className="space-y-2.5">
-                {gameState.flags.hospitalDays > 0 && (
-                  <StatusAlert
-                    color="red"
-                    title={`住院治疗中 · 剩余 ${gameState.flags.hospitalDays} 天`}
-                    desc={`每日花费 ¥${gameState.flags.hospitalDailyCost}`}
-                    icon={<Activity className="w-4 h-4" />}
-                  />
-                )}
-                {gameState.flags.blackVanRisk > 0 && (
-                  <StatusAlert
-                    color="amber"
-                    title={`生物资产风险 ${gameState.flags.blackVanRisk}%`}
-                    desc="你已进入高价值健康目标观察名单"
-                    icon={<Skull className="w-4 h-4" />}
-                  />
-                )}
-                {gameState.flags.disease && (
-                  <StatusAlert
-                    color="purple"
-                    title={`当前疾病：${gameState.flags.disease}`}
-                    desc="身体处于异常状态，属性恢复将受影响"
-                    icon={<AlertOctagon className="w-4 h-4" />}
-                  />
-                )}
-                {!gameState.flags.hospitalDays && !gameState.flags.blackVanRisk && !gameState.flags.disease && (
-                  <div className="rounded-2xl border border-emerald-400/10 bg-emerald-500/10 px-4 py-3 text-emerald-200 text-xs leading-relaxed">
-                    当前暂无高危事件，恭喜你暂时还活着。
+          {/* 高危事件横幅 */}
+          <div className="relative mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <StatusBanner
+              active={gameState.flags.hospitalDays > 0}
+              tone="red"
+              icon={<Activity className="w-4 h-4" />}
+              title={`住院 · 剩余 ${gameState.flags.hospitalDays} 天`}
+              desc={`每日花费 ¥${gameState.flags.hospitalDailyCost}`}
+            />
+            <StatusBanner
+              active={!!gameState.flags.disease}
+              tone="purple"
+              icon={<AlertOctagon className="w-4 h-4" />}
+              title={gameState.flags.disease ? `疾病：${gameState.flags.disease}` : '身体暂无病症'}
+              desc={gameState.flags.disease ? '属性恢复受影响' : '保持住这份脆弱的平衡'}
+            />
+            <StatusBanner
+              active={gameState.flags.blackVanRisk > 0}
+              tone="amber"
+              icon={<Skull className="w-4 h-4" />}
+              title={gameState.flags.blackVanRisk > 0 ? `生物资产风险 ${gameState.flags.blackVanRisk}%` : '低调生活中'}
+              desc={gameState.flags.blackVanRisk > 0 ? '深夜注意身后的面包车' : '暂未进入观察名单'}
+            />
+          </div>
+        </section>
+
+        {/* 行动中心：根据阶段渲染对应主动作 + 可折叠分组 */}
+        <section className="space-y-4">
+          {/* 主动作（每个阶段有一个"主按钮"区） */}
+          {gameState.flags.hospitalDays > 0 ? (
+            <HeroAction
+              tone="red"
+              title="接受治疗"
+              subtitle={`点击度过这一天 · -¥${gameState.flags.hospitalDailyCost}`}
+              icon={<Activity className="w-8 h-8" />}
+              onClick={handleSleep}
+            />
+          ) : isWorkPhase ? (
+            (!gameState.workRounds || gameState.workRounds === 0) ? (
+              <HeroAction
+                tone="cyan"
+                title="进入工位"
+                subtitle="感受空气中弥漫的 PUA 气息"
+                icon={<Briefcase className="w-8 h-8" />}
+                onClick={handleWork}
+              />
+            ) : (
+              <div className="glass-card rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <div className="panel-title">Working</div>
+                    <div className="text-lg font-bold text-amber-200 mt-1">搬砖进行中</div>
                   </div>
-                )}
-              </div>
-            </div>
-          </aside>
-
-          {/* 中间：行动中心 */}
-          <section className="xl:col-span-6 glass-card rounded-3xl p-5 md:p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <div className="panel-title">Action Center</div>
-                <h3 className="text-2xl font-black text-white mt-1">今日行动面板</h3>
-              </div>
-              <div className="text-xs text-zinc-500 font-mono">
-                PHASE: {gameState.phase}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5">
-              {gameState.flags.hospitalDays > 0 ? (
-                <button
-                  onClick={handleSleep}
-                  className="col-span-full rounded-3xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/15 p-10 text-red-100 transition-all"
-                >
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
-                      <Activity className="w-8 h-8" />
-                    </div>
-                    <div className="text-2xl font-black mb-2">接受治疗</div>
-                    <div className="text-sm text-red-200/70">
-                      点击度过这一天 · -¥{gameState.flags.hospitalDailyCost}
-                    </div>
+                  <div className="chip text-amber-200 border-amber-400/30 bg-amber-500/15">
+                    {gameState.workRounds} / 3
                   </div>
-                </button>
-              ) : (
-                <>
-                  {gameState.phase.includes('WORK') && (
-                    <div className="col-span-full">
-                      {(!gameState.workRounds || gameState.workRounds === 0) ? (
-                        <button
-                          onClick={handleWork}
-                          className="w-full rounded-3xl border border-cyan-400/20 bg-cyan-500/10 hover:bg-cyan-500/15 p-8 transition-all"
-                        >
-                          <div className="flex flex-col items-center justify-center">
-                            <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-4">
-                              <Briefcase className="w-8 h-8 text-cyan-300" />
-                            </div>
-                            <div className="text-2xl font-black text-white">进入工位</div>
-                            <div className="text-sm text-cyan-200/70 mt-1">
-                              感受空气中弥漫的 PUA 气息
-                            </div>
-                          </div>
-                        </button>
-                      ) : (
-                        <div className="rounded-3xl border border-amber-500/20 bg-amber-500/10 p-5">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="text-lg font-bold text-amber-200">搬砖进行中</div>
-                            <div className="text-sm text-amber-300/80">进度 {gameState.workRounds} / 3</div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <button
-                              onClick={() => handleWorkChoice('HARD')}
-                              disabled={gameState.stats.physical < 15}
-                              className={`rounded-2xl p-6 border transition-all ${
-                                gameState.stats.physical < 15
-                                  ? 'bg-zinc-800/60 border-white/10 text-zinc-500 cursor-not-allowed'
-                                  : 'bg-red-500/10 border-red-500/20 text-red-100 hover:bg-red-500/20'
-                              }`}
-                            >
-                              <div className="text-lg font-bold">
-                                {gameState.stats.physical < 15 ? '体力透支' : '疯狂内卷'}
-                              </div>
-                              <div className="text-xs opacity-70 mt-1">
-                                {gameState.stats.physical < 15 ? '无法执行高强度劳动' : '表现 +20 · 体力消耗'}
-                              </div>
-                            </button>
-                            <button
-                              onClick={() => handleWorkChoice('SLACK')}
-                              className="rounded-2xl p-6 border border-emerald-500/20 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20 transition-all"
-                            >
-                              <div className="text-lg font-bold">带薪摸鱼</div>
-                              <div className="text-xs opacity-70 mt-1">表现 -10 · 精神恢复</div>
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => handleWorkChoice('HARD')}
+                    disabled={gameState.stats.physical < 15}
+                    className={`rounded-2xl p-5 border text-left transition-all ${
+                      gameState.stats.physical < 15
+                        ? 'bg-zinc-800/60 border-white/10 text-zinc-500 cursor-not-allowed'
+                        : 'bg-rose-500/10 border-rose-500/30 text-rose-100 hover:bg-rose-500/20'
+                    }`}
+                  >
+                    <div className="text-base font-bold">
+                      {gameState.stats.physical < 15 ? '体力透支' : '疯狂内卷'}
                     </div>
-                  )}
-                  {(gameState.phase === 'MORNING' || gameState.phase === 'LUNCH' || gameState.phase === 'DINNER') && (
-                    <>
-                      <ActionBtn label="拼好饭" icon={<ShoppingBag />} onClick={() => handleEat('TAKEOUT')} color="orange" sub="-¥10 · 临时续命" />
-                      <ActionBtn label="下厨做饭" icon={<Utensils />} onClick={() => handleEat('COOK_MENU')} color="green" sub="更高恢复收益" />
-                      <ActionBtn label="跳过用餐" icon={<XCircle />} onClick={() => handleEat('SKIP')} color="red" sub="修仙但掉状态" />
-                    </>
-                  )}
-                  {(gameState.phase === 'FREE_TIME' || gameState.phase.includes('REST')) && (
-                    <>
-                      <ActionBtn label="医院 / 体检" icon={<Activity />} onClick={handleHospitalVisit} color="teal" sub="健康检查与治疗" />
-                      <ActionBtn label="家庭中心" icon={<Home />} onClick={() => setGameState(p => ({ ...p, showRelationshipPanel: true } as any))} color="pink" sub="伴侣 / 孩子 / 资产" />
-                      <ActionBtn label="做顿好的" icon={<Utensils />} onClick={() => handleEat('COOK_MENU')} color="green" sub="厨房模式" />
-                      <ActionBtn label="金帝皇洗脚城" icon={<Footprints />} onClick={() => handleFreeTime('SPA')} color="pink" sub="-¥1288 · 帝王套" />
-                      <ActionBtn label="守护女主播" icon={<Heart />} onClick={() => handleFreeTime('STREAMER')} color="purple" sub="-¥1000 · 嘉年华" />
-                      <ActionBtn label="海克斯烧烤" icon={<Beer />} onClick={() => handleFreeTime('BBQ')} color="orange" sub="-¥100 · 碳水快乐" />
-                      <ActionBtn label="网吧通宵" icon={<MonitorPlay />} onClick={() => handleFreeTime('INTERNET_CAFE')} color="indigo" sub="-¥20 · 回到青春" />
-                      <ActionBtn label="私人影院" icon={<Users />} onClick={() => handleFreeTime('MOVIE')} color="zinc" sub="-¥50 · 夜间娱乐" />
-                      <ActionBtn label="广场舞混子" icon={<Dumbbell />} onClick={() => handleFreeTime('SQUARE_DANCE')} color="zinc" sub="寻找富婆未果" />
-                      <ActionBtn label="City Walk" icon={<Footprints />} onClick={() => handleFreeTime('WALK')} color="zinc" sub="散步降压" />
-                      <ActionBtn label="在家躺平" icon={<Home />} onClick={() => handleFreeTime('HOME')} color="zinc" sub="低成本回血" />
-                    </>
-                  )}
-                  {gameState.phase === 'SLEEP' && (
-                    <button
-                      onClick={handleSleep}
-                      className="col-span-full rounded-3xl border border-indigo-400/20 bg-indigo-500/10 hover:bg-indigo-500/15 p-10 transition-all"
-                    >
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
-                          <Moon className="w-8 h-8 text-indigo-300" />
-                        </div>
-                        <div className="text-2xl font-black text-white">结束这一天</div>
-                        <div className="text-sm text-indigo-200/70 mt-1">Proceed to next day</div>
-                      </div>
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </section>
+                    <div className="text-xs opacity-70 mt-1">
+                      {gameState.stats.physical < 15 ? '无法执行高强度劳动' : '表现 +20 · 体力消耗大'}
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleWorkChoice('SLACK')}
+                    className="rounded-2xl p-5 border border-emerald-500/30 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20 transition-all text-left"
+                  >
+                    <div className="text-base font-bold">带薪摸鱼</div>
+                    <div className="text-xs opacity-70 mt-1">表现 -10 · 精神 +8</div>
+                  </button>
+                </div>
+              </div>
+            )
+          ) : gameState.phase === 'SLEEP' ? (
+            <HeroAction
+              tone="indigo"
+              title="结束这一天"
+              subtitle="Proceed to next day"
+              icon={<Moon className="w-8 h-8" />}
+              onClick={handleSleep}
+            />
+          ) : null}
 
-          {/* 右侧：系统日志（桌面端粘性，移动端正常流） */}
-          <aside className="xl:col-span-3">
-            <div className="xl:sticky xl:top-[160px] xl:h-[calc(100vh-180px)] h-[420px]">
-              <GameLog logs={gameState.log} heightMode="flex" />
-            </div>
-          </aside>
-        </div>
+          {/* 用餐组：吃饭阶段时直接展开 */}
+          {isMealPhase && (
+            <CollapsibleGroup
+              accent="amber"
+              icon={<Utensils className="w-4 h-4" />}
+              title="用餐时间"
+              subtitle="早/中/晚餐 · 决定今天的饱食与体力"
+              badge={<span className="chip text-amber-200 border-amber-400/30 bg-amber-500/15">当前阶段</span>}
+              defaultOpen
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                <ActionBtn label="拼好饭" icon={<ShoppingBag />} onClick={() => handleEat('TAKEOUT')} color="orange" sub="-¥10 · 临时续命" />
+                <ActionBtn label="下厨做饭" icon={<Utensils />} onClick={() => handleEat('COOK_MENU')} color="green" sub="更高恢复收益" />
+                <ActionBtn label="跳过用餐" icon={<XCircle />} onClick={() => handleEat('SKIP')} color="red" sub="修仙但掉状态" />
+              </div>
+            </CollapsibleGroup>
+          )}
+
+          {/* 自由时间分组 */}
+          {isFreePhase && (
+            <>
+              <CollapsibleGroup
+                accent="cyan"
+                icon={<Activity className="w-4 h-4" />}
+                title="生活基础"
+                subtitle="医院、家庭中心、下厨——维持生存的必要操作"
+                defaultOpen
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                  <ActionBtn label="医院 / 体检" icon={<Activity />} onClick={handleHospitalVisit} color="teal" sub="健康检查与治疗" />
+                  <ActionBtn label="家庭中心" icon={<Home />} onClick={() => setGameState(p => ({ ...p, showRelationshipPanel: true } as any))} color="pink" sub="伴侣 / 孩子 / 资产" />
+                  <ActionBtn label="做顿好的" icon={<Utensils />} onClick={() => handleEat('COOK_MENU')} color="green" sub="厨房模式" />
+                </div>
+              </CollapsibleGroup>
+
+              <CollapsibleGroup
+                accent="fuchsia"
+                icon={<Heart className="w-4 h-4" />}
+                title="消费与放纵"
+                subtitle="当代打工人的续命方式 · 花钱买多巴胺"
+                defaultOpen={false}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+                  <ActionBtn label="金帝皇洗脚城" icon={<Footprints />} onClick={() => handleFreeTime('SPA')} color="pink" sub="-¥1288 · 帝王套" />
+                  <ActionBtn label="守护女主播" icon={<Heart />} onClick={() => handleFreeTime('STREAMER')} color="purple" sub="-¥1000 · 嘉年华" />
+                  <ActionBtn label="海克斯烧烤" icon={<Beer />} onClick={() => handleFreeTime('BBQ')} color="orange" sub="-¥100 · 碳水快乐" />
+                  <ActionBtn label="网吧通宵" icon={<MonitorPlay />} onClick={() => handleFreeTime('INTERNET_CAFE')} color="indigo" sub="-¥20 · 回到青春" />
+                  <ActionBtn label="私人影院" icon={<Users />} onClick={() => handleFreeTime('MOVIE')} color="zinc" sub="-¥50 · 夜间娱乐" />
+                </div>
+              </CollapsibleGroup>
+
+              <CollapsibleGroup
+                accent="emerald"
+                icon={<Footprints className="w-4 h-4" />}
+                title="免费续命"
+                subtitle="穷有穷的活法 · 0 或低成本恢复"
+                defaultOpen={false}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                  <ActionBtn label="广场舞混子" icon={<Dumbbell />} onClick={() => handleFreeTime('SQUARE_DANCE')} color="zinc" sub="寻找富婆未果" />
+                  <ActionBtn label="City Walk" icon={<Footprints />} onClick={() => handleFreeTime('WALK')} color="zinc" sub="散步降压" />
+                  <ActionBtn label="在家躺平" icon={<Home />} onClick={() => handleFreeTime('HOME')} color="zinc" sub="低成本回血" />
+                </div>
+              </CollapsibleGroup>
+            </>
+          )}
+        </section>
+
+        {/* 底部系统日志 · 可折叠 */}
+        <GameLog logs={gameState.log} heightMode="collapsible" defaultOpen={false} />
       </main>
     </div>
   );
 };
-// --- UI 组件：操作按钮 ---
+// --- UI 组件 ---
 const InfoCard = ({
   label,
   value,
@@ -2252,84 +2264,144 @@ const InfoCard = ({
     </div>
   </div>
 );
-const MiniBar = ({
-  label,
-  value,
-  max,
-  color
-}: {
-  label: string;
-  value: number;
-  max: number;
-  color: string;
-}) => (
-  <div>
-    <div className="flex justify-between text-xs text-zinc-400 mb-1">
-      <span>{label}</span>
-      <span>{value}/{max}</span>
-    </div>
-    <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-      <div className={`h-full ${color}`} style={{ width: `${Math.min(100, (value / max) * 100)}%` }} />
-    </div>
-  </div>
-);
-const StatusAlert = ({
-  color,
+
+/** 状态横幅（高危事件展示）*/
+const StatusBanner = ({
+  active,
+  tone,
+  icon,
   title,
   desc,
-  icon,
 }: {
-  color: 'red' | 'amber' | 'purple';
+  active: boolean;
+  tone: 'red' | 'amber' | 'purple' | 'emerald';
+  icon: React.ReactNode;
   title: string;
   desc: string;
-  icon: React.ReactNode;
 }) => {
-  const map = {
-    red: 'border-red-500/20 bg-red-500/10 text-red-200',
-    amber: 'border-amber-500/20 bg-amber-500/10 text-amber-200',
-    purple: 'border-purple-500/20 bg-purple-500/10 text-purple-200',
+  const activeMap = {
+    red: 'border-red-400/30 bg-red-500/10 text-red-100',
+    amber: 'border-amber-400/30 bg-amber-500/10 text-amber-100',
+    purple: 'border-fuchsia-400/30 bg-fuchsia-500/10 text-fuchsia-100',
+    emerald: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100',
+  };
+  const idleCls = 'border-white/10 bg-white/[0.025] text-zinc-400';
+  const iconBg = {
+    red: 'bg-red-500/15 text-red-300',
+    amber: 'bg-amber-500/15 text-amber-300',
+    purple: 'bg-fuchsia-500/15 text-fuchsia-300',
+    emerald: 'bg-emerald-500/15 text-emerald-300',
   };
   return (
-    <div className={`rounded-2xl border px-4 py-4 ${map[color]}`}>
-      <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-xl bg-black/20 flex items-center justify-center shrink-0">
-          {icon}
-        </div>
-        <div>
-          <div className="font-semibold">{title}</div>
-          <div className="text-sm opacity-75 mt-1">{desc}</div>
-        </div>
+    <div
+      className={`rounded-2xl border px-3.5 py-3 flex items-center gap-3 transition-all ${
+        active ? activeMap[tone] : idleCls
+      }`}
+    >
+      <div
+        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+          active ? iconBg[tone] : 'bg-white/[0.04] text-zinc-500'
+        }`}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className={`text-sm font-bold truncate ${active ? '' : 'text-zinc-300'}`}>{title}</div>
+        <div className="text-[11px] opacity-75 truncate">{desc}</div>
       </div>
     </div>
   );
 };
+
+/** 主动作大按钮：每个阶段最核心的一件事 */
+const HeroAction = ({
+  tone,
+  title,
+  subtitle,
+  icon,
+  onClick,
+}: {
+  tone: 'red' | 'cyan' | 'indigo' | 'emerald';
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}) => {
+  const toneMap = {
+    red: {
+      wrap: 'from-red-500/25 via-rose-500/15 to-transparent border-red-400/30 hover:border-red-400/50',
+      iconWrap: 'bg-red-500/20 border-red-400/30 text-red-200',
+      title: 'text-red-100',
+      sub: 'text-red-200/70',
+    },
+    cyan: {
+      wrap: 'from-cyan-500/25 via-sky-500/15 to-transparent border-cyan-400/30 hover:border-cyan-400/50',
+      iconWrap: 'bg-cyan-500/20 border-cyan-400/30 text-cyan-200',
+      title: 'text-white',
+      sub: 'text-cyan-200/70',
+    },
+    indigo: {
+      wrap: 'from-indigo-500/25 via-violet-500/15 to-transparent border-indigo-400/30 hover:border-indigo-400/50',
+      iconWrap: 'bg-indigo-500/20 border-indigo-400/30 text-indigo-200',
+      title: 'text-white',
+      sub: 'text-indigo-200/70',
+    },
+    emerald: {
+      wrap: 'from-emerald-500/25 via-teal-500/15 to-transparent border-emerald-400/30 hover:border-emerald-400/50',
+      iconWrap: 'bg-emerald-500/20 border-emerald-400/30 text-emerald-200',
+      title: 'text-white',
+      sub: 'text-emerald-200/70',
+    },
+  };
+  const t = toneMap[tone];
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full relative overflow-hidden rounded-[26px] border p-6 md:p-7 text-left bg-gradient-to-br ${t.wrap} transition-all hover:scale-[1.01] active:scale-[0.99]`}
+    >
+      <div className="absolute -right-8 -bottom-8 opacity-10 text-white">
+        {React.isValidElement(icon)
+          ? React.cloneElement(icon as React.ReactElement<any>, { className: 'w-48 h-48' })
+          : null}
+      </div>
+      <div className="relative flex items-center gap-5">
+        <div className={`w-16 h-16 rounded-2xl border flex items-center justify-center shrink-0 ${t.iconWrap}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className={`text-2xl md:text-3xl font-black tracking-tight ${t.title}`}>{title}</div>
+          <div className={`text-sm mt-1 ${t.sub}`}>{subtitle}</div>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+/** 行动按钮 · 精简小卡片 */
 const ActionBtn = ({ label, icon, onClick, color, sub }: any) => {
   const colors: any = {
-    zinc: 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200',
-    orange: 'border-orange-400/20 bg-orange-500/10 hover:bg-orange-500/20 text-orange-200',
-    green: 'border-emerald-400/20 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-200',
-    red: 'border-red-400/20 bg-red-500/10 hover:bg-red-500/20 text-red-200',
-    teal: 'border-teal-400/20 bg-teal-500/10 hover:bg-teal-500/20 text-teal-200',
-    purple: 'border-purple-400/20 bg-purple-500/10 hover:bg-purple-500/20 text-purple-200',
-    indigo: 'border-indigo-400/20 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200',
-    pink: 'border-pink-400/20 bg-pink-500/10 hover:bg-pink-500/20 text-pink-200',
+    zinc:    'border-white/10 bg-white/[0.03] hover:bg-white/[0.07] text-zinc-200 [&_.ic]:bg-white/[0.06]',
+    orange:  'border-orange-400/20 bg-orange-500/08 hover:bg-orange-500/15 text-orange-100 [&_.ic]:bg-orange-500/15',
+    green:   'border-emerald-400/20 bg-emerald-500/08 hover:bg-emerald-500/15 text-emerald-100 [&_.ic]:bg-emerald-500/15',
+    red:     'border-red-400/20 bg-red-500/08 hover:bg-red-500/15 text-red-100 [&_.ic]:bg-red-500/15',
+    teal:    'border-teal-400/20 bg-teal-500/08 hover:bg-teal-500/15 text-teal-100 [&_.ic]:bg-teal-500/15',
+    purple:  'border-fuchsia-400/20 bg-fuchsia-500/08 hover:bg-fuchsia-500/15 text-fuchsia-100 [&_.ic]:bg-fuchsia-500/15',
+    indigo:  'border-indigo-400/20 bg-indigo-500/08 hover:bg-indigo-500/15 text-indigo-100 [&_.ic]:bg-indigo-500/15',
+    pink:    'border-pink-400/20 bg-pink-500/08 hover:bg-pink-500/15 text-pink-100 [&_.ic]:bg-pink-500/15',
   };
   return (
     <button
       onClick={onClick}
-      className={`${colors[color] || colors.zinc} group relative overflow-hidden rounded-3xl border p-4 min-h-[130px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-left`}
+      className={`lift-card ${colors[color] || colors.zinc} rounded-2xl border p-4 text-left flex items-start gap-3 min-h-[88px]`}
     >
-      <div className="absolute -right-3 -top-3 opacity-10 group-hover:opacity-20 transition-all">
-        {React.cloneElement(icon, { size: 64 })}
+      <div className="ic w-10 h-10 rounded-xl border border-white/10 flex items-center justify-center shrink-0">
+        {React.isValidElement(icon)
+          ? React.cloneElement(icon as React.ReactElement<any>, { className: 'w-4 h-4' })
+          : null}
       </div>
-      <div className="relative z-10 flex flex-col justify-between h-full">
-        <div className="w-11 h-11 rounded-2xl bg-black/20 border border-white/10 flex items-center justify-center mb-4">
-          {React.cloneElement(icon, { className: 'w-5 h-5 group-hover:scale-110 transition-transform' })}
-        </div>
-        <div>
-          <div className="font-bold text-base">{label}</div>
-          <div className="text-xs opacity-70 mt-1">{sub}</div>
-        </div>
+      <div className="min-w-0 flex-1">
+        <div className="font-bold text-[15px] truncate">{label}</div>
+        <div className="text-[11px] opacity-70 mt-0.5 truncate">{sub}</div>
       </div>
     </button>
   );
