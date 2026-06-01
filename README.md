@@ -186,6 +186,112 @@ npm run preview
 | ↳ App 18 | 代码注释 `健康上限提升至 200` | 引入住院系统、黑色面包车、子女系统、教育阶段费用 |
 | ↳ UI 重绘 | `index.css` / `StatBar` / `GameLog` / `CollapsibleGroup` | 暖粉+靛蓝极光渐变背景、HUD 顶栏、可折叠日志抽屉、按主题分组的行动按钮 |
 
+### 代码考古笔记：AI 古法编程的痕迹
+
+> 本项目主体由作者**纯对话复制粘贴**的方式与 AI 协作完成（即俗称的"AI 古法编程"——不接 IDE、不走 diff、靠人肉搬运），下面这些痕迹被忠实地保留在了仓库里，不打算修——它们也是项目历史的一部分。
+
+#### 1. 一个堆得快要塌了的 `App.tsx`（2409 行）
+
+整个游戏循环挤在单一组件里，没有拆 reducer、没有 context、没有自定义 hook。统计如下：
+
+| 指标 | 次数 |
+| --- | --- |
+| `useState` | 5 |
+| `useEffect` | 2 |
+| `setGameState` 调用 | 57 |
+| 嵌套的 `const` 函数 | 140+ |
+| `Math.random()` 直接散落在业务逻辑里 | 33 |
+| `triggerDeath` / `updateStats` / `addLog` / `showModal` 调用 | 24 / 50 / 37 / 19 |
+
+#### 2. 代码注释里嵌着 AI Studio 的版本号
+
+作者每次让 AI 改一版就把版本号写进注释，最后形成了一份"考古地层"：
+
+```ts
+// 主播剧情标记 (App 17)
+streamerSimpCount: 0,
+
+// 住院与健康标记 (App 18)
+hospitalDays: 0,
+hospitalDailyCost: 0,
+blackVanRisk: 0,
+
+// 限制数值范围 (App 18 将上限提升至 200)
+if (changes.physical) newStats.physical = Math.min(200, ...);
+```
+
+#### 3. 经典 LLM 输出标记原封保留
+
+```ts
+// --- START OF FILE constants.ts ---     ← AI 复制时自带的文件头
+// === 常量定义：保留所有文本描述 ===       ← AI 自我安抚式标记
+// 物品库存 (合并版)                       ← 多次合并的副产物
+// 职业专属日志 (扩充版)                   ← 同上
+// [新增] 家庭背景                         ← ChatGPT 风格 diff 注释
+// [新增] 子女系统
+// [新增] 育儿用品
+// 【修复核心】：如果当前油量 > 0，则混合污染
+// 核心修复：油用光了，自动清除坏油标记
+// App.tsx 内部新增                        ← 当时让 AI"插一段"的对话痕迹
+```
+
+#### 4. 缩进彻底崩了——AI 增量补丁的副作用
+
+`App` 组件内部的 `bankActions` / `marriageActions` / `triggerDeath` 这些"后塞进来"的对象，全部用**第 0 列**写在函数体里，夹着 `// App.tsx 内部新增` 这种自述式注释，但确实是 React 组件函数的内部闭包：
+
+```tsx
+const App: React.FC = () => {
+  // ... 正常 2 空格缩进的 hooks ...
+
+  };
+// App.tsx 内部新增           ← 注释贴在了组件外的视觉位置
+const bankActions = {        ← 但其实是 App 内部的常量
+  deposit: (amount: number) => { ... }
+};
+
+const marriageActions = {     ← 同上，缩进 0 列但闭包在 App 内
+  propose: () => { ... }
+};
+
+const triggerDeath = (reason: string) => { ... }
+```
+
+#### 5. 类型系统按"先跑起来再说"原则维护
+
+- `as any` 共 **5** 处
+- `// @ts-ignore` 共 **4** 处
+- 例如 `[ing.id]: (prev.flags.inventory[ing.id] || 0) + 1` 上面就贴了 `// @ts-ignore`，因为 inventory 的 key 类型从来没收紧过
+
+#### 6. 删不干净的化石
+
+```ts
+// 复合死亡条件逻辑已移至 App.tsx 中处理，此处保留空数组防止引用报错
+export const COMPLEX_DEATHS: any[] = [];
+```
+
+`COMPLEX_DEATHS` 已经在新版本中失去意义，但还在被 `App.tsx` import，所以只能留个空数组当替身。
+
+#### 7. flags 是一个 20+ 字段的"杂物袋"
+
+`gameState.flags` 持续生长，目前同时塞着：`isDepressed / disease / hasLoan / isSingle / partner / hasHouse / hasCar / hasInsurance / streamerSimpCount / hospitalDays / hospitalDailyCost / blackVanRisk / lastCheckupDate / knownHealth / inventory / children / isMarried / weddedPartner / hasAC / isACOn / summerDaysWithoutAC / isBankFrozen / bankBalance / parentPressure / lastJobEventDate / isPursuing` ……每加一个新系统就往里塞一个 flag，没有拆分。
+
+#### 8. 数值上限在常量与逻辑里"分裂"
+
+`constants.ts` 里有个无奈的注释，反映了对话式编程的局限：
+
+```ts
+// 注意：健康值上限在逻辑中已改为 200，但初始值在这里设定
+export const INITIAL_STATS: PlayerStats = {
+  physical: 80, // 初始健康 (上限200)
+  mental: 80,   // 初始精神 (上限100)
+  ...
+};
+```
+
+> 上限是改在了 `App.tsx` 的 `Math.min(200, ...)` 里，但常量定义里只能用注释提醒。
+
+---
+
 ### 本次 UI 重绘的具体改动
 
 - **`index.css`**：新配色体系（暖粉+靛蓝渐变 + 极光动画 + 细噪点），新增 `lift-card` / `chip` / `glow-ring` 原子样式
